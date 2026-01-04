@@ -125,6 +125,7 @@ export const useShipmentStore = create<ShipmentStore>()(
         if (state) {
           state.shipments = state.shipments.map(s => ({
             ...s,
+            equipment: Array.isArray(s.equipment) ? s.equipment : [],
             createdAt: new Date(s.createdAt),
             completedAt: s.completedAt ? new Date(s.completedAt) : undefined,
             lostAt: s.lostAt ? new Date(s.lostAt) : undefined,

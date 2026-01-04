@@ -132,7 +132,7 @@ export function OperationsCombinedTable({ shipments, onEdit }: OperationsCombine
                   </Select>
                 </TableCell>
                 <TableCell className="text-xs">
-                  {shipment.equipment.map(e => `${e.quantity}x${e.type}`).join(', ')}
+                  {(shipment.equipment || []).map(e => `${e.quantity}x${e.type}`).join(', ') || '-'}
                 </TableCell>
                 <TableCell>
                   <TextCell value={shipment.nssBookingReference} />
