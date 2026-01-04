@@ -15,7 +15,7 @@ export default {
   	extend: {
   		fontFamily: {
   			sans: [
-  				'DM Sans',
+  				'Inter',
   				'ui-sans-serif',
   				'system-ui',
   				'sans-serif',
@@ -27,26 +27,6 @@ export default {
   			heading: [
   				'Outfit',
   				'sans-serif'
-  			],
-  			serif: [
-  				'Crimson Pro',
-  				'ui-serif',
-  				'Georgia',
-  				'Cambria',
-  				'Times New Roman',
-  				'Times',
-  				'serif'
-  			],
-  			mono: [
-  				'SF Mono',
-  				'ui-monospace',
-  				'SFMono-Regular',
-  				'Menlo',
-  				'Monaco',
-  				'Consolas',
-  				'Liberation Mono',
-  				'Courier New',
-  				'monospace'
   			]
   		},
   		colors: {

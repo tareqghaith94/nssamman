@@ -58,15 +58,16 @@ export function Sidebar() {
   
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
-      <div className="flex h-24 items-center justify-center px-4 border-b border-sidebar-border">
+      {/* Logo Section - Larger and more prominent */}
+      <div className="flex h-28 items-center justify-center px-6 border-b border-sidebar-border/50 bg-sidebar-accent/30">
         <img 
           src={nssLogo} 
           alt="NSS - National Shipping Services" 
-          className="h-16 w-auto object-contain"
+          className="h-20 w-auto object-contain"
         />
       </div>
       
-      <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
+      <nav className="p-3 space-y-1 flex-1 overflow-y-auto">
         {filteredNavigation.map((item) => {
           const isActive = location.pathname === item.href;
           return (
@@ -74,10 +75,10 @@ export function Sidebar() {
               key={item.name}
               to={item.href}
               className={cn(
-                'flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all duration-200',
+                'flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-200',
                 isActive
-                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-lg'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground'
+                  ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-md'
+                  : 'text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground'
               )}
             >
               <item.icon className="w-5 h-5" />
