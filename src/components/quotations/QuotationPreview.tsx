@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Quotation } from '@/types/quotation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -14,17 +15,51 @@ interface QuotationPreviewProps {
 }
 
 export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPreviewProps) {
-  const { issueQuotation } = useQuotations();
+  const { issueQuotation, fetchLineItems } = useQuotations();
+  const [lineItems, setLineItems] = useState<{ description: string; equipmentType?: string; unitCost: number; quantity: number; amount: number }[]>([]);
+
+  useEffect(() => {
+    if (quotation && open) {
+      fetchLineItems(quotation.id).then((items) => {
+        if (items.length > 0) {
+          setLineItems(items.map(item => ({
+            description: item.description,
+            equipmentType: item.equipmentType,
+            unitCost: item.unitCost,
+            quantity: item.quantity,
+            amount: item.amount,
+          })));
+        } else {
+          // Fallback to old equipment-based rendering
+          const equipmentItems = quotation.equipment.map(eq => ({
+            description: 'Ocean Freight',
+            equipmentType: eq.type,
+            unitCost: quotation.oceanFreightAmount || 0,
+            quantity: eq.quantity,
+            amount: (quotation.oceanFreightAmount || 0) * eq.quantity,
+          }));
+          
+          // Add ex-works if present
+          if (quotation.exwAmount && quotation.exwQty) {
+            equipmentItems.push({
+              description: 'Ex-Works',
+              equipmentType: undefined,
+              unitCost: quotation.exwAmount,
+              quantity: quotation.exwQty,
+              amount: quotation.exwAmount * quotation.exwQty,
+            });
+          }
+          setLineItems(equipmentItems);
+        }
+      }).catch(() => {
+        setLineItems([]);
+      });
+    }
+  }, [quotation, open, fetchLineItems]);
 
   if (!quotation) return null;
 
-  const getTotalUnits = () => {
-    return quotation.equipment.reduce((sum, eq) => sum + eq.quantity, 0);
-  };
-
-  const oceanTotal = (quotation.oceanFreightAmount || 0) * getTotalUnits();
-  const exwTotal = (quotation.exwAmount || 0) * (quotation.exwQty || 0);
-  const grandTotal = oceanTotal + exwTotal;
+  const grandTotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
 
   const handleIssue = async () => {
     try {
@@ -139,35 +174,19 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
                 </tr>
               </thead>
               <tbody>
-                {/* Ocean Freight rows */}
-                {quotation.equipment.map((eq, index) => (
+                {lineItems.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 p-3">Ocean Freight</td>
-                    <td className="border border-gray-300 p-3">{eq.type}</td>
+                    <td className="border border-gray-300 p-3">{item.description}</td>
+                    <td className="border border-gray-300 p-3">{item.equipmentType || '-'}</td>
                     <td className="border border-gray-300 p-3 text-right">
-                      ${(quotation.oceanFreightAmount || 0).toLocaleString()}
+                      ${item.unitCost.toLocaleString()}
                     </td>
-                    <td className="border border-gray-300 p-3 text-center">{eq.quantity}</td>
+                    <td className="border border-gray-300 p-3 text-center">{item.quantity}</td>
                     <td className="border border-gray-300 p-3 text-right">
-                      ${((quotation.oceanFreightAmount || 0) * eq.quantity).toLocaleString()}
+                      ${item.amount.toLocaleString()}
                     </td>
                   </tr>
                 ))}
-                
-                {/* Ex-Works row if applicable */}
-                {quotation.exwAmount && quotation.exwQty && (
-                  <tr className="hover:bg-gray-50">
-                    <td className="border border-gray-300 p-3">Ex-Works</td>
-                    <td className="border border-gray-300 p-3">-</td>
-                    <td className="border border-gray-300 p-3 text-right">
-                      ${quotation.exwAmount.toLocaleString()}
-                    </td>
-                    <td className="border border-gray-300 p-3 text-center">{quotation.exwQty}</td>
-                    <td className="border border-gray-300 p-3 text-right">
-                      ${exwTotal.toLocaleString()}
-                    </td>
-                  </tr>
-                )}
 
                 {/* Total Row */}
                 <tr className="bg-gray-100 font-bold">

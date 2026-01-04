@@ -31,5 +31,5 @@ export interface Quotation {
   createdAt: Date;
   createdBy?: string;
   issuedAt?: Date;
-  lineItems?: QuoteLineItem[];
+  lineItems?: Omit<QuoteLineItem, 'id' | 'quotationId' | 'amount'>[];
 }
