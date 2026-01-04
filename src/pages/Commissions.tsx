@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
-import { useUserStore } from '@/store/userStore';
+import { useAuth } from '@/hooks/useAuth';
 import { PageHeader } from '@/components/ui/PageHeader';
 import {
   Table,
@@ -23,10 +23,11 @@ import { UserRole } from '@/types/permissions';
 
 export default function Commissions() {
   const shipments = useShipmentStore((s) => s.shipments);
-  const currentUser = useUserStore((s) => s.currentUser);
+  const { profile, roles } = useAuth();
   
-  // Use roles array for multi-role support
-  const userRoles = (currentUser.roles || [currentUser.role]) as UserRole[];
+  // Use roles from auth for multi-role support
+  const userRoles = (roles || []) as UserRole[];
+  const refPrefix = profile?.ref_prefix || undefined;
   
   // Sales users only see their own shipments (by ref prefix)
   // Check if user has sales role but NOT admin role
@@ -39,9 +40,9 @@ export default function Commissions() {
     );
     
     // Sales-only users see only their own shipments
-    if (isSalesOnly && currentUser.refPrefix) {
+    if (isSalesOnly && refPrefix) {
       collectedShipments = collectedShipments.filter(
-        (s) => s.referenceId.startsWith(`${currentUser.refPrefix}-`)
+        (s) => s.referenceId.startsWith(`${refPrefix}-`)
       );
     }
     
@@ -58,7 +59,7 @@ export default function Commissions() {
       shipments: ships,
       totalCommission: ships.reduce((sum, s) => sum + (s.totalProfit || 0) * 0.04, 0),
     }));
-  }, [shipments, isSalesOnly, currentUser.refPrefix]);
+  }, [shipments, isSalesOnly, refPrefix]);
   
   const totalCommission = commissions.reduce((sum, c) => sum + c.totalCommission, 0);
   const totalGP = commissions.reduce(

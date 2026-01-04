@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { useLockStore } from '@/store/lockStore';
-import { useUserStore } from '@/store/userStore';
+import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
 import { canEditField, getFieldLockReason, canEditShipment, canAdvanceStage } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
@@ -43,12 +43,14 @@ interface OperationsFormProps {
 
 export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormProps) {
   const updateShipment = useShipmentStore((s) => s.updateShipment);
-  const currentUser = useUserStore((s) => s.currentUser);
+  const { profile, roles } = useAuth();
   const { trackMoveToStage } = useTrackedShipmentActions();
   const { acquireLock, releaseLock } = useLockStore();
   
-  // Use roles array for multi-role support
-  const userRoles = (currentUser.roles || [currentUser.role]) as UserRole[];
+  // Use roles from auth for multi-role support
+  const userRoles = (roles || []) as UserRole[];
+  const userId = profile?.user_id || '';
+  const refPrefix = profile?.ref_prefix || undefined;
   
   const [formData, setFormData] = useState({
     nssBookingReference: '',
@@ -69,12 +71,12 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   const [hasLock, setHasLock] = useState(false);
   
   // Check if shipment is editable
-  const isEditable = shipment ? canEditShipment(shipment, userRoles, currentUser.refPrefix) : false;
+  const isEditable = shipment ? canEditShipment(shipment, userRoles, refPrefix) : false;
   
   // Field lock states based on role
-  const bookingRefLocked = shipment ? !canEditField(shipment, 'nssBookingReference', userRoles, currentUser.refPrefix) : true;
-  const blTypeLocked = shipment ? !canEditField(shipment, 'blType', userRoles, currentUser.refPrefix) : true;
-  const etdLocked = shipment ? !canEditField(shipment, 'etd', userRoles, currentUser.refPrefix) : true;
+  const bookingRefLocked = shipment ? !canEditField(shipment, 'nssBookingReference', userRoles, refPrefix) : true;
+  const blTypeLocked = shipment ? !canEditField(shipment, 'blType', userRoles, refPrefix) : true;
+  const etdLocked = shipment ? !canEditField(shipment, 'etd', userRoles, refPrefix) : true;
   
   useEffect(() => {
     if (shipment && open) {
@@ -95,8 +97,8 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
       });
       
       // Try to acquire lock
-      if (isEditable) {
-        const acquired = acquireLock(shipment.id, currentUser.id);
+      if (isEditable && userId) {
+        const acquired = acquireLock(shipment.id, userId);
         setHasLock(acquired);
         if (!acquired) {
           toast.warning(`This shipment is being edited by another user`);

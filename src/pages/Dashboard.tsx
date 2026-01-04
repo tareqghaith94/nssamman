@@ -1,6 +1,5 @@
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
-import { useUserStore } from '@/store/userStore';
-import { canSeeShipment } from '@/lib/permissions';
+import { useAuth } from '@/hooks/useAuth';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -16,10 +15,15 @@ import {
 } from 'lucide-react';
 import { isBefore, addDays } from 'date-fns';
 import { useMemo } from 'react';
+import { UserRole } from '@/types/permissions';
 
 export default function Dashboard() {
   const shipments = useFilteredShipments();
-  const currentUser = useUserStore((s) => s.currentUser);
+  const { profile, roles } = useAuth();
+  
+  // Use roles from auth for multi-role support
+  const userRoles = (roles || []) as UserRole[];
+  const isSalesOnly = userRoles.includes('sales') && !userRoles.includes('admin');
   
   const leads = shipments.filter((s) => s.stage === 'lead').length;
   const pricing = shipments.filter((s) => s.stage === 'pricing').length;
@@ -75,7 +79,7 @@ export default function Dashboard() {
     <div className="animate-fade-in">
       <PageHeader 
         title="Dashboard" 
-        description={currentUser.role === 'sales' ? `Overview for ${currentUser.name}` : 'Overview of your freight forwarding operations'}
+        description={isSalesOnly ? `Overview for ${profile?.name || 'you'}` : 'Overview of your freight forwarding operations'}
       />
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
