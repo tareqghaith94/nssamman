@@ -12,8 +12,10 @@ import { Shield } from 'lucide-react';
 const ROLE_LABELS: Record<UserRole, string> = {
   admin: 'Admin',
   sales: 'Sales',
+  pricing: 'Pricing',
+  ops: 'Operations',
+  collections: 'Collections',
   finance: 'Finance',
-  operations: 'Operations',
 };
 
 export function RoleSelector() {

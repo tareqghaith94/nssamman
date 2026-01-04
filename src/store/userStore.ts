@@ -11,9 +11,11 @@ interface UserStore {
 // Mock users for testing
 export const MOCK_USERS: Record<UserRole, User> = {
   admin: { id: '1', name: 'Admin User', role: 'admin' },
-  sales: { id: '2', name: 'Sales Rep', role: 'sales' },
-  finance: { id: '3', name: 'Finance Manager', role: 'finance' },
-  operations: { id: '4', name: 'Operations Staff', role: 'operations' },
+  sales: { id: '2', name: 'Amjad', role: 'sales' }, // Using actual salesperson name
+  pricing: { id: '3', name: 'Pricing Analyst', role: 'pricing' },
+  ops: { id: '4', name: 'Operations Staff', role: 'ops' },
+  collections: { id: '5', name: 'Collections Agent', role: 'collections' },
+  finance: { id: '6', name: 'Finance Manager', role: 'finance' },
 };
 
 export const useUserStore = create<UserStore>()(
