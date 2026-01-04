@@ -13,11 +13,12 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  const { isAuthenticated, profile, loading } = useAuth();
+  const { isAuthenticated, profile, roles, loading } = useAuth();
   
   // Calculate access BEFORE any hooks that depend on it
-  const userRole = profile?.role as UserRole | undefined;
-  const hasAccess = userRole ? canAccessPage(userRole, location.pathname) : true;
+  // Use roles array for multi-role support
+  const userRoles = roles as UserRole[];
+  const hasAccess = userRoles.length > 0 ? canAccessPage(userRoles, location.pathname) : true;
   
   // ALL useEffect hooks MUST be called before any conditional returns
   useEffect(() => {
@@ -27,11 +28,11 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }, [loading, isAuthenticated, navigate]);
 
   useEffect(() => {
-    if (!loading && profile && !hasAccess) {
-      toast.error(`Access denied. ${profile.role} role cannot access this page.`);
+    if (!loading && profile && userRoles.length > 0 && !hasAccess) {
+      toast.error(`Access denied. Your roles cannot access this page.`);
       navigate('/');
     }
-  }, [loading, profile, hasAccess, navigate]);
+  }, [loading, profile, userRoles, hasAccess, navigate]);
 
   // NOW we can have conditional returns (after all hooks)
   if (loading) {

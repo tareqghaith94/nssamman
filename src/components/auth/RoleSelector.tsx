@@ -1,5 +1,5 @@
 import { useUserStore, MOCK_USERS, SALES_USERS } from '@/store/userStore';
-import { UserRole, User } from '@/types/permissions';
+import { UserRole } from '@/types/permissions';
 import {
   Select,
   SelectContent,
@@ -18,12 +18,20 @@ const ROLE_LABELS: Record<UserRole, string> = {
   finance: 'Finance',
 };
 
+interface UserStoreUser {
+  id: string;
+  name: string;
+  role: UserRole;
+  refPrefix?: string;
+  roles: UserRole[];
+}
+
 export function RoleSelector() {
   const currentUser = useUserStore((s) => s.currentUser);
   const setUser = useUserStore((s) => s.setUser);
   
   // Create a combined list: non-sales roles + individual salespeople
-  const allUsers: User[] = [
+  const allUsers: UserStoreUser[] = [
     MOCK_USERS.admin,
     ...SALES_USERS, // All individual salespeople
     MOCK_USERS.pricing,
@@ -39,7 +47,7 @@ export function RoleSelector() {
     }
   };
   
-  const getDisplayLabel = (user: User) => {
+  const getDisplayLabel = (user: UserStoreUser) => {
     if (user.role === 'sales') {
       return `Sales: ${user.name}`;
     }

@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Table,
   TableBody,
@@ -28,7 +29,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Loader2, Trash2, Edit } from 'lucide-react';
+import { Plus, Loader2 } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
@@ -46,6 +47,10 @@ interface Profile {
   created_at: string;
 }
 
+interface UserWithRoles extends Profile {
+  roles: AppRole[];
+}
+
 const ROLES: { value: AppRole; label: string }[] = [
   { value: 'admin', label: 'Admin' },
   { value: 'sales', label: 'Sales' },
@@ -59,7 +64,7 @@ const REF_PREFIXES = ['A', 'T', 'M', 'R', 'S', 'U', 'MA'];
 
 export default function UserManagement() {
   const { isAdmin, loading: authLoading } = useAuth();
-  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -68,31 +73,65 @@ export default function UserManagement() {
     email: '',
     password: '',
     name: '',
-    role: 'sales' as AppRole,
+    selectedRoles: ['sales'] as AppRole[],
     department: '',
     ref_prefix: '',
   });
 
   useEffect(() => {
     if (!authLoading && isAdmin) {
-      fetchProfiles();
+      fetchUsersWithRoles();
     }
   }, [authLoading, isAdmin]);
 
-  const fetchProfiles = async () => {
+  const fetchUsersWithRoles = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    
+    // Fetch profiles
+    const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
     
-    if (error) {
+    if (profilesError) {
       toast.error('Failed to fetch users');
-      console.error(error);
-    } else {
-      setProfiles(data || []);
+      console.error(profilesError);
+      setLoading(false);
+      return;
     }
+
+    // Fetch all user roles
+    const { data: userRoles, error: rolesError } = await supabase
+      .from('user_roles')
+      .select('user_id, role');
+    
+    if (rolesError) {
+      console.error('Error fetching roles:', rolesError);
+    }
+
+    // Combine profiles with their roles
+    const usersWithRoles: UserWithRoles[] = (profiles || []).map(profile => {
+      const roles = userRoles
+        ?.filter(ur => ur.user_id === profile.user_id)
+        .map(ur => ur.role) || [];
+      return { ...profile, roles };
+    });
+
+    setUsers(usersWithRoles);
     setLoading(false);
+  };
+
+  const toggleRole = (role: AppRole) => {
+    setFormData(prev => {
+      const newRoles = prev.selectedRoles.includes(role)
+        ? prev.selectedRoles.filter(r => r !== role)
+        : [...prev.selectedRoles, role];
+      
+      // Ensure at least one role is selected
+      if (newRoles.length === 0) return prev;
+      
+      return { ...prev, selectedRoles: newRoles };
+    });
   };
 
   const handleCreateUser = async (e: React.FormEvent) => {
@@ -100,6 +139,11 @@ export default function UserManagement() {
     
     if (!formData.email || !formData.password || !formData.name) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    if (formData.selectedRoles.length === 0) {
+      toast.error('Please select at least one role');
       return;
     }
 
@@ -131,33 +175,52 @@ export default function UserManagement() {
       return;
     }
 
+    // Use the first selected role as the primary role in profile
+    const primaryRole = formData.selectedRoles[0];
+
     // Create profile
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
         user_id: authData.user.id,
         name: formData.name,
-        role: formData.role,
+        role: primaryRole,
         department: formData.department || null,
-        ref_prefix: formData.role === 'sales' ? formData.ref_prefix || null : null,
+        ref_prefix: formData.selectedRoles.includes('sales') ? formData.ref_prefix || null : null,
       });
 
     if (profileError) {
       toast.error('User created but profile failed: ' + profileError.message);
-    } else {
-      toast.success(`User ${formData.name} created successfully`);
-      setCreateDialogOpen(false);
-      setFormData({
-        email: '',
-        password: '',
-        name: '',
-        role: 'sales',
-        department: '',
-        ref_prefix: '',
-      });
-      fetchProfiles();
+      setCreating(false);
+      return;
     }
 
+    // Insert all roles into user_roles table
+    const roleInserts = formData.selectedRoles.map(role => ({
+      user_id: authData.user!.id,
+      role,
+    }));
+
+    const { error: rolesError } = await supabase
+      .from('user_roles')
+      .insert(roleInserts);
+
+    if (rolesError) {
+      toast.error('User created but roles assignment failed: ' + rolesError.message);
+    } else {
+      toast.success(`User ${formData.name} created with ${formData.selectedRoles.length} role(s)`);
+    }
+
+    setCreateDialogOpen(false);
+    setFormData({
+      email: '',
+      password: '',
+      name: '',
+      selectedRoles: ['sales'],
+      department: '',
+      ref_prefix: '',
+    });
+    fetchUsersWithRoles();
     setCreating(false);
   };
 
@@ -173,11 +236,14 @@ export default function UserManagement() {
     return <Navigate to="/" replace />;
   }
 
+  // Check if sales role is selected (to show ref prefix field)
+  const hasSalesRole = formData.selectedRoles.includes('sales');
+
   return (
     <div className="space-y-6">
       <PageHeader
         title="User Management"
-        description="Create and manage user accounts"
+        description="Create and manage user accounts with multiple roles"
         action={
           <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
             <DialogTrigger asChild>
@@ -224,22 +290,27 @@ export default function UserManagement() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="role">Role *</Label>
-                  <Select
-                    value={formData.role}
-                    onValueChange={(v) => setFormData({ ...formData, role: v as AppRole })}
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ROLES.map((role) => (
-                        <SelectItem key={role.value} value={role.value}>
+                  <Label>Roles * (select one or more)</Label>
+                  <div className="grid grid-cols-2 gap-2 p-3 rounded-lg border bg-muted/20">
+                    {ROLES.map((role) => (
+                      <div key={role.value} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={`role-${role.value}`}
+                          checked={formData.selectedRoles.includes(role.value)}
+                          onCheckedChange={() => toggleRole(role.value)}
+                        />
+                        <Label 
+                          htmlFor={`role-${role.value}`} 
+                          className="text-sm font-normal cursor-pointer"
+                        >
                           {role.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                        </Label>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Users with multiple roles will have combined permissions
+                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
@@ -250,7 +321,7 @@ export default function UserManagement() {
                     placeholder="e.g., Sales, Operations"
                   />
                 </div>
-                {formData.role === 'sales' && (
+                {hasSalesRole && (
                   <div className="space-y-2">
                     <Label htmlFor="ref_prefix">Reference Prefix</Label>
                     <Select
@@ -269,7 +340,7 @@ export default function UserManagement() {
                       </SelectContent>
                     </Select>
                     <p className="text-xs text-muted-foreground">
-                      Used for generating shipment reference IDs
+                      Used for generating shipment reference IDs (required for Sales role)
                     </p>
                   </div>
                 )}
@@ -303,7 +374,7 @@ export default function UserManagement() {
           <TableHeader>
             <TableRow>
               <TableHead>Name</TableHead>
-              <TableHead>Role</TableHead>
+              <TableHead>Roles</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Ref Prefix</TableHead>
               <TableHead>Created</TableHead>
@@ -316,31 +387,45 @@ export default function UserManagement() {
                   <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
-            ) : profiles.length === 0 ? (
+            ) : users.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
                   No users found. Create the first user above.
                 </TableCell>
               </TableRow>
             ) : (
-              profiles.map((profile) => (
-                <TableRow key={profile.id}>
-                  <TableCell className="font-medium">{profile.name}</TableCell>
+              users.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>
-                    <Badge variant={profile.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
-                      {profile.role}
-                    </Badge>
+                    <div className="flex flex-wrap gap-1">
+                      {user.roles.length > 0 ? (
+                        user.roles.map((role) => (
+                          <Badge 
+                            key={role} 
+                            variant={role === 'admin' ? 'default' : 'secondary'} 
+                            className="capitalize"
+                          >
+                            {role}
+                          </Badge>
+                        ))
+                      ) : (
+                        <Badge variant="secondary" className="capitalize">
+                          {user.role}
+                        </Badge>
+                      )}
+                    </div>
                   </TableCell>
-                  <TableCell>{profile.department || '-'}</TableCell>
+                  <TableCell>{user.department || '-'}</TableCell>
                   <TableCell>
-                    {profile.ref_prefix ? (
-                      <Badge variant="outline">{profile.ref_prefix}</Badge>
+                    {user.ref_prefix ? (
+                      <Badge variant="outline">{user.ref_prefix}</Badge>
                     ) : (
                       '-'
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
-                    {format(new Date(profile.created_at), 'MMM d, yyyy')}
+                    {format(new Date(user.created_at), 'MMM d, yyyy')}
                   </TableCell>
                 </TableRow>
               ))
