@@ -100,6 +100,115 @@ export type Database = {
         }
         Relationships: []
       }
+      quotations: {
+        Row: {
+          client_address: string | null
+          client_name: string
+          created_at: string
+          created_by: string | null
+          equipment: Json
+          exw_amount: number | null
+          exw_qty: number | null
+          id: string
+          issued_at: string | null
+          mode_of_transport: string
+          ocean_freight_amount: number | null
+          pod: string
+          pol: string
+          quote_number: string
+          remarks: string | null
+          shipment_id: string | null
+          status: string
+          valid_until: string | null
+        }
+        Insert: {
+          client_address?: string | null
+          client_name: string
+          created_at?: string
+          created_by?: string | null
+          equipment?: Json
+          exw_amount?: number | null
+          exw_qty?: number | null
+          id?: string
+          issued_at?: string | null
+          mode_of_transport?: string
+          ocean_freight_amount?: number | null
+          pod: string
+          pol: string
+          quote_number: string
+          remarks?: string | null
+          shipment_id?: string | null
+          status?: string
+          valid_until?: string | null
+        }
+        Update: {
+          client_address?: string | null
+          client_name?: string
+          created_at?: string
+          created_by?: string | null
+          equipment?: Json
+          exw_amount?: number | null
+          exw_qty?: number | null
+          id?: string
+          issued_at?: string | null
+          mode_of_transport?: string
+          ocean_freight_amount?: number | null
+          pod?: string
+          pol?: string
+          quote_number?: string
+          remarks?: string | null
+          shipment_id?: string | null
+          status?: string
+          valid_until?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quotations_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      quote_line_items: {
+        Row: {
+          amount: number | null
+          description: string
+          equipment_type: string | null
+          id: string
+          quantity: number
+          quotation_id: string
+          unit_cost: number
+        }
+        Insert: {
+          amount?: number | null
+          description: string
+          equipment_type?: string | null
+          id?: string
+          quantity?: number
+          quotation_id: string
+          unit_cost?: number
+        }
+        Update: {
+          amount?: number | null
+          description?: string
+          equipment_type?: string | null
+          id?: string
+          quantity?: number
+          quotation_id?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "quote_line_items_quotation_id_fkey"
+            columns: ["quotation_id"]
+            isOneToOne: false
+            referencedRelation: "quotations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shipments: {
         Row: {
           agent: string | null
@@ -273,6 +382,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_quote_number: { Args: never; Returns: string }
       generate_reference_id: {
         Args: { p_salesperson: string }
         Returns: string

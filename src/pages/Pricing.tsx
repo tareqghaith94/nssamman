@@ -6,6 +6,7 @@ import { canRevertStage, getPreviousStage } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
 import { PricingForm } from '@/components/forms/PricingForm';
+import { QuotationForm } from '@/components/forms/QuotationForm';
 import { RevertConfirmDialog } from '@/components/dialogs/RevertConfirmDialog';
 import { StageFilter } from '@/components/ui/StageFilter';
 import { Shipment } from '@/types/shipment';
@@ -41,6 +42,8 @@ export default function Pricing() {
   const [formOpen, setFormOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [revertShipment, setRevertShipment] = useState<Shipment | null>(null);
+  const [quoteShipment, setQuoteShipment] = useState<Shipment | null>(null);
+  const [quoteFormOpen, setQuoteFormOpen] = useState(false);
   
   const userRoles = (roles || []) as UserRole[];
 
@@ -55,6 +58,11 @@ export default function Pricing() {
     setSelectedShipment(shipment);
     setFormOpen(true);
   };
+
+  const handleGenerateQuote = (shipment: Shipment) => {
+    setQuoteShipment(shipment);
+    setQuoteFormOpen(true);
+  };
   
   const handleRevert = async (shipment: Shipment) => {
     const previousStage = getPreviousStage(shipment.stage);
@@ -66,7 +74,7 @@ export default function Pricing() {
   };
   
   const canRevert = canRevertStage(userRoles, 'pricing');
-  
+  const canQuote = userRoles.includes('admin') || userRoles.includes('pricing');
   return (
     <div className="animate-fade-in">
       <PageHeader
@@ -82,6 +90,7 @@ export default function Pricing() {
           shipments={shipments}
           onEdit={showHistory ? undefined : handleEdit}
           onRevert={!showHistory && canRevert ? (ship) => setRevertShipment(ship) : undefined}
+          onGenerateQuote={!showHistory && canQuote ? handleGenerateQuote : undefined}
           showPricing
         />
       )}
@@ -90,6 +99,15 @@ export default function Pricing() {
         shipment={selectedShipment}
         open={formOpen}
         onOpenChange={setFormOpen}
+      />
+      
+      <QuotationForm
+        open={quoteFormOpen}
+        onOpenChange={(open) => {
+          setQuoteFormOpen(open);
+          if (!open) setQuoteShipment(null);
+        }}
+        shipment={quoteShipment}
       />
       
       {revertShipment && (
