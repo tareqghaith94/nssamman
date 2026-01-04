@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { Shipment, ShipmentStage } from '@/types/shipment';
 import { addDays, subDays } from 'date-fns';
+import { SALESPERSON_REF_PREFIX } from '@/types/permissions';
 
 interface ShipmentStore {
   shipments: Shipment[];
@@ -14,12 +15,14 @@ interface ShipmentStore {
   getCommissions: () => { salesperson: string; shipments: Shipment[]; totalCommission: number }[];
 }
 
+// Helper function to generate reference ID using defined prefixes
 const generateReferenceId = (salesperson: string, existingShipments: Shipment[]): string => {
-  const initials = salesperson.split(' ').map(n => n[0]).join('').toUpperCase();
+  // Use the defined prefix mapping, fallback to first character
+  const prefix = SALESPERSON_REF_PREFIX[salesperson] || salesperson.charAt(0).toUpperCase();
   const count = existingShipments.filter(s => s.salesperson === salesperson).length + 1;
   const year = new Date().getFullYear().toString().slice(-2);
   const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
-  return `${initials}-${year}${month}-${count.toString().padStart(4, '0')}`;
+  return `${prefix}-${year}${month}-${count.toString().padStart(4, '0')}`;
 };
 
 export const useShipmentStore = create<ShipmentStore>()(
@@ -117,6 +120,25 @@ export const useShipmentStore = create<ShipmentStore>()(
     }),
     {
       name: 'shipment-storage',
+      onRehydrateStorage: () => (state) => {
+        // Rehydrate date fields that were serialized to strings
+        if (state) {
+          state.shipments = state.shipments.map(s => ({
+            ...s,
+            createdAt: new Date(s.createdAt),
+            completedAt: s.completedAt ? new Date(s.completedAt) : undefined,
+            lostAt: s.lostAt ? new Date(s.lostAt) : undefined,
+            etd: s.etd ? new Date(s.etd) : undefined,
+            eta: s.eta ? new Date(s.eta) : undefined,
+            terminalCutoff: s.terminalCutoff ? new Date(s.terminalCutoff) : undefined,
+            gateInTerminal: s.gateInTerminal ? new Date(s.gateInTerminal) : undefined,
+            doReleaseDate: s.doReleaseDate ? new Date(s.doReleaseDate) : undefined,
+            paymentCollectedDate: s.paymentCollectedDate ? new Date(s.paymentCollectedDate) : undefined,
+            agentPaidDate: s.agentPaidDate ? new Date(s.agentPaidDate) : undefined,
+            agentInvoiceDate: s.agentInvoiceDate ? new Date(s.agentInvoiceDate) : undefined,
+          }));
+        }
+      },
     }
   )
 );

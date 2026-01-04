@@ -49,13 +49,28 @@ export const HIDDEN_FIELDS: Record<UserRole, string[]> = {
   finance: ['commissionRate', 'commissionAmount', 'commissionLogic'],
 };
 
-// Field categories for easier management
+// Field categories for easier management - must match Shipment type fields
 export const FIELD_CATEGORIES = {
   lead: ['salesperson', 'portOfLoading', 'portOfDischarge', 'equipment', 'modeOfTransport', 'incoterm', 'paymentTerms'],
   pricing: ['sellingPricePerUnit', 'costPerUnit', 'agent'],
-  operations: ['nssBookingReference', 'nssInvoiceNumber', 'etd', 'eta', 'blDraftReceived', 'blDraftSent', 'blFinalReceived', 'blType', 'cargoReadyDate', 'vesselName', 'voyageNumber'],
-  collections: ['collectionStatus', 'collectionFollowUp', 'collectedAmount', 'collectionDate'],
-  payables: ['paymentStatus', 'agentInvoiceAmount', 'agentInvoiceUploaded', 'paymentFollowUp'],
+  operations: [
+    'nssBookingReference', 
+    'nssInvoiceNumber', 
+    'blType',
+    'blDraftApproval',
+    'finalBLIssued',
+    'terminalCutoff',
+    'gateInTerminal',
+    'etd', 
+    'eta',
+    'arrivalNoticeSent',
+    'doIssued',
+    'doReleaseDate',
+    'totalInvoiceAmount',
+    'opsOwner'
+  ],
+  collections: ['paymentCollected', 'paymentCollectedDate'],
+  payables: ['agentPaid', 'agentPaidDate', 'agentInvoiceUploaded', 'agentInvoiceFileName', 'agentInvoiceAmount', 'agentInvoiceDate'],
   clientRemarks: ['clientRemarks'],
   commissions: ['commissionRate', 'commissionAmount'],
 };
