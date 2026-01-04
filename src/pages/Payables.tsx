@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -9,14 +10,35 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { format, isBefore, isToday, addDays } from 'date-fns';
+import { format, isBefore, isToday, addDays, subDays } from 'date-fns';
 import { Check, AlertCircle, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export default function Payables() {
-  const payables = useShipmentStore((s) => s.getPayables());
+  const shipments = useShipmentStore((s) => s.shipments);
   const updateShipment = useShipmentStore((s) => s.updateShipment);
+
+  const payables = useMemo(() => {
+    const filtered = shipments.filter(
+      (s) => (s.stage === 'operations' || s.stage === 'completed') && s.agent && s.totalCost && !s.agentPaid
+    );
+    
+    return filtered.map((s) => {
+      const isExport = s.portOfLoading.toLowerCase().includes('aqaba');
+      let reminderDate: Date;
+      
+      if (isExport && s.etd) {
+        reminderDate = addDays(new Date(s.etd), 3);
+      } else if (s.eta) {
+        reminderDate = subDays(new Date(s.eta), 10);
+      } else {
+        reminderDate = new Date();
+      }
+      
+      return { shipment: s, reminderDate };
+    });
+  }, [shipments]);
   
   const getStatus = (reminderDate: Date) => {
     if (isBefore(reminderDate, new Date()) && !isToday(reminderDate)) {

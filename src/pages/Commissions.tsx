@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import {
@@ -16,9 +17,30 @@ import {
 } from '@/components/ui/accordion';
 import { format } from 'date-fns';
 import { DollarSign, TrendingUp, User } from 'lucide-react';
+import { Shipment } from '@/types/shipment';
 
 export default function Commissions() {
-  const commissions = useShipmentStore((s) => s.getCommissions());
+  const shipments = useShipmentStore((s) => s.shipments);
+
+  const commissions = useMemo(() => {
+    const collectedShipments = shipments.filter(
+      (s) => s.stage === 'completed' && s.paymentCollected && s.totalProfit
+    );
+    
+    const bySalesperson = collectedShipments.reduce((acc, s) => {
+      if (!acc[s.salesperson]) {
+        acc[s.salesperson] = [];
+      }
+      acc[s.salesperson].push(s);
+      return acc;
+    }, {} as Record<string, Shipment[]>);
+    
+    return Object.entries(bySalesperson).map(([salesperson, ships]) => ({
+      salesperson,
+      shipments: ships,
+      totalCommission: ships.reduce((sum, s) => sum + (s.totalProfit || 0) * 0.04, 0),
+    }));
+  }, [shipments]);
   
   const totalCommission = commissions.reduce((sum, c) => sum + c.totalCommission, 0);
   const totalGP = commissions.reduce(

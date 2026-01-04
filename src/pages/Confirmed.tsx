@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { Shipment } from '@/types/shipment';
 
 export default function Confirmed() {
-  const shipments = useShipmentStore((s) => s.getShipmentsByStage('confirmed'));
+  const shipments = useShipmentStore((s) => s.shipments.filter((ship) => ship.stage === 'confirmed'));
   const moveToStage = useShipmentStore((s) => s.moveToStage);
   
   const handleMoveToNext = (shipment: Shipment) => {
