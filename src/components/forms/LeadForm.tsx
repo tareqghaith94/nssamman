@@ -17,9 +17,10 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { EquipmentType, ModeOfTransport, PaymentTerms } from '@/types/shipment';
+import { EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, EquipmentItem } from '@/types/shipment';
+import { WORLD_PORTS, INCOTERMS } from '@/lib/ports';
 
 export function LeadForm() {
   const [open, setOpen] = useState(false);
@@ -29,11 +30,35 @@ export function LeadForm() {
     salesperson: '',
     portOfLoading: '',
     portOfDischarge: '',
-    equipmentType: '' as EquipmentType,
-    quantity: 1,
+    equipment: [{ type: '' as EquipmentType, quantity: 1 }] as EquipmentItem[],
     modeOfTransport: '' as ModeOfTransport,
     paymentTerms: '' as PaymentTerms,
+    incoterm: '' as Incoterm,
   });
+  
+  const addEquipment = () => {
+    if (formData.equipment.length < 3) {
+      setFormData({
+        ...formData,
+        equipment: [...formData.equipment, { type: '' as EquipmentType, quantity: 1 }],
+      });
+    }
+  };
+  
+  const removeEquipment = (index: number) => {
+    if (formData.equipment.length > 1) {
+      setFormData({
+        ...formData,
+        equipment: formData.equipment.filter((_, i) => i !== index),
+      });
+    }
+  };
+  
+  const updateEquipment = (index: number, field: keyof EquipmentItem, value: string | number) => {
+    const updated = [...formData.equipment];
+    updated[index] = { ...updated[index], [field]: value };
+    setFormData({ ...formData, equipment: updated });
+  };
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,10 +75,10 @@ export function LeadForm() {
       salesperson: '',
       portOfLoading: '',
       portOfDischarge: '',
-      equipmentType: '' as EquipmentType,
-      quantity: 1,
+      equipment: [{ type: '' as EquipmentType, quantity: 1 }],
       modeOfTransport: '' as ModeOfTransport,
       paymentTerms: '' as PaymentTerms,
+      incoterm: '' as Incoterm,
     });
   };
   
@@ -65,7 +90,7 @@ export function LeadForm() {
           New Lead
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-heading">Create New Lead</DialogTitle>
         </DialogHeader>
@@ -82,55 +107,80 @@ export function LeadForm() {
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="pol">Port of Loading *</Label>
-              <Input
-                id="pol"
-                value={formData.portOfLoading}
-                onChange={(e) => setFormData({ ...formData, portOfLoading: e.target.value })}
-                placeholder="e.g., Aqaba"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pod">Port of Discharge *</Label>
-              <Input
-                id="pod"
-                value={formData.portOfDischarge}
-                onChange={(e) => setFormData({ ...formData, portOfDischarge: e.target.value })}
-                placeholder="e.g., Jebel Ali"
-              />
-            </div>
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Equipment Type</Label>
+              <Label>Port of Loading *</Label>
               <Select
-                value={formData.equipmentType}
-                onValueChange={(v) => setFormData({ ...formData, equipmentType: v as EquipmentType })}
+                value={formData.portOfLoading}
+                onValueChange={(v) => setFormData({ ...formData, portOfLoading: v })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select type" />
+                  <SelectValue placeholder="Select port" />
                 </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="20ft">20ft Container</SelectItem>
-                  <SelectItem value="40ft">40ft Container</SelectItem>
-                  <SelectItem value="40hc">40ft High Cube</SelectItem>
-                  <SelectItem value="45ft">45ft Container</SelectItem>
-                  <SelectItem value="lcl">LCL</SelectItem>
-                  <SelectItem value="breakbulk">Breakbulk</SelectItem>
+                <SelectContent className="max-h-60">
+                  {WORLD_PORTS.map((port) => (
+                    <SelectItem key={port} value={port}>{port}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min={1}
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: parseInt(e.target.value) || 1 })}
-              />
+              <Label>Port of Discharge *</Label>
+              <Select
+                value={formData.portOfDischarge}
+                onValueChange={(v) => setFormData({ ...formData, portOfDischarge: v })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select port" />
+                </SelectTrigger>
+                <SelectContent className="max-h-60">
+                  {WORLD_PORTS.map((port) => (
+                    <SelectItem key={port} value={port}>{port}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
+          </div>
+          
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <Label>Equipment</Label>
+              {formData.equipment.length < 3 && (
+                <Button type="button" variant="ghost" size="sm" onClick={addEquipment} className="h-7 text-xs">
+                  <Plus className="w-3 h-3 mr-1" /> Add Equipment
+                </Button>
+              )}
+            </div>
+            {formData.equipment.map((eq, index) => (
+              <div key={index} className="grid grid-cols-[1fr,100px,40px] gap-2 items-end">
+                <Select
+                  value={eq.type}
+                  onValueChange={(v) => updateEquipment(index, 'type', v)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="20ft">20ft Container</SelectItem>
+                    <SelectItem value="40ft">40ft Container</SelectItem>
+                    <SelectItem value="40hc">40ft High Cube</SelectItem>
+                    <SelectItem value="45ft">45ft Container</SelectItem>
+                    <SelectItem value="lcl">LCL</SelectItem>
+                    <SelectItem value="breakbulk">Breakbulk</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Input
+                  type="number"
+                  min={1}
+                  value={eq.quantity}
+                  onChange={(e) => updateEquipment(index, 'quantity', parseInt(e.target.value) || 1)}
+                  placeholder="Qty"
+                />
+                {formData.equipment.length > 1 && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => removeEquipment(index)} className="h-9 w-9 p-0 text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                )}
+              </div>
+            ))}
           </div>
           
           <div className="grid grid-cols-2 gap-4">
@@ -152,23 +202,39 @@ export function LeadForm() {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Payment Terms</Label>
+              <Label>Incoterm</Label>
               <Select
-                value={formData.paymentTerms}
-                onValueChange={(v) => setFormData({ ...formData, paymentTerms: v as PaymentTerms })}
+                value={formData.incoterm}
+                onValueChange={(v) => setFormData({ ...formData, incoterm: v as Incoterm })}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select terms" />
+                  <SelectValue placeholder="Select incoterm" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="prepaid">Prepaid</SelectItem>
-                  <SelectItem value="collect">Collect</SelectItem>
-                  <SelectItem value="30days">30 Days</SelectItem>
-                  <SelectItem value="60days">60 Days</SelectItem>
-                  <SelectItem value="90days">90 Days</SelectItem>
+                  {INCOTERMS.map((term) => (
+                    <SelectItem key={term.value} value={term.value}>{term.label}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Payment Terms</Label>
+            <Select
+              value={formData.paymentTerms}
+              onValueChange={(v) => setFormData({ ...formData, paymentTerms: v as PaymentTerms })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select terms" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="0">0 Days (Cash)</SelectItem>
+                <SelectItem value="30">30 Days</SelectItem>
+                <SelectItem value="60">60 Days</SelectItem>
+                <SelectItem value="90">90 Days</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="flex justify-end gap-3 pt-4">

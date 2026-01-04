@@ -74,7 +74,12 @@ export function ShipmentTable({
                   <span>{shipment.portOfDischarge}</span>
                 </TableCell>
                 <TableCell>
-                  {shipment.equipmentType.toUpperCase()} × {shipment.quantity}
+                  {shipment.equipment?.map((eq, i) => (
+                    <span key={i}>
+                      {eq.type?.toUpperCase()} × {eq.quantity}
+                      {i < shipment.equipment.length - 1 && ', '}
+                    </span>
+                  )) || '-'}
                 </TableCell>
                 <TableCell>
                   <StatusBadge stage={shipment.stage} />

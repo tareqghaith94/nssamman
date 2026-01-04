@@ -1,7 +1,13 @@
 export type ShipmentStage = 'lead' | 'pricing' | 'confirmed' | 'operations' | 'completed';
-export type PaymentTerms = 'prepaid' | 'collect' | '30days' | '60days' | '90days';
+export type PaymentTerms = '0' | '30' | '60' | '90';
 export type EquipmentType = '20ft' | '40ft' | '40hc' | '45ft' | 'lcl' | 'breakbulk';
 export type ModeOfTransport = 'sea' | 'air' | 'land' | 'multimodal';
+export type Incoterm = 'EXW' | 'FCA' | 'CPT' | 'CIP' | 'DAP' | 'DPU' | 'DDP' | 'FAS' | 'FOB' | 'CFR' | 'CIF';
+
+export interface EquipmentItem {
+  type: EquipmentType;
+  quantity: number;
+}
 export type BLType = 'original' | 'telex' | 'seaway';
 
 export interface Shipment {
@@ -10,10 +16,10 @@ export interface Shipment {
   salesperson: string;
   portOfLoading: string;
   portOfDischarge: string;
-  equipmentType: EquipmentType;
-  quantity: number;
+  equipment: EquipmentItem[];
   modeOfTransport: ModeOfTransport;
   paymentTerms: PaymentTerms;
+  incoterm: Incoterm;
   stage: ShipmentStage;
   createdAt: Date;
   
