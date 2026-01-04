@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { useActivityStore } from '@/store/activityStore';
-import { useUserStore } from '@/store/userStore';
+import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +50,7 @@ const stageOptions: { value: ShipmentStage | 'all'; label: string }[] = [
 ];
 
 export default function Database() {
-  const currentUser = useUserStore((s) => s.currentUser);
+  const { isAdmin } = useAuth();
   const shipments = useShipmentStore((s) => s.shipments);
   const activities = useActivityStore((s) => s.activities);
   
@@ -60,7 +60,7 @@ export default function Database() {
   const [detailsOpen, setDetailsOpen] = useState(false);
 
   // Only admin can access this page
-  if (currentUser.role !== 'admin') {
+  if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
