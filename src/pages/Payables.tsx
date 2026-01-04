@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
-import { useShipmentStore } from '@/store/shipmentStore';
+import { useShipments } from '@/hooks/useShipments';
 import { useAuth } from '@/hooks/useAuth';
 import { canEditOnPage } from '@/lib/permissions';
 import { UserRole } from '@/types/permissions';
@@ -23,8 +23,8 @@ import { Shipment } from '@/types/shipment';
 import { InvoiceUploadDialog } from '@/components/payables/InvoiceUploadDialog';
 
 export default function Payables() {
-  const allShipments = useFilteredShipments();
-  const updateShipment = useShipmentStore((s) => s.updateShipment);
+  const { shipments: allShipments, isLoading } = useFilteredShipments();
+  const { updateShipment } = useShipments();
   const { roles } = useAuth();
   const userRoles = (roles || []) as UserRole[];
   const canEdit = canEditOnPage(userRoles, '/payables');
@@ -66,8 +66,8 @@ export default function Payables() {
     return { label: 'Upcoming', className: 'status-active', icon: Clock };
   };
   
-  const handleMarkPaid = (shipmentId: string, referenceId: string) => {
-    updateShipment(shipmentId, {
+  const handleMarkPaid = async (shipmentId: string, referenceId: string) => {
+    await updateShipment(shipmentId, {
       agentPaid: true,
       agentPaidDate: new Date(),
     });
@@ -79,14 +79,14 @@ export default function Payables() {
     setUploadDialogOpen(true);
   };
   
-  const handleInvoiceSubmit = (data: {
+  const handleInvoiceSubmit = async (data: {
     agentInvoiceUploaded: boolean;
     agentInvoiceFileName: string;
     agentInvoiceAmount: number;
     agentInvoiceDate: Date;
   }) => {
     if (selectedShipment) {
-      updateShipment(selectedShipment.id, data);
+      await updateShipment(selectedShipment.id, data);
     }
   };
   
@@ -99,6 +99,14 @@ export default function Payables() {
     const amount = p.shipment.agentInvoiceAmount ?? p.shipment.totalCost ?? 0;
     return sum + amount;
   }, 0);
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
   return (
     <div className="animate-fade-in">

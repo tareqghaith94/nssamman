@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
-import { useShipmentStore } from '@/store/shipmentStore';
+import { useShipments } from '@/hooks/useShipments';
 import { useAuth } from '@/hooks/useAuth';
 import { canEditOnPage } from '@/lib/permissions';
 import { UserRole } from '@/types/permissions';
@@ -22,16 +22,16 @@ import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function Collections() {
-  const allShipments = useFilteredShipments();
-  const updateShipment = useShipmentStore((s) => s.updateShipment);
+  const { shipments: allShipments, isLoading } = useFilteredShipments();
+  const { updateShipment } = useShipments();
   const { roles } = useAuth();
   const userRoles = (roles || []) as UserRole[];
   const canEdit = canEditOnPage(userRoles, '/collections');
   const [showHistory, setShowHistory] = useState(false);
 
   const collections = useMemo(() => {
-    // Current: Only pending collections (completed + not collected)
-    // History: All completed shipments (collected or not)
+    // Current: Only pending collections (completed + has completedAt + not collected)
+    // History: All completed shipments with completedAt
     const filtered = showHistory
       ? allShipments.filter((s) => s.stage === 'completed' && s.completedAt)
       : allShipments.filter((s) => s.stage === 'completed' && s.completedAt && !s.paymentCollected);
@@ -42,65 +42,68 @@ export default function Collections() {
       return { shipment: s, dueDate };
     });
   }, [allShipments, showHistory]);
-  
+
   const getStatus = (dueDate: Date) => {
     if (isBefore(dueDate, new Date()) && !isToday(dueDate)) {
       return { label: 'Overdue', className: 'status-overdue', icon: AlertCircle };
     }
-    if (isToday(dueDate) || isBefore(dueDate, addDays(new Date(), 7))) {
+    if (isToday(dueDate) || isBefore(dueDate, addDays(new Date(), 3))) {
       return { label: 'Due Soon', className: 'status-pending', icon: Clock };
     }
     return { label: 'Upcoming', className: 'status-active', icon: Clock };
   };
-  
-  const handleMarkCollected = (shipmentId: string, referenceId: string) => {
-    updateShipment(shipmentId, {
+
+  const handleMarkCollected = async (shipmentId: string, referenceId: string) => {
+    await updateShipment(shipmentId, {
       paymentCollected: true,
       paymentCollectedDate: new Date(),
     });
     toast.success(`Payment collected for ${referenceId}`);
   };
-  
+
   const sortedCollections = [...collections].sort(
     (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
   );
-  
-  const totalDue = collections.reduce((sum, c) => sum + (c.shipment.totalInvoiceAmount || 0), 0);
-  const missingAmountCount = collections.filter(c => !c.shipment.totalInvoiceAmount).length;
-  
+
+  const totalOutstanding = collections.reduce(
+    (sum, c) => sum + (c.shipment.totalInvoiceAmount || 0),
+    0
+  );
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="animate-fade-in">
       <PageHeader
         title="Collections"
-        description="Track client payments based on payment terms"
+        description="Track payments due from clients"
         action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
       />
-      
-      <div className="mb-6 p-4 glass-card rounded-xl flex items-center justify-between">
-        <div>
+
+      <div className="grid grid-cols-2 gap-6 mb-6">
+        <div className="p-4 glass-card rounded-xl">
           <p className="text-sm text-muted-foreground">Total Outstanding</p>
-          <p className="text-2xl font-heading font-bold">${totalDue.toLocaleString()}</p>
-          {missingAmountCount > 0 && (
-            <p className="text-xs text-amber-500 flex items-center gap-1 mt-1">
-              <AlertTriangle className="w-3 h-3" />
-              {missingAmountCount} shipment(s) missing invoice amount
-            </p>
-          )}
+          <p className="text-2xl font-heading font-bold">${totalOutstanding.toLocaleString()}</p>
         </div>
-        <div className="text-right">
+        <div className="p-4 glass-card rounded-xl">
           <p className="text-sm text-muted-foreground">Pending Collections</p>
           <p className="text-2xl font-heading font-bold">{collections.length}</p>
         </div>
       </div>
-      
+
       <div className="glass-card rounded-xl overflow-hidden">
         <Table>
           <TableHeader>
             <TableRow className="border-border/50 hover:bg-transparent">
               <TableHead className="text-muted-foreground">Reference ID</TableHead>
               <TableHead className="text-muted-foreground">Salesperson</TableHead>
-              <TableHead className="text-muted-foreground">Payment Terms</TableHead>
-              <TableHead className="text-muted-foreground">Completed Date</TableHead>
+              <TableHead className="text-muted-foreground">Route</TableHead>
               <TableHead className="text-muted-foreground">Due Date</TableHead>
               <TableHead className="text-muted-foreground">Status</TableHead>
               <TableHead className="text-muted-foreground text-right">Amount</TableHead>
@@ -110,7 +113,7 @@ export default function Collections() {
           <TableBody>
             {sortedCollections.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
                   No pending collections
                 </TableCell>
               </TableRow>
@@ -118,7 +121,7 @@ export default function Collections() {
               sortedCollections.map(({ shipment, dueDate }) => {
                 const status = getStatus(dueDate);
                 const StatusIcon = status.icon;
-                
+
                 return (
                   <TableRow key={shipment.id} className="border-border/50">
                     <TableCell className="font-mono font-medium text-primary">
@@ -126,10 +129,9 @@ export default function Collections() {
                     </TableCell>
                     <TableCell>{shipment.salesperson}</TableCell>
                     <TableCell>
-                      {shipment.paymentTerms === '0' ? 'Cash' : `${shipment.paymentTerms} Days`}
-                    </TableCell>
-                    <TableCell>
-                      {shipment.completedAt && format(new Date(shipment.completedAt), 'dd MMM yyyy')}
+                      <span className="text-muted-foreground">{shipment.portOfLoading}</span>
+                      <span className="mx-2">→</span>
+                      <span>{shipment.portOfDischarge}</span>
                     </TableCell>
                     <TableCell>{format(dueDate, 'dd MMM yyyy')}</TableCell>
                     <TableCell>
@@ -142,21 +144,7 @@ export default function Collections() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      {shipment.totalInvoiceAmount ? (
-                        `$${shipment.totalInvoiceAmount.toLocaleString()}`
-                      ) : (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <span className="text-amber-500 flex items-center gap-1 justify-end cursor-help">
-                              <AlertTriangle className="w-3 h-3" />
-                              Not set
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent>
-                            <p>Invoice amount not set in Operations</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      )}
+                      ${shipment.totalInvoiceAmount?.toLocaleString() || '0'}
                     </TableCell>
                     <TableCell className="text-right">
                       {shipment.paymentCollected ? (
@@ -164,17 +152,33 @@ export default function Collections() {
                           <Check className="w-4 h-4" />
                           Collected
                         </span>
-                      ) : (
+                      ) : canEdit ? (
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => handleMarkCollected(shipment.id, shipment.referenceId)}
                           className="h-8 gap-1 text-success hover:text-success"
-                          disabled={!canEdit}
                         >
                           <Check className="w-4 h-4" />
                           Mark Collected
                         </Button>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled
+                              className="h-8 gap-1"
+                            >
+                              <AlertTriangle className="w-4 h-4" />
+                              No Edit Access
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>You don't have permission to mark collections</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </TableCell>
                   </TableRow>

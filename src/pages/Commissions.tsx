@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useShipmentStore } from '@/store/shipmentStore';
+import { useShipments } from '@/hooks/useShipments';
 import { useAuth } from '@/hooks/useAuth';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StageFilter } from '@/components/ui/StageFilter';
@@ -24,7 +24,7 @@ import { Shipment } from '@/types/shipment';
 import { UserRole } from '@/types/permissions';
 
 export default function Commissions() {
-  const shipments = useShipmentStore((s) => s.shipments);
+  const { shipments, isLoading } = useShipments();
   const { profile, roles } = useAuth();
   const [showHistory, setShowHistory] = useState(false);
   
@@ -74,6 +74,14 @@ export default function Commissions() {
   );
   
   const totalPendingCommission = commissions.reduce((sum, c) => sum + c.pendingCommission, 0);
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
   return (
     <div className="animate-fade-in">

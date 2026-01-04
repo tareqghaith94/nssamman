@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useShipmentStore } from '@/store/shipmentStore';
+import { useShipments } from '@/hooks/useShipments';
 import { useLockStore } from '@/store/lockStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
@@ -42,7 +42,7 @@ interface OperationsFormProps {
 }
 
 export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormProps) {
-  const updateShipment = useShipmentStore((s) => s.updateShipment);
+  const { updateShipment } = useShipments();
   const { profile, roles } = useAuth();
   const { trackMoveToStage } = useTrackedShipmentActions();
   const { acquireLock, releaseLock } = useLockStore();

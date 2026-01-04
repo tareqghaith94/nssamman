@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { useActivityStore } from '@/store/activityStore';
+import { useActivityLogs } from '@/hooks/useActivityLogs';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -37,13 +37,21 @@ const activityTypeLabels: Record<ActivityType, { label: string; icon: React.Reac
 
 export default function ActivityLog() {
   const { isAdmin } = useAuth();
-  const { activities, clearActivities } = useActivityStore();
+  const { activities, clearActivities, isLoading } = useActivityLogs();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
   // Only admin can access this page
   if (!isAdmin) {
     return <Navigate to="/" replace />;
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   const filteredActivities = activities.filter((activity) => {
@@ -90,7 +98,7 @@ export default function ActivityLog() {
         <Button
           variant="outline"
           size="sm"
-          onClick={clearActivities}
+          onClick={() => clearActivities()}
           className="text-destructive hover:text-destructive"
         >
           <Trash2 className="w-4 h-4 mr-2" />

@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_logs: {
+        Row: {
+          description: string
+          field: string | null
+          id: string
+          new_value: string | null
+          previous_value: string | null
+          reference_id: string | null
+          shipment_id: string | null
+          timestamp: string
+          type: string
+          user_id: string | null
+          user_name: string | null
+          user_role: string | null
+        }
+        Insert: {
+          description: string
+          field?: string | null
+          id?: string
+          new_value?: string | null
+          previous_value?: string | null
+          reference_id?: string | null
+          shipment_id?: string | null
+          timestamp?: string
+          type: string
+          user_id?: string | null
+          user_name?: string | null
+          user_role?: string | null
+        }
+        Update: {
+          description?: string
+          field?: string | null
+          id?: string
+          new_value?: string | null
+          previous_value?: string | null
+          reference_id?: string | null
+          shipment_id?: string | null
+          timestamp?: string
+          type?: string
+          user_id?: string | null
+          user_name?: string | null
+          user_role?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "activity_logs_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -47,6 +100,153 @@ export type Database = {
         }
         Relationships: []
       }
+      shipments: {
+        Row: {
+          agent: string | null
+          agent_invoice_amount: number | null
+          agent_invoice_date: string | null
+          agent_invoice_file_name: string | null
+          agent_invoice_uploaded: boolean | null
+          agent_paid: boolean | null
+          agent_paid_date: string | null
+          arrival_notice_sent: boolean | null
+          bl_draft_approval: boolean | null
+          bl_type: string | null
+          completed_at: string | null
+          cost_per_unit: number | null
+          created_at: string
+          created_by: string | null
+          do_issued: boolean | null
+          do_release_date: string | null
+          equipment: Json
+          eta: string | null
+          etd: string | null
+          final_bl_issued: boolean | null
+          gate_in_terminal: string | null
+          id: string
+          incoterm: string
+          is_lost: boolean | null
+          lost_at: string | null
+          lost_reason: string | null
+          mode_of_transport: string
+          nss_booking_reference: string | null
+          nss_invoice_number: string | null
+          ops_owner: string | null
+          payment_collected: boolean | null
+          payment_collected_date: string | null
+          payment_terms: string
+          port_of_discharge: string
+          port_of_loading: string
+          profit_per_unit: number | null
+          reference_id: string
+          salesperson: string
+          selling_price_per_unit: number | null
+          stage: string
+          terminal_cutoff: string | null
+          total_cost: number | null
+          total_invoice_amount: number | null
+          total_profit: number | null
+          total_selling_price: number | null
+          updated_at: string
+        }
+        Insert: {
+          agent?: string | null
+          agent_invoice_amount?: number | null
+          agent_invoice_date?: string | null
+          agent_invoice_file_name?: string | null
+          agent_invoice_uploaded?: boolean | null
+          agent_paid?: boolean | null
+          agent_paid_date?: string | null
+          arrival_notice_sent?: boolean | null
+          bl_draft_approval?: boolean | null
+          bl_type?: string | null
+          completed_at?: string | null
+          cost_per_unit?: number | null
+          created_at?: string
+          created_by?: string | null
+          do_issued?: boolean | null
+          do_release_date?: string | null
+          equipment?: Json
+          eta?: string | null
+          etd?: string | null
+          final_bl_issued?: boolean | null
+          gate_in_terminal?: string | null
+          id?: string
+          incoterm?: string
+          is_lost?: boolean | null
+          lost_at?: string | null
+          lost_reason?: string | null
+          mode_of_transport?: string
+          nss_booking_reference?: string | null
+          nss_invoice_number?: string | null
+          ops_owner?: string | null
+          payment_collected?: boolean | null
+          payment_collected_date?: string | null
+          payment_terms?: string
+          port_of_discharge: string
+          port_of_loading: string
+          profit_per_unit?: number | null
+          reference_id: string
+          salesperson: string
+          selling_price_per_unit?: number | null
+          stage?: string
+          terminal_cutoff?: string | null
+          total_cost?: number | null
+          total_invoice_amount?: number | null
+          total_profit?: number | null
+          total_selling_price?: number | null
+          updated_at?: string
+        }
+        Update: {
+          agent?: string | null
+          agent_invoice_amount?: number | null
+          agent_invoice_date?: string | null
+          agent_invoice_file_name?: string | null
+          agent_invoice_uploaded?: boolean | null
+          agent_paid?: boolean | null
+          agent_paid_date?: string | null
+          arrival_notice_sent?: boolean | null
+          bl_draft_approval?: boolean | null
+          bl_type?: string | null
+          completed_at?: string | null
+          cost_per_unit?: number | null
+          created_at?: string
+          created_by?: string | null
+          do_issued?: boolean | null
+          do_release_date?: string | null
+          equipment?: Json
+          eta?: string | null
+          etd?: string | null
+          final_bl_issued?: boolean | null
+          gate_in_terminal?: string | null
+          id?: string
+          incoterm?: string
+          is_lost?: boolean | null
+          lost_at?: string | null
+          lost_reason?: string | null
+          mode_of_transport?: string
+          nss_booking_reference?: string | null
+          nss_invoice_number?: string | null
+          ops_owner?: string | null
+          payment_collected?: boolean | null
+          payment_collected_date?: string | null
+          payment_terms?: string
+          port_of_discharge?: string
+          port_of_loading?: string
+          profit_per_unit?: number | null
+          reference_id?: string
+          salesperson?: string
+          selling_price_per_unit?: number | null
+          stage?: string
+          terminal_cutoff?: string | null
+          total_cost?: number | null
+          total_invoice_amount?: number | null
+          total_profit?: number | null
+          total_selling_price?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -73,6 +273,11 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      generate_reference_id: {
+        Args: { p_salesperson: string }
+        Returns: string
+      }
+      get_user_ref_prefix: { Args: { _user_id: string }; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -80,6 +285,13 @@ export type Database = {
       get_user_roles: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"][]
+      }
+      has_any_role: {
+        Args: {
+          _roles: Database["public"]["Enums"]["app_role"][]
+          _user_id: string
+        }
+        Returns: boolean
       }
       has_role: {
         Args: {
@@ -89,6 +301,7 @@ export type Database = {
         Returns: boolean
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
+      is_sales_only: { Args: { _user_id: string }; Returns: boolean }
     }
     Enums: {
       app_role:

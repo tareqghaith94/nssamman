@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { useShipmentStore } from '@/store/shipmentStore';
-import { useActivityStore } from '@/store/activityStore';
+import { useShipments } from '@/hooks/useShipments';
+import { useActivityLogs } from '@/hooks/useActivityLogs';
 import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -56,16 +56,15 @@ const stageOptions: { value: ShipmentStage | 'all'; label: string }[] = [
 
 export default function Database() {
   const { isAdmin, loading } = useAuth();
-  const shipments = useShipmentStore((s) => s.shipments);
-  const clearAllShipments = useShipmentStore((s) => s.clearAllShipments);
-  const activities = useActivityStore((s) => s.activities);
+  const { shipments, clearAllShipments, isLoading } = useShipments();
+  const { activities, getActivitiesByShipment } = useActivityLogs();
   
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<ShipmentStage | 'all'>('all');
   const [expandedRows, setExpandedRows] = useState<string[]>([]);
 
   // Show loading while auth is being checked
-  if (loading) {
+  if (loading || isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -90,7 +89,7 @@ export default function Database() {
   });
 
   const getShipmentActivities = (shipmentId: string): ActivityLog[] => {
-    return activities.filter((a) => a.shipmentId === shipmentId);
+    return getActivitiesByShipment(shipmentId);
   };
 
   const toggleRow = (shipmentId: string) => {
