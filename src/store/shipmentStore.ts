@@ -89,12 +89,7 @@ export const useShipmentStore = create<ShipmentStore>()(
         );
         
         return shipments.map((s) => {
-          let daysToAdd = 0;
-          switch (s.paymentTerms) {
-            case '30days': daysToAdd = 30; break;
-            case '60days': daysToAdd = 60; break;
-            case '90days': daysToAdd = 90; break;
-          }
+          const daysToAdd = parseInt(s.paymentTerms) || 0;
           const dueDate = addDays(new Date(s.completedAt!), daysToAdd);
           return { shipment: s, dueDate };
         });

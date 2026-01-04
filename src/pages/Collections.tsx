@@ -25,12 +25,7 @@ export default function Collections() {
     );
     
     return filtered.map((s) => {
-      let daysToAdd = 0;
-      switch (s.paymentTerms) {
-        case '30days': daysToAdd = 30; break;
-        case '60days': daysToAdd = 60; break;
-        case '90days': daysToAdd = 90; break;
-      }
+      const daysToAdd = parseInt(s.paymentTerms) || 0;
       const dueDate = addDays(new Date(s.completedAt!), daysToAdd);
       return { shipment: s, dueDate };
     });
@@ -110,8 +105,8 @@ export default function Collections() {
                       {shipment.referenceId}
                     </TableCell>
                     <TableCell>{shipment.salesperson}</TableCell>
-                    <TableCell className="capitalize">
-                      {shipment.paymentTerms.replace('days', ' Days')}
+                    <TableCell>
+                      {shipment.paymentTerms === '0' ? 'Cash' : `${shipment.paymentTerms} Days`}
                     </TableCell>
                     <TableCell>
                       {shipment.completedAt && format(new Date(shipment.completedAt), 'dd MMM yyyy')}

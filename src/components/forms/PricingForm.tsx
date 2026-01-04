@@ -39,10 +39,10 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   }, [shipment]);
   
   const profitPerUnit = formData.sellingPricePerUnit - formData.costPerUnit;
-  const quantity = shipment?.quantity || 1;
-  const totalSellingPrice = formData.sellingPricePerUnit * quantity;
-  const totalCost = formData.costPerUnit * quantity;
-  const totalProfit = profitPerUnit * quantity;
+  const totalQuantity = shipment?.equipment?.reduce((sum, eq) => sum + eq.quantity, 0) || 1;
+  const totalSellingPrice = formData.sellingPricePerUnit * totalQuantity;
+  const totalCost = formData.costPerUnit * totalQuantity;
+  const totalProfit = profitPerUnit * totalQuantity;
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -90,7 +90,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="p-4 rounded-lg bg-muted/50 text-sm space-y-1">
             <p><span className="text-muted-foreground">Route:</span> {shipment.portOfLoading} → {shipment.portOfDischarge}</p>
-            <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipmentType} × {shipment.quantity}</p>
+            <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipment?.map((eq, i) => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'}</p>
           </div>
           
           <div className="space-y-2">
