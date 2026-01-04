@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -11,13 +11,18 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format, isBefore, isToday, addDays, subDays } from 'date-fns';
-import { Check, AlertCircle, Clock } from 'lucide-react';
+import { Check, AlertCircle, Clock, Upload, FileCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Shipment } from '@/types/shipment';
+import { InvoiceUploadDialog } from '@/components/payables/InvoiceUploadDialog';
 
 export default function Payables() {
   const shipments = useShipmentStore((s) => s.shipments);
   const updateShipment = useShipmentStore((s) => s.updateShipment);
+  
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
 
   const payables = useMemo(() => {
     const filtered = shipments.filter(
@@ -58,11 +63,31 @@ export default function Payables() {
     toast.success(`Payment marked as complete for ${referenceId}`);
   };
   
+  const handleOpenUploadDialog = (shipment: Shipment) => {
+    setSelectedShipment(shipment);
+    setUploadDialogOpen(true);
+  };
+  
+  const handleInvoiceSubmit = (data: {
+    agentInvoiceUploaded: boolean;
+    agentInvoiceFileName: string;
+    agentInvoiceAmount: number;
+    agentInvoiceDate: Date;
+  }) => {
+    if (selectedShipment) {
+      updateShipment(selectedShipment.id, data);
+    }
+  };
+  
   const sortedPayables = [...payables].sort(
     (a, b) => a.reminderDate.getTime() - b.reminderDate.getTime()
   );
   
-  const totalDue = payables.reduce((sum, p) => sum + (p.shipment.totalCost || 0), 0);
+  // Use invoice amount if available, otherwise use estimated cost
+  const totalDue = payables.reduce((sum, p) => {
+    const amount = p.shipment.agentInvoiceAmount ?? p.shipment.totalCost ?? 0;
+    return sum + amount;
+  }, 0);
   
   return (
     <div className="animate-fade-in">
@@ -91,14 +116,15 @@ export default function Payables() {
               <TableHead className="text-muted-foreground">Route</TableHead>
               <TableHead className="text-muted-foreground">Reminder Date</TableHead>
               <TableHead className="text-muted-foreground">Status</TableHead>
-              <TableHead className="text-muted-foreground text-right">Amount</TableHead>
+              <TableHead className="text-muted-foreground text-right">Est. Amount</TableHead>
+              <TableHead className="text-muted-foreground text-right">Invoice Amount</TableHead>
               <TableHead className="text-muted-foreground text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {sortedPayables.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No pending payables
                 </TableCell>
               </TableRow>
@@ -106,6 +132,7 @@ export default function Payables() {
               sortedPayables.map(({ shipment, reminderDate }) => {
                 const status = getStatus(reminderDate);
                 const StatusIcon = status.icon;
+                const hasInvoice = shipment.agentInvoiceUploaded;
                 
                 return (
                   <TableRow key={shipment.id} className="border-border/50">
@@ -128,19 +155,41 @@ export default function Payables() {
                         {status.label}
                       </span>
                     </TableCell>
-                    <TableCell className="text-right font-medium">
+                    <TableCell className="text-right text-muted-foreground">
                       ${shipment.totalCost?.toLocaleString()}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleMarkPaid(shipment.id, shipment.referenceId)}
-                        className="h-8 gap-1 text-success hover:text-success"
-                      >
-                        <Check className="w-4 h-4" />
-                        Mark Paid
-                      </Button>
+                      {hasInvoice ? (
+                        <span className="inline-flex items-center gap-1.5 font-medium text-success">
+                          <FileCheck className="w-4 h-4" />
+                          ${shipment.agentInvoiceAmount?.toLocaleString()}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleOpenUploadDialog(shipment)}
+                          className="h-8 gap-1"
+                        >
+                          <Upload className="w-4 h-4" />
+                          {hasInvoice ? 'Update' : 'Upload'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleMarkPaid(shipment.id, shipment.referenceId)}
+                          className="h-8 gap-1 text-success hover:text-success"
+                          disabled={!hasInvoice}
+                        >
+                          <Check className="w-4 h-4" />
+                          Mark Paid
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
@@ -149,6 +198,15 @@ export default function Payables() {
           </TableBody>
         </Table>
       </div>
+      
+      {selectedShipment && (
+        <InvoiceUploadDialog
+          open={uploadDialogOpen}
+          onOpenChange={setUploadDialogOpen}
+          shipment={selectedShipment}
+          onSubmit={handleInvoiceSubmit}
+        />
+      )}
     </div>
   );
 }
