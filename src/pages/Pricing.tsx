@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useShipmentStore } from '@/store/shipmentStore';
+import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
 import { PricingForm } from '@/components/forms/PricingForm';
@@ -8,7 +8,7 @@ import { Shipment } from '@/types/shipment';
 import { hasReachedStage } from '@/lib/stageOrder';
 
 export default function Pricing() {
-  const allShipments = useShipmentStore((s) => s.shipments);
+  const allShipments = useFilteredShipments();
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);

@@ -1,5 +1,5 @@
-import { useUserStore, MOCK_USERS } from '@/store/userStore';
-import { UserRole } from '@/types/permissions';
+import { useUserStore, MOCK_USERS, SALES_USERS } from '@/store/userStore';
+import { UserRole, User } from '@/types/permissions';
 import {
   Select,
   SelectContent,
@@ -20,22 +20,46 @@ const ROLE_LABELS: Record<UserRole, string> = {
 
 export function RoleSelector() {
   const currentUser = useUserStore((s) => s.currentUser);
-  const setRole = useUserStore((s) => s.setRole);
+  const setUser = useUserStore((s) => s.setUser);
+  
+  // Create a combined list: non-sales roles + individual salespeople
+  const allUsers: User[] = [
+    MOCK_USERS.admin,
+    ...SALES_USERS, // All individual salespeople
+    MOCK_USERS.pricing,
+    MOCK_USERS.ops,
+    MOCK_USERS.collections,
+    MOCK_USERS.finance,
+  ];
+  
+  const handleChange = (userId: string) => {
+    const user = allUsers.find(u => u.id === userId);
+    if (user) {
+      setUser(user);
+    }
+  };
+  
+  const getDisplayLabel = (user: User) => {
+    if (user.role === 'sales') {
+      return `Sales: ${user.name}`;
+    }
+    return ROLE_LABELS[user.role];
+  };
   
   return (
     <div className="flex items-center gap-2">
       <Shield className="w-4 h-4 text-muted-foreground" />
       <Select
-        value={currentUser.role}
-        onValueChange={(value) => setRole(value as UserRole)}
+        value={currentUser.id}
+        onValueChange={handleChange}
       >
-        <SelectTrigger className="w-[140px] h-8 text-sm">
-          <SelectValue />
+        <SelectTrigger className="w-[160px] h-8 text-sm">
+          <SelectValue>{getDisplayLabel(currentUser)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {Object.entries(ROLE_LABELS).map(([role, label]) => (
-            <SelectItem key={role} value={role}>
-              {label}
+          {allUsers.map((user) => (
+            <SelectItem key={user.id} value={user.id}>
+              {getDisplayLabel(user)}
             </SelectItem>
           ))}
         </SelectContent>

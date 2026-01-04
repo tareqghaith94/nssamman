@@ -1,4 +1,6 @@
-import { useShipmentStore } from '@/store/shipmentStore';
+import { useFilteredShipments } from '@/hooks/useFilteredShipments';
+import { useUserStore } from '@/store/userStore';
+import { canSeeShipment } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -12,12 +14,12 @@ import {
   AlertCircle,
   Clock
 } from 'lucide-react';
-import { format, isAfter, isBefore, addDays } from 'date-fns';
+import { isBefore, addDays } from 'date-fns';
+import { useMemo } from 'react';
 
 export default function Dashboard() {
-  const shipments = useShipmentStore((s) => s.shipments);
-  const getPayables = useShipmentStore((s) => s.getPayables);
-  const getCollections = useShipmentStore((s) => s.getCollections);
+  const shipments = useFilteredShipments();
+  const currentUser = useUserStore((s) => s.currentUser);
   
   const leads = shipments.filter((s) => s.stage === 'lead').length;
   const pricing = shipments.filter((s) => s.stage === 'pricing').length;
@@ -25,8 +27,34 @@ export default function Dashboard() {
   const operations = shipments.filter((s) => s.stage === 'operations').length;
   const completed = shipments.filter((s) => s.stage === 'completed').length;
   
-  const payables = getPayables();
-  const collections = getCollections();
+  // Calculate payables for filtered shipments
+  const payables = useMemo(() => {
+    return shipments
+      .filter((s) => (s.stage === 'operations' || s.stage === 'completed') && s.agent && s.totalCost && !s.agentPaid)
+      .map((s) => {
+        const isExport = s.portOfLoading.toLowerCase().includes('aqaba');
+        let reminderDate: Date;
+        if (isExport && s.etd) {
+          reminderDate = addDays(new Date(s.etd), 3);
+        } else if (s.eta) {
+          reminderDate = addDays(new Date(s.eta), -10);
+        } else {
+          reminderDate = new Date();
+        }
+        return { shipment: s, reminderDate };
+      });
+  }, [shipments]);
+  
+  // Calculate collections for filtered shipments
+  const collections = useMemo(() => {
+    return shipments
+      .filter((s) => s.stage === 'completed' && s.completedAt && !s.paymentCollected)
+      .map((s) => {
+        const daysToAdd = parseInt(s.paymentTerms) || 0;
+        const dueDate = addDays(new Date(s.completedAt!), daysToAdd);
+        return { shipment: s, dueDate };
+      });
+  }, [shipments]);
   
   const overduePayables = payables.filter(p => isBefore(p.reminderDate, new Date())).length;
   const overdueCollections = collections.filter(c => isBefore(c.dueDate, new Date())).length;
@@ -47,7 +75,7 @@ export default function Dashboard() {
     <div className="animate-fade-in">
       <PageHeader 
         title="Dashboard" 
-        description="Overview of your freight forwarding operations"
+        description={currentUser.role === 'sales' ? `Overview for ${currentUser.name}` : 'Overview of your freight forwarding operations'}
       />
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">

@@ -57,11 +57,11 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const [hasLock, setHasLock] = useState(false);
   
   // Check if shipment is editable
-  const isEditable = shipment ? canEditShipment(shipment, currentUser.role, currentUser.name) : false;
+  const isEditable = shipment ? canEditShipment(shipment, currentUser.role, currentUser.refPrefix) : false;
   
   // Field lock states based on role and stage
-  const agentLocked = shipment ? !canEditField(shipment, 'agent', currentUser.role, currentUser.name) : true;
-  const pricingLocked = shipment ? !canEditField(shipment, 'sellingPricePerUnit', currentUser.role, currentUser.name) : true;
+  const agentLocked = shipment ? !canEditField(shipment, 'agent', currentUser.role, currentUser.refPrefix) : true;
+  const pricingLocked = shipment ? !canEditField(shipment, 'sellingPricePerUnit', currentUser.role, currentUser.refPrefix) : true;
   
   useEffect(() => {
     if (shipment && open) {

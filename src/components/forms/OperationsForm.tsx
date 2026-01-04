@@ -64,12 +64,12 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   const [hasLock, setHasLock] = useState(false);
   
   // Check if shipment is editable
-  const isEditable = shipment ? canEditShipment(shipment, currentUser.role, currentUser.name) : false;
+  const isEditable = shipment ? canEditShipment(shipment, currentUser.role, currentUser.refPrefix) : false;
   
   // Field lock states based on role
-  const bookingRefLocked = shipment ? !canEditField(shipment, 'nssBookingReference', currentUser.role, currentUser.name) : true;
-  const blTypeLocked = shipment ? !canEditField(shipment, 'blType', currentUser.role, currentUser.name) : true;
-  const etdLocked = shipment ? !canEditField(shipment, 'etd', currentUser.role, currentUser.name) : true;
+  const bookingRefLocked = shipment ? !canEditField(shipment, 'nssBookingReference', currentUser.role, currentUser.refPrefix) : true;
+  const blTypeLocked = shipment ? !canEditField(shipment, 'blType', currentUser.role, currentUser.refPrefix) : true;
+  const etdLocked = shipment ? !canEditField(shipment, 'etd', currentUser.role, currentUser.refPrefix) : true;
   
   useEffect(() => {
     if (shipment && open) {

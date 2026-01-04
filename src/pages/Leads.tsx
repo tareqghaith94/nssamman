@@ -1,5 +1,8 @@
 import { useMemo, useState } from 'react';
+import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useShipmentStore } from '@/store/shipmentStore';
+import { useUserStore } from '@/store/userStore';
+import { canAdvanceStage } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
 import { LeadForm } from '@/components/forms/LeadForm';
@@ -9,8 +12,9 @@ import { Shipment } from '@/types/shipment';
 import { hasReachedStage } from '@/lib/stageOrder';
 
 export default function Leads() {
-  const allShipments = useShipmentStore((s) => s.shipments);
+  const allShipments = useFilteredShipments();
   const moveToStage = useShipmentStore((s) => s.moveToStage);
+  const currentUser = useUserStore((s) => s.currentUser);
   const [showHistory, setShowHistory] = useState(false);
 
   const shipments = useMemo(
@@ -24,6 +28,9 @@ export default function Leads() {
     moveToStage(shipment.id, 'pricing');
     toast.success(`${shipment.referenceId} moved to Pricing`);
   };
+  
+  // Only show move button if user can advance stages
+  const canAdvance = canAdvanceStage(currentUser.role);
   
   return (
     <div className="animate-fade-in">
@@ -40,7 +47,7 @@ export default function Leads() {
       
       <ShipmentTable
         shipments={shipments}
-        onMoveToNext={showHistory ? undefined : handleMoveToNext}
+        onMoveToNext={!showHistory && canAdvance ? handleMoveToNext : undefined}
         nextStage="pricing"
       />
     </div>

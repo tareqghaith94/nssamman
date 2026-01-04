@@ -4,7 +4,19 @@ export interface User {
   id: string;
   name: string;
   role: UserRole;
+  refPrefix?: string; // Reference ID prefix for sales users (e.g., "A" for Amjad)
 }
+
+// Salesperson reference prefixes - maps salesperson name to their ref prefix
+export const SALESPERSON_REF_PREFIX: Record<string, string> = {
+  'Amjad': 'A',
+  'Tareq': 'T',
+  'Mozayan': 'M',
+  'Rania': 'R',
+  'Sanad': 'S',
+  'Uma': 'U',
+  'Marwan': 'MA',
+};
 
 // Page access permissions by role
 export const PAGE_PERMISSIONS: Record<UserRole, string[]> = {
