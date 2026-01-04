@@ -7,7 +7,8 @@ import {
   Truck, 
   CreditCard, 
   Banknote, 
-  Percent
+  Percent,
+  ScrollText
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUserStore } from '@/store/userStore';
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Payables', href: '/payables', icon: CreditCard },
   { name: 'Collections', href: '/collections', icon: Banknote },
   { name: 'Commissions', href: '/commissions', icon: Percent },
+  { name: 'Activity Log', href: '/activity-log', icon: ScrollText },
 ];
 
 export function Sidebar() {

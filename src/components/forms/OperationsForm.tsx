@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { useLockStore } from '@/store/lockStore';
 import { useUserStore } from '@/store/userStore';
+import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
 import { canEditField, getFieldLockReason, canEditShipment, canAdvanceStage } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -41,8 +42,8 @@ interface OperationsFormProps {
 
 export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormProps) {
   const updateShipment = useShipmentStore((s) => s.updateShipment);
-  const moveToStage = useShipmentStore((s) => s.moveToStage);
   const currentUser = useUserStore((s) => s.currentUser);
+  const { trackMoveToStage } = useTrackedShipmentActions();
   const { acquireLock, releaseLock } = useLockStore();
   
   const [formData, setFormData] = useState({
@@ -156,7 +157,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
       totalInvoiceAmount: formData.totalInvoiceAmount,
     });
     
-    moveToStage(shipment.id, 'completed');
+    trackMoveToStage(shipment, 'completed');
     toast.success('Shipment marked as completed');
     releaseLock(shipment.id);
     onOpenChange(false);
