@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
+import { useLockStore } from '@/store/lockStore';
+import { useUserStore } from '@/store/userStore';
+import { isFieldLocked, getFieldLockReason, canEditShipment } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -26,8 +29,9 @@ import {
 import { toast } from 'sonner';
 import { Shipment, BLType } from '@/types/shipment';
 import { format } from 'date-fns';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, Lock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { LockedField } from '@/components/ui/LockedField';
 
 interface OperationsFormProps {
   shipment: Shipment | null;
@@ -38,6 +42,8 @@ interface OperationsFormProps {
 export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormProps) {
   const updateShipment = useShipmentStore((s) => s.updateShipment);
   const moveToStage = useShipmentStore((s) => s.moveToStage);
+  const currentUser = useUserStore((s) => s.currentUser);
+  const { acquireLock, releaseLock, getLocker } = useLockStore();
   
   const [formData, setFormData] = useState({
     nssBookingReference: '',
@@ -55,8 +61,17 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
     totalInvoiceAmount: 0,
   });
   
+  const [hasLock, setHasLock] = useState(false);
+  
+  // Check if shipment is editable
+  const isEditable = shipment ? canEditShipment(shipment, currentUser.role) : false;
+  
+  // Field lock states
+  const bookingRefLocked = shipment ? isFieldLocked(shipment, 'nssBookingReference') : false;
+  const blTypeLocked = shipment ? isFieldLocked(shipment, 'blType') : false;
+  
   useEffect(() => {
-    if (shipment) {
+    if (shipment && open) {
       setFormData({
         nssBookingReference: shipment.nssBookingReference || '',
         nssInvoiceNumber: shipment.nssInvoiceNumber || '',
@@ -72,13 +87,28 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
         doReleaseDate: shipment.doReleaseDate ? format(new Date(shipment.doReleaseDate), 'yyyy-MM-dd') : '',
         totalInvoiceAmount: shipment.totalInvoiceAmount || 0,
       });
+      
+      // Try to acquire lock
+      if (isEditable) {
+        const acquired = acquireLock(shipment.id, currentUser.id);
+        setHasLock(acquired);
+        if (!acquired) {
+          toast.warning(`This shipment is being edited by another user`);
+        }
+      }
     }
-  }, [shipment]);
+    
+    return () => {
+      if (shipment) {
+        releaseLock(shipment.id);
+      }
+    };
+  }, [shipment, open]);
   
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!shipment) return;
+    if (!shipment || !isEditable || !hasLock) return;
     
     updateShipment(shipment.id, {
       nssBookingReference: formData.nssBookingReference,
@@ -97,11 +127,12 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
     });
     
     toast.success('Operations updated successfully');
+    releaseLock(shipment.id);
     onOpenChange(false);
   };
   
   const handleComplete = () => {
-    if (!shipment) return;
+    if (!shipment || !isEditable || !hasLock) return;
     
     if (!formData.totalInvoiceAmount) {
       toast.error('Please enter the total invoice amount before completing');
@@ -126,19 +157,48 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
     
     moveToStage(shipment.id, 'completed');
     toast.success('Shipment marked as completed');
+    releaseLock(shipment.id);
+    onOpenChange(false);
+  };
+  
+  const handleClose = () => {
+    if (shipment) {
+      releaseLock(shipment.id);
+    }
     onOpenChange(false);
   };
   
   if (!shipment) return null;
   
+  const isReadOnly = !isEditable || !hasLock;
+  
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="font-heading">
+          <DialogTitle className="font-heading flex items-center gap-2">
             Operations for {shipment.referenceId}
+            {isReadOnly && (
+              <span className="flex items-center gap-1 text-sm font-normal text-muted-foreground">
+                <Lock className="w-4 h-4" />
+                Read Only
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
+        
+        {isReadOnly && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm">
+            <AlertTriangle className="w-4 h-4" />
+            <span>
+              {!isEditable 
+                ? 'This shipment cannot be edited'
+                : 'This shipment is being edited by another user'
+              }
+            </span>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-6 mt-4">
           <div className="p-4 rounded-lg bg-muted/50 text-sm space-y-1">
             <p><span className="text-muted-foreground">Route:</span> {shipment.portOfLoading} → {shipment.portOfDischarge}</p>
@@ -148,15 +208,21 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
           <div className="space-y-4">
             <h4 className="font-medium">Reference Numbers</h4>
             <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="nssBooking">NSS Booking Reference</Label>
-                <Input
-                  id="nssBooking"
-                  value={formData.nssBookingReference}
-                  onChange={(e) => setFormData({ ...formData, nssBookingReference: e.target.value })}
-                  placeholder="Enter booking reference"
-                />
-              </div>
+              <LockedField 
+                isLocked={bookingRefLocked} 
+                lockReason={getFieldLockReason('nssBookingReference')}
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="nssBooking">NSS Booking Reference</Label>
+                  <Input
+                    id="nssBooking"
+                    value={formData.nssBookingReference}
+                    onChange={(e) => setFormData({ ...formData, nssBookingReference: e.target.value })}
+                    placeholder="Enter booking reference"
+                    disabled={isReadOnly || bookingRefLocked}
+                  />
+                </div>
+              </LockedField>
               <div className="space-y-2">
                 <Label htmlFor="nssInvoice">NSS Invoice Number</Label>
                 <Input
@@ -164,6 +230,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
                   value={formData.nssInvoiceNumber}
                   onChange={(e) => setFormData({ ...formData, nssInvoiceNumber: e.target.value })}
                   placeholder="Enter invoice number"
+                  disabled={isReadOnly}
                 />
               </div>
             </div>
@@ -172,27 +239,34 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
           <div className="space-y-4">
             <h4 className="font-medium">Bill of Lading</h4>
             <div className="grid grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>BL Type</Label>
-                <Select
-                  value={formData.blType}
-                  onValueChange={(v) => setFormData({ ...formData, blType: v as BLType })}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="original">Original</SelectItem>
-                    <SelectItem value="telex">Telex Release</SelectItem>
-                    <SelectItem value="seaway">Seaway Bill</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
+              <LockedField 
+                isLocked={blTypeLocked} 
+                lockReason={getFieldLockReason('blType')}
+              >
+                <div className="space-y-2">
+                  <Label>BL Type</Label>
+                  <Select
+                    value={formData.blType}
+                    onValueChange={(v) => setFormData({ ...formData, blType: v as BLType })}
+                    disabled={isReadOnly || blTypeLocked}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="original">Original</SelectItem>
+                      <SelectItem value="telex">Telex Release</SelectItem>
+                      <SelectItem value="seaway">Seaway Bill</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </LockedField>
               <div className="flex items-center space-x-2 pt-8">
                 <Checkbox
                   id="blDraft"
                   checked={formData.blDraftApproval}
                   onCheckedChange={(c) => setFormData({ ...formData, blDraftApproval: c as boolean })}
+                  disabled={isReadOnly}
                 />
                 <Label htmlFor="blDraft">BL Draft Approved</Label>
               </div>
@@ -201,6 +275,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
                   id="finalBL"
                   checked={formData.finalBLIssued}
                   onCheckedChange={(c) => setFormData({ ...formData, finalBLIssued: c as boolean })}
+                  disabled={isReadOnly}
                 />
                 <Label htmlFor="finalBL">Final BL Issued</Label>
               </div>
@@ -220,6 +295,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
                         "w-full justify-start text-left font-normal",
                         !formData.terminalCutoff && "text-muted-foreground"
                       )}
+                      disabled={isReadOnly}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {formData.terminalCutoff ? format(new Date(formData.terminalCutoff), "PPP") : <span>Pick a date</span>}
@@ -246,6 +322,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
                         "w-full justify-start text-left font-normal",
                         !formData.gateInTerminal && "text-muted-foreground"
                       )}
+                      disabled={isReadOnly}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {formData.gateInTerminal ? format(new Date(formData.gateInTerminal), "PPP") : <span>Pick a date</span>}
@@ -272,6 +349,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
                         "w-full justify-start text-left font-normal",
                         !formData.etd && "text-muted-foreground"
                       )}
+                      disabled={isReadOnly}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {formData.etd ? format(new Date(formData.etd), "PPP") : <span>Pick a date</span>}
@@ -298,6 +376,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
                         "w-full justify-start text-left font-normal",
                         !formData.eta && "text-muted-foreground"
                       )}
+                      disabled={isReadOnly}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {formData.eta ? format(new Date(formData.eta), "PPP") : <span>Pick a date</span>}
@@ -325,6 +404,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
                   id="arrivalNotice"
                   checked={formData.arrivalNoticeSent}
                   onCheckedChange={(c) => setFormData({ ...formData, arrivalNoticeSent: c as boolean })}
+                  disabled={isReadOnly}
                 />
                 <Label htmlFor="arrivalNotice">Arrival Notice Sent</Label>
               </div>
@@ -333,6 +413,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
                   id="doIssued"
                   checked={formData.doIssued}
                   onCheckedChange={(c) => setFormData({ ...formData, doIssued: c as boolean })}
+                  disabled={isReadOnly}
                 />
                 <Label htmlFor="doIssued">DO Issued</Label>
               </div>
@@ -346,6 +427,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
                         "w-full justify-start text-left font-normal",
                         !formData.doReleaseDate && "text-muted-foreground"
                       )}
+                      disabled={isReadOnly}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
                       {formData.doReleaseDate ? format(new Date(formData.doReleaseDate), "PPP") : <span>Pick a date</span>}
@@ -374,19 +456,24 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
               value={formData.totalInvoiceAmount}
               onChange={(e) => setFormData({ ...formData, totalInvoiceAmount: parseFloat(e.target.value) || 0 })}
               placeholder="Enter invoice amount"
+              disabled={isReadOnly}
             />
           </div>
           
           <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+            <Button type="button" variant="outline" onClick={handleClose}>
+              {isReadOnly ? 'Close' : 'Cancel'}
             </Button>
-            <Button type="submit" variant="secondary">
-              Save Progress
-            </Button>
-            <Button type="button" onClick={handleComplete}>
-              Mark Complete
-            </Button>
+            {!isReadOnly && (
+              <>
+                <Button type="submit" variant="secondary">
+                  Save Progress
+                </Button>
+                <Button type="button" onClick={handleComplete}>
+                  Mark Complete
+                </Button>
+              </>
+            )}
           </div>
         </form>
       </DialogContent>

@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ProtectedRoute } from "@/components/auth/ProtectedRoute";
 import Index from "./pages/Index";
 import Leads from "./pages/Leads";
 import Pricing from "./pages/Pricing";
@@ -23,17 +24,19 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AppLayout>
-          <Routes>
-            <Route path="/" element={<Index />} />
-            <Route path="/leads" element={<Leads />} />
-            <Route path="/pricing" element={<Pricing />} />
-            <Route path="/confirmed" element={<Confirmed />} />
-            <Route path="/operations" element={<Operations />} />
-            <Route path="/payables" element={<Payables />} />
-            <Route path="/collections" element={<Collections />} />
-            <Route path="/commissions" element={<Commissions />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+          <ProtectedRoute>
+            <Routes>
+              <Route path="/" element={<Index />} />
+              <Route path="/leads" element={<Leads />} />
+              <Route path="/pricing" element={<Pricing />} />
+              <Route path="/confirmed" element={<Confirmed />} />
+              <Route path="/operations" element={<Operations />} />
+              <Route path="/payables" element={<Payables />} />
+              <Route path="/collections" element={<Collections />} />
+              <Route path="/commissions" element={<Commissions />} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </ProtectedRoute>
         </AppLayout>
       </BrowserRouter>
     </TooltipProvider>
