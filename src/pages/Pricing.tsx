@@ -12,6 +12,26 @@ import { Shipment } from '@/types/shipment';
 import { hasReachedStage } from '@/lib/stageOrder';
 import { UserRole } from '@/types/permissions';
 import { toast } from 'sonner';
+import { Skeleton } from '@/components/ui/skeleton';
+
+function TableSkeleton() {
+  return (
+    <div className="rounded-md border">
+      <div className="p-4 space-y-3">
+        {[...Array(5)].map((_, i) => (
+          <div key={i} className="flex items-center space-x-4">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function Pricing() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
@@ -47,14 +67,6 @@ export default function Pricing() {
   
   const canRevert = canRevertStage(userRoles, 'pricing');
   
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
-  
   return (
     <div className="animate-fade-in">
       <PageHeader
@@ -63,12 +75,16 @@ export default function Pricing() {
         action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
       />
       
-      <ShipmentTable
-        shipments={shipments}
-        onEdit={showHistory ? undefined : handleEdit}
-        onRevert={!showHistory && canRevert ? (ship) => setRevertShipment(ship) : undefined}
-        showPricing
-      />
+      {isLoading ? (
+        <TableSkeleton />
+      ) : (
+        <ShipmentTable
+          shipments={shipments}
+          onEdit={showHistory ? undefined : handleEdit}
+          onRevert={!showHistory && canRevert ? (ship) => setRevertShipment(ship) : undefined}
+          showPricing
+        />
+      )}
       
       <PricingForm
         shipment={selectedShipment}
