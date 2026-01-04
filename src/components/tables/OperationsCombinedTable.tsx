@@ -8,8 +8,18 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { format } from 'date-fns';
 import { Edit2, Check, X } from 'lucide-react';
+import { useShipmentStore } from '@/store/shipmentStore';
+
+const OPS_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
 
 interface OperationsCombinedTableProps {
   shipments: Shipment[];
@@ -40,6 +50,12 @@ function TextCell({ value }: { value: string | undefined }) {
 }
 
 export function OperationsCombinedTable({ shipments, onEdit }: OperationsCombinedTableProps) {
+  const updateShipment = useShipmentStore((state) => state.updateShipment);
+
+  const handleOpsOwnerChange = (shipmentId: string, value: string) => {
+    updateShipment(shipmentId, { opsOwner: value as 'Uma' | 'Rania' | 'Mozayan' });
+  };
+
   return (
     <div className="glass-card rounded-xl overflow-hidden">
       <div className="p-4 border-b border-border/50">
@@ -52,6 +68,7 @@ export function OperationsCombinedTable({ shipments, onEdit }: OperationsCombine
             <TableHead className="text-muted-foreground">Reference</TableHead>
             <TableHead className="text-muted-foreground">Salesperson</TableHead>
             <TableHead className="text-muted-foreground">Route</TableHead>
+            <TableHead className="text-muted-foreground">Ops Owner</TableHead>
             <TableHead className="text-muted-foreground">Equipment</TableHead>
             <TableHead className="text-muted-foreground">NSS Booking</TableHead>
             <TableHead className="text-muted-foreground">NSS Invoice</TableHead>
@@ -96,6 +113,23 @@ export function OperationsCombinedTable({ shipments, onEdit }: OperationsCombine
                 <TableCell className="text-sm">{shipment.salesperson}</TableCell>
                 <TableCell className="text-xs">
                   {shipment.portOfLoading} → {shipment.portOfDischarge}
+                </TableCell>
+                <TableCell>
+                  <Select
+                    value={shipment.opsOwner || ''}
+                    onValueChange={(value) => handleOpsOwnerChange(shipment.id, value)}
+                  >
+                    <SelectTrigger className="h-8 w-[100px] text-xs">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {OPS_OWNERS.map((owner) => (
+                        <SelectItem key={owner} value={owner} className="text-xs">
+                          {owner}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </TableCell>
                 <TableCell className="text-xs">
                   {shipment.equipment.map(e => `${e.quantity}x${e.type}`).join(', ')}

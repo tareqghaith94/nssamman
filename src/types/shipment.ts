@@ -48,6 +48,7 @@ export interface Shipment {
   doReleaseDate?: Date;
   totalInvoiceAmount?: number;
   completedAt?: Date;
+  opsOwner?: 'Uma' | 'Rania' | 'Mozayan';
   
   // Payment tracking
   paymentCollected?: boolean;
