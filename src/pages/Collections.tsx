@@ -1,10 +1,11 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { useAuth } from '@/hooks/useAuth';
 import { canEditOnPage } from '@/lib/permissions';
 import { UserRole } from '@/types/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { StageFilter } from '@/components/ui/StageFilter';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -26,18 +27,21 @@ export default function Collections() {
   const { roles } = useAuth();
   const userRoles = (roles || []) as UserRole[];
   const canEdit = canEditOnPage(userRoles, '/collections');
+  const [showHistory, setShowHistory] = useState(false);
 
   const collections = useMemo(() => {
-    const filtered = allShipments.filter(
-      (s) => s.stage === 'completed' && s.completedAt && !s.paymentCollected
-    );
+    // Current: Only pending collections (completed + not collected)
+    // History: All completed shipments (collected or not)
+    const filtered = showHistory
+      ? allShipments.filter((s) => s.stage === 'completed' && s.completedAt)
+      : allShipments.filter((s) => s.stage === 'completed' && s.completedAt && !s.paymentCollected);
     
     return filtered.map((s) => {
       const daysToAdd = parseInt(s.paymentTerms) || 0;
       const dueDate = addDays(new Date(s.completedAt!), daysToAdd);
       return { shipment: s, dueDate };
     });
-  }, [allShipments]);
+  }, [allShipments, showHistory]);
   
   const getStatus = (dueDate: Date) => {
     if (isBefore(dueDate, new Date()) && !isToday(dueDate)) {
@@ -69,6 +73,7 @@ export default function Collections() {
       <PageHeader
         title="Collections"
         description="Track client payments based on payment terms"
+        action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
       />
       
       <div className="mb-6 p-4 glass-card rounded-xl flex items-center justify-between">
@@ -154,16 +159,23 @@ export default function Collections() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleMarkCollected(shipment.id, shipment.referenceId)}
-                        className="h-8 gap-1 text-success hover:text-success"
-                        disabled={!canEdit}
-                      >
-                        <Check className="w-4 h-4" />
-                        Mark Collected
-                      </Button>
+                      {shipment.paymentCollected ? (
+                        <span className="text-success text-sm font-medium flex items-center justify-end gap-1">
+                          <Check className="w-4 h-4" />
+                          Collected
+                        </span>
+                      ) : (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleMarkCollected(shipment.id, shipment.referenceId)}
+                          className="h-8 gap-1 text-success hover:text-success"
+                          disabled={!canEdit}
+                        >
+                          <Check className="w-4 h-4" />
+                          Mark Collected
+                        </Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 );

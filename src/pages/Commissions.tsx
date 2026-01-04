@@ -1,7 +1,8 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { useAuth } from '@/hooks/useAuth';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { StageFilter } from '@/components/ui/StageFilter';
 import {
   Table,
   TableBody,
@@ -17,6 +18,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { DollarSign, TrendingUp, User } from 'lucide-react';
 import { Shipment } from '@/types/shipment';
 import { UserRole } from '@/types/permissions';
@@ -24,6 +26,7 @@ import { UserRole } from '@/types/permissions';
 export default function Commissions() {
   const shipments = useShipmentStore((s) => s.shipments);
   const { profile, roles } = useAuth();
+  const [showHistory, setShowHistory] = useState(false);
   
   // Use roles from auth for multi-role support
   const userRoles = (roles || []) as UserRole[];
@@ -34,19 +37,20 @@ export default function Commissions() {
   const isSalesOnly = userRoles.includes('sales') && !userRoles.includes('admin');
 
   const commissions = useMemo(() => {
-    // Filter to completed shipments with payment collected
-    let collectedShipments = shipments.filter(
-      (s) => s.stage === 'completed' && s.paymentCollected && s.totalProfit
-    );
+    // Current: Only collected shipments (completed + payment collected + has profit)
+    // History: All completed shipments with profit (collected or not)
+    let filteredShipments = showHistory
+      ? shipments.filter((s) => s.stage === 'completed' && s.totalProfit)
+      : shipments.filter((s) => s.stage === 'completed' && s.paymentCollected && s.totalProfit);
     
     // Sales-only users see only their own shipments
     if (isSalesOnly && refPrefix) {
-      collectedShipments = collectedShipments.filter(
+      filteredShipments = filteredShipments.filter(
         (s) => s.referenceId.startsWith(`${refPrefix}-`)
       );
     }
     
-    const bySalesperson = collectedShipments.reduce((acc, s) => {
+    const bySalesperson = filteredShipments.reduce((acc, s) => {
       if (!acc[s.salesperson]) {
         acc[s.salesperson] = [];
       }
@@ -57,15 +61,19 @@ export default function Commissions() {
     return Object.entries(bySalesperson).map(([salesperson, ships]) => ({
       salesperson,
       shipments: ships,
-      totalCommission: ships.reduce((sum, s) => sum + (s.totalProfit || 0) * 0.04, 0),
+      // Only count commission for collected shipments
+      totalCommission: ships.reduce((sum, s) => sum + (s.paymentCollected ? (s.totalProfit || 0) * 0.04 : 0), 0),
+      pendingCommission: ships.reduce((sum, s) => sum + (!s.paymentCollected ? (s.totalProfit || 0) * 0.04 : 0), 0),
     }));
-  }, [shipments, isSalesOnly, refPrefix]);
+  }, [shipments, isSalesOnly, refPrefix, showHistory]);
   
   const totalCommission = commissions.reduce((sum, c) => sum + c.totalCommission, 0);
   const totalGP = commissions.reduce(
     (sum, c) => sum + c.shipments.reduce((s, sh) => s + (sh.totalProfit || 0), 0),
     0
   );
+  
+  const totalPendingCommission = commissions.reduce((sum, c) => sum + c.pendingCommission, 0);
   
   return (
     <div className="animate-fade-in">
@@ -75,6 +83,7 @@ export default function Commissions() {
           ? "Your commissions (4% of Gross Profit on collected shipments)"
           : "Sales team commissions (4% of Gross Profit on collected shipments)"
         }
+        action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
       />
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -137,7 +146,10 @@ export default function Commissions() {
                       <div className="text-left">
                         <p className="font-medium">{commission.salesperson}</p>
                         <p className="text-sm text-muted-foreground">
-                          {commission.shipments.length} collected shipment(s)
+                          {commission.shipments.filter(s => s.paymentCollected).length} collected
+                          {showHistory && commission.shipments.filter(s => !s.paymentCollected).length > 0 && 
+                            `, ${commission.shipments.filter(s => !s.paymentCollected).length} pending`
+                          }
                         </p>
                       </div>
                     </div>
@@ -145,7 +157,12 @@ export default function Commissions() {
                       <p className="text-lg font-semibold text-primary">
                         ${commission.totalCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
                       </p>
-                      <p className="text-xs text-muted-foreground">Commission</p>
+                      <p className="text-xs text-muted-foreground">
+                        {showHistory && commission.pendingCommission > 0 
+                          ? `Collected (+$${commission.pendingCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })} pending)`
+                          : 'Commission'
+                        }
+                      </p>
                     </div>
                   </div>
                 </AccordionTrigger>
@@ -156,7 +173,7 @@ export default function Commissions() {
                         <TableRow className="border-border/50 hover:bg-transparent">
                           <TableHead className="text-muted-foreground">Reference ID</TableHead>
                           <TableHead className="text-muted-foreground">Route</TableHead>
-                          <TableHead className="text-muted-foreground">Collected Date</TableHead>
+                          <TableHead className="text-muted-foreground">Status</TableHead>
                           <TableHead className="text-muted-foreground text-right">Gross Profit</TableHead>
                           <TableHead className="text-muted-foreground text-right">Commission (4%)</TableHead>
                         </TableRow>
@@ -171,14 +188,23 @@ export default function Commissions() {
                               {shipment.portOfLoading} → {shipment.portOfDischarge}
                             </TableCell>
                             <TableCell>
-                              {shipment.paymentCollectedDate && 
-                                format(new Date(shipment.paymentCollectedDate), 'dd MMM yyyy')}
+                              {shipment.paymentCollected ? (
+                                <span className="text-success text-sm">
+                                  Collected {shipment.paymentCollectedDate && format(new Date(shipment.paymentCollectedDate), 'dd MMM yyyy')}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground text-sm">Pending</span>
+                              )}
                             </TableCell>
                             <TableCell className="text-right font-medium text-success">
                               ${shipment.totalProfit?.toLocaleString()}
                             </TableCell>
-                            <TableCell className="text-right font-medium text-primary">
+                            <TableCell className={cn(
+                              "text-right font-medium",
+                              shipment.paymentCollected ? "text-primary" : "text-muted-foreground"
+                            )}>
                               ${((shipment.totalProfit || 0) * 0.04).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              {!shipment.paymentCollected && " (pending)"}
                             </TableCell>
                           </TableRow>
                         ))}
