@@ -1,13 +1,13 @@
 import { useShipmentStore } from '@/store/shipmentStore';
 import { useActivityStore } from '@/store/activityStore';
-import { useUserStore } from '@/store/userStore';
+import { useAuth } from '@/hooks/useAuth';
 import { Shipment, ShipmentStage } from '@/types/shipment';
 import { ActivityType } from '@/types/activity';
 
 export function useTrackedShipmentActions() {
   const { addShipment, updateShipment, moveToStage, shipments } = useShipmentStore();
   const { addActivity } = useActivityStore();
-  const currentUser = useUserStore((s) => s.currentUser);
+  const { profile } = useAuth();
 
   const logActivity = (
     shipmentId: string,
@@ -23,8 +23,8 @@ export function useTrackedShipmentActions() {
       referenceId,
       type,
       description,
-      user: currentUser.name,
-      userRole: currentUser.role,
+      user: profile?.name || 'Unknown',
+      userRole: profile?.role || 'Unknown',
       previousValue,
       newValue,
       field,

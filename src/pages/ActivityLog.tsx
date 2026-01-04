@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { useActivityStore } from '@/store/activityStore';
-import { useUserStore } from '@/store/userStore';
+import { useAuth } from '@/hooks/useAuth';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,13 +36,13 @@ const activityTypeLabels: Record<ActivityType, { label: string; icon: React.Reac
 };
 
 export default function ActivityLog() {
-  const currentUser = useUserStore((s) => s.currentUser);
+  const { isAdmin } = useAuth();
   const { activities, clearActivities } = useActivityStore();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
 
   // Only admin can access this page
-  if (currentUser.role !== 'admin') {
+  if (!isAdmin) {
     return <Navigate to="/" replace />;
   }
 
