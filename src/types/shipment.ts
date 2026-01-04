@@ -34,6 +34,8 @@ export interface Shipment {
   totalProfit?: number;
   
   // Operations stage fields
+  nssBookingReference?: string;
+  nssInvoiceNumber?: string;
   blType?: BLType;
   blDraftApproval?: boolean;
   finalBLIssued?: boolean;
