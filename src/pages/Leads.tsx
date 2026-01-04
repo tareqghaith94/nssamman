@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
@@ -7,8 +7,13 @@ import { toast } from 'sonner';
 import { Shipment } from '@/types/shipment';
 
 export default function Leads() {
-  const shipments = useShipmentStore((s) => s.shipments.filter((ship) => ship.stage === 'lead'));
+  const allShipments = useShipmentStore((s) => s.shipments);
   const moveToStage = useShipmentStore((s) => s.moveToStage);
+
+  const shipments = useMemo(
+    () => allShipments.filter((ship) => ship.stage === 'lead'),
+    [allShipments]
+  );
   
   const handleMoveToNext = (shipment: Shipment) => {
     moveToStage(shipment.id, 'pricing');
