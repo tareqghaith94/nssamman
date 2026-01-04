@@ -4,6 +4,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Select,
   SelectContent,
@@ -20,6 +26,8 @@ import {
 import { toast } from 'sonner';
 import { Shipment, BLType } from '@/types/shipment';
 import { format } from 'date-fns';
+import { CalendarIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface OperationsFormProps {
   shipment: Shipment | null;
@@ -203,40 +211,108 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
             <h4 className="font-medium">Terminal & Shipping</h4>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="cutoff">Terminal Cutoff</Label>
-                <Input
-                  id="cutoff"
-                  type="date"
-                  value={formData.terminalCutoff}
-                  onChange={(e) => setFormData({ ...formData, terminalCutoff: e.target.value })}
-                />
+                <Label>Terminal Cutoff</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.terminalCutoff && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.terminalCutoff ? format(new Date(formData.terminalCutoff), "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.terminalCutoff ? new Date(formData.terminalCutoff) : undefined}
+                      onSelect={(date) => setFormData({ ...formData, terminalCutoff: date ? format(date, 'yyyy-MM-dd') : '' })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="gatein">Gate-in Terminal</Label>
-                <Input
-                  id="gatein"
-                  type="date"
-                  value={formData.gateInTerminal}
-                  onChange={(e) => setFormData({ ...formData, gateInTerminal: e.target.value })}
-                />
+                <Label>Gate-in Terminal</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.gateInTerminal && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.gateInTerminal ? format(new Date(formData.gateInTerminal), "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.gateInTerminal ? new Date(formData.gateInTerminal) : undefined}
+                      onSelect={(date) => setFormData({ ...formData, gateInTerminal: date ? format(date, 'yyyy-MM-dd') : '' })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="etd">ETD</Label>
-                <Input
-                  id="etd"
-                  type="date"
-                  value={formData.etd}
-                  onChange={(e) => setFormData({ ...formData, etd: e.target.value })}
-                />
+                <Label>ETD</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.etd && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.etd ? format(new Date(formData.etd), "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.etd ? new Date(formData.etd) : undefined}
+                      onSelect={(date) => setFormData({ ...formData, etd: date ? format(date, 'yyyy-MM-dd') : '' })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="eta">ETA</Label>
-                <Input
-                  id="eta"
-                  type="date"
-                  value={formData.eta}
-                  onChange={(e) => setFormData({ ...formData, eta: e.target.value })}
-                />
+                <Label>ETA</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.eta && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.eta ? format(new Date(formData.eta), "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.eta ? new Date(formData.eta) : undefined}
+                      onSelect={(date) => setFormData({ ...formData, eta: date ? format(date, 'yyyy-MM-dd') : '' })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </div>
@@ -261,13 +337,30 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
                 <Label htmlFor="doIssued">DO Issued</Label>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="doRelease">DO Release Date</Label>
-                <Input
-                  id="doRelease"
-                  type="date"
-                  value={formData.doReleaseDate}
-                  onChange={(e) => setFormData({ ...formData, doReleaseDate: e.target.value })}
-                />
+                <Label>DO Release Date</Label>
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className={cn(
+                        "w-full justify-start text-left font-normal",
+                        !formData.doReleaseDate && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {formData.doReleaseDate ? format(new Date(formData.doReleaseDate), "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={formData.doReleaseDate ? new Date(formData.doReleaseDate) : undefined}
+                      onSelect={(date) => setFormData({ ...formData, doReleaseDate: date ? format(date, 'yyyy-MM-dd') : '' })}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
               </div>
             </div>
           </div>
