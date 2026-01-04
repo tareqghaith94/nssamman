@@ -9,12 +9,16 @@ import { StageFilter } from '@/components/ui/StageFilter';
 import { toast } from 'sonner';
 import { Shipment } from '@/types/shipment';
 import { hasReachedStage } from '@/lib/stageOrder';
+import { UserRole } from '@/types/permissions';
 
 export default function Confirmed() {
   const allShipments = useFilteredShipments();
   const moveToStage = useShipmentStore((s) => s.moveToStage);
   const currentUser = useUserStore((s) => s.currentUser);
   const [showHistory, setShowHistory] = useState(false);
+
+  // Use roles array for multi-role support
+  const userRoles = (currentUser.roles || [currentUser.role]) as UserRole[];
 
   const shipments = useMemo(
     () => showHistory
@@ -29,7 +33,7 @@ export default function Confirmed() {
   };
   
   // Only show move button if user can advance from confirmed stage
-  const canAdvance = canAdvanceStage(currentUser.role, 'confirmed');
+  const canAdvance = canAdvanceStage(userRoles, 'confirmed');
   
   return (
     <div className="animate-fade-in">

@@ -10,12 +10,16 @@ import { StageFilter } from '@/components/ui/StageFilter';
 import { toast } from 'sonner';
 import { Shipment } from '@/types/shipment';
 import { hasReachedStage } from '@/lib/stageOrder';
+import { UserRole } from '@/types/permissions';
 
 export default function Leads() {
   const allShipments = useFilteredShipments();
   const moveToStage = useShipmentStore((s) => s.moveToStage);
   const currentUser = useUserStore((s) => s.currentUser);
   const [showHistory, setShowHistory] = useState(false);
+
+  // Use roles array for multi-role support
+  const userRoles = (currentUser.roles || [currentUser.role]) as UserRole[];
 
   const shipments = useMemo(
     () => showHistory
@@ -30,7 +34,7 @@ export default function Leads() {
   };
   
   // Only show move button if user can advance from lead stage
-  const canAdvance = canAdvanceStage(currentUser.role, 'lead');
+  const canAdvance = canAdvanceStage(userRoles, 'lead');
   
   return (
     <div className="animate-fade-in">

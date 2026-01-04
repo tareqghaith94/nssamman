@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { Shipment, LostReason } from '@/types/shipment';
 import { XCircle, Lock, AlertTriangle } from 'lucide-react';
 import { LockedField } from '@/components/ui/LockedField';
+import { UserRole } from '@/types/permissions';
 
 const LOST_REASONS: { value: LostReason; label: string }[] = [
   { value: 'price', label: 'Price too high' },
@@ -48,6 +49,9 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const { trackMoveToStage, logActivity } = useTrackedShipmentActions();
   const { acquireLock, releaseLock, getLocker } = useLockStore();
   
+  // Use roles array for multi-role support
+  const userRoles = (currentUser.roles || [currentUser.role]) as UserRole[];
+  
   const [formData, setFormData] = useState({
     agent: '',
     sellingPricePerUnit: 0,
@@ -59,11 +63,11 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const [hasLock, setHasLock] = useState(false);
   
   // Check if shipment is editable
-  const isEditable = shipment ? canEditShipment(shipment, currentUser.role, currentUser.refPrefix) : false;
+  const isEditable = shipment ? canEditShipment(shipment, userRoles, currentUser.refPrefix) : false;
   
   // Field lock states based on role and stage
-  const agentLocked = shipment ? !canEditField(shipment, 'agent', currentUser.role, currentUser.refPrefix) : true;
-  const pricingLocked = shipment ? !canEditField(shipment, 'sellingPricePerUnit', currentUser.role, currentUser.refPrefix) : true;
+  const agentLocked = shipment ? !canEditField(shipment, 'agent', userRoles, currentUser.refPrefix) : true;
+  const pricingLocked = shipment ? !canEditField(shipment, 'sellingPricePerUnit', userRoles, currentUser.refPrefix) : true;
   
   useEffect(() => {
     if (shipment && open) {
@@ -117,7 +121,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   };
   
   const handleConfirm = () => {
-    if (!shipment || !hasLock || !canAdvanceStage(currentUser.role, 'pricing')) return;
+    if (!shipment || !hasLock || !canAdvanceStage(userRoles, 'pricing')) return;
     
     updateShipment(shipment.id, {
       ...formData,
@@ -158,7 +162,10 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   if (!shipment) return null;
   
   const isReadOnly = !isEditable || !hasLock;
-  const canConfirm = canAdvanceStage(currentUser.role, 'pricing');
+  const canConfirm = canAdvanceStage(userRoles, 'pricing');
+  
+  // Check if user has admin or pricing role for mark as lost
+  const canMarkAsLost = userRoles.includes('admin') || userRoles.includes('pricing');
   
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -232,7 +239,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             <>
               <LockedField 
                 isLocked={agentLocked} 
-                lockReason={shipment ? getFieldLockReason('agent', currentUser.role, shipment) : undefined}
+                lockReason={shipment ? getFieldLockReason('agent', userRoles, shipment) : undefined}
               >
                 <div className="space-y-2">
                   <Label htmlFor="agent">Agent Name</Label>
@@ -249,7 +256,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               <div className="grid grid-cols-2 gap-4">
                 <LockedField 
                   isLocked={pricingLocked} 
-                  lockReason={shipment ? getFieldLockReason('sellingPricePerUnit', currentUser.role, shipment) : undefined}
+                  lockReason={shipment ? getFieldLockReason('sellingPricePerUnit', userRoles, shipment) : undefined}
                 >
                   <div className="space-y-2">
                     <Label htmlFor="selling">Selling Price/Unit ($)</Label>
@@ -265,7 +272,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
                 </LockedField>
                 <LockedField 
                   isLocked={pricingLocked} 
-                  lockReason={shipment ? getFieldLockReason('costPerUnit', currentUser.role, shipment) : undefined}
+                  lockReason={shipment ? getFieldLockReason('costPerUnit', userRoles, shipment) : undefined}
                 >
                   <div className="space-y-2">
                     <Label htmlFor="cost">Cost/Unit ($)</Label>
@@ -304,7 +311,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               </div>
               
               <div className="flex justify-between pt-4">
-                {!isReadOnly && (currentUser.role === 'admin' || currentUser.role === 'pricing') && (
+                {!isReadOnly && canMarkAsLost && (
                   <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowLostForm(true)}>
                     Mark as Lost
                   </Button>

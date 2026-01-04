@@ -9,7 +9,7 @@ export interface UserProfile {
   id: string;
   user_id: string;
   name: string;
-  role: AppRole;
+  role: AppRole; // Primary role for display
   department: string | null;
   ref_prefix: string | null;
 }
@@ -18,6 +18,7 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -30,10 +31,11 @@ export function useAuth() {
         // Defer profile fetch to avoid deadlock
         if (session?.user) {
           setTimeout(() => {
-            fetchProfile(session.user.id);
+            fetchProfileAndRoles(session.user.id);
           }, 0);
         } else {
           setProfile(null);
+          setRoles([]);
           setLoading(false);
         }
       }
@@ -45,7 +47,7 @@ export function useAuth() {
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        fetchProfile(session.user.id);
+        fetchProfileAndRoles(session.user.id);
       } else {
         setLoading(false);
       }
@@ -54,23 +56,39 @@ export function useAuth() {
     return () => subscription.unsubscribe();
   }, []);
 
-  const fetchProfile = async (userId: string) => {
+  const fetchProfileAndRoles = async (userId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
+      // Fetch profile and roles in parallel
+      const [profileResult, rolesResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('*')
+          .eq('user_id', userId)
+          .single(),
+        supabase
+          .from('user_roles')
+          .select('role')
+          .eq('user_id', userId)
+      ]);
       
-      if (error) {
-        console.error('Error fetching profile:', error);
+      if (profileResult.error) {
+        console.error('Error fetching profile:', profileResult.error);
         setProfile(null);
       } else {
-        setProfile(data as UserProfile);
+        setProfile(profileResult.data as UserProfile);
+      }
+
+      if (rolesResult.error) {
+        console.error('Error fetching roles:', rolesResult.error);
+        setRoles([]);
+      } else {
+        const userRoles = rolesResult.data?.map(r => r.role) || [];
+        setRoles(userRoles);
       }
     } catch (err) {
-      console.error('Error fetching profile:', err);
+      console.error('Error fetching profile/roles:', err);
       setProfile(null);
+      setRoles([]);
     } finally {
       setLoading(false);
     }
@@ -90,18 +108,26 @@ export function useAuth() {
       setUser(null);
       setSession(null);
       setProfile(null);
+      setRoles([]);
     }
     return { error };
+  };
+
+  // Helper to check if user has a specific role
+  const hasRole = (role: AppRole): boolean => {
+    return roles.includes(role);
   };
 
   return {
     user,
     session,
     profile,
+    roles,
     loading,
     signIn,
     signOut,
+    hasRole,
     isAuthenticated: !!session,
-    isAdmin: profile?.role === 'admin',
+    isAdmin: roles.includes('admin'),
   };
 }

@@ -37,13 +37,14 @@ const navigation = [
 
 export function Sidebar() {
   const location = useLocation();
-  const { profile, signOut } = useAuth();
+  const { profile, roles, signOut } = useAuth();
   
-  const userRole = (profile?.role || 'sales') as UserRole;
+  // Use roles array for multi-role support
+  const userRoles = (roles || []) as UserRole[];
   
-  // Filter navigation based on user role
+  // Filter navigation based on user roles
   const filteredNavigation = navigation.filter((item) => 
-    canAccessPage(userRole, item.href)
+    userRoles.length > 0 ? canAccessPage(userRoles, item.href) : false
   );
 
   const handleSignOut = async () => {
@@ -91,7 +92,9 @@ export function Sidebar() {
         {profile && (
           <div className="mb-3">
             <p className="text-sm font-medium text-sidebar-foreground">{profile.name}</p>
-            <p className="text-xs text-muted-foreground capitalize">{profile.role}</p>
+            <p className="text-xs text-muted-foreground capitalize">
+              {userRoles.length > 0 ? userRoles.join(', ') : profile.role}
+            </p>
           </div>
         )}
         <Button

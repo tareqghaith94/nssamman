@@ -2,14 +2,26 @@ import { Shipment, ShipmentStage } from '@/types/shipment';
 import { UserRole, PAGE_PERMISSIONS, GLOBAL_READONLY_FIELDS, HIDDEN_FIELDS, FIELD_CATEGORIES, VALID_TRANSITIONS } from '@/types/permissions';
 import { STAGE_ORDER_MAP } from '@/lib/stageOrder';
 
-// Check if a user role can access a specific page
-export function canAccessPage(role: UserRole, path: string): boolean {
+// Check if a user with given roles can access a specific page
+export function canAccessPage(roles: UserRole[], path: string): boolean {
+  return roles.some(role => PAGE_PERMISSIONS[role]?.includes(path));
+}
+
+// Legacy single-role version for backwards compatibility
+export function canAccessPageSingle(role: UserRole, path: string): boolean {
   const allowedPaths = PAGE_PERMISSIONS[role];
   return allowedPaths.includes(path);
 }
 
-// Check if a field is hidden for a specific role
-export function isFieldHidden(role: UserRole, fieldName: string): boolean {
+// Check if a field is hidden for any of the user's roles
+// Field is hidden only if ALL roles have it hidden
+export function isFieldHidden(roles: UserRole[], fieldName: string): boolean {
+  if (roles.length === 0) return true;
+  return roles.every(role => HIDDEN_FIELDS[role]?.includes(fieldName));
+}
+
+// Legacy single-role version
+export function isFieldHiddenSingle(role: UserRole, fieldName: string): boolean {
   return HIDDEN_FIELDS[role]?.includes(fieldName) || false;
 }
 
@@ -19,9 +31,9 @@ export function isGloballyReadOnly(fieldName: string): boolean {
 }
 
 // Check if user can see a shipment (sales can only see their own by ref prefix)
-export function canSeeShipment(shipment: Shipment, role: UserRole, refPrefix?: string): boolean {
-  if (role === 'admin') return true;
-  if (role === 'sales') {
+export function canSeeShipment(shipment: Shipment, roles: UserRole[], refPrefix?: string): boolean {
+  if (roles.includes('admin')) return true;
+  if (roles.includes('sales')) {
     // Match by reference ID prefix (e.g., "A-2601-0001" starts with "A-")
     if (!refPrefix) return false;
     return shipment.referenceId.startsWith(`${refPrefix}-`);
@@ -30,15 +42,15 @@ export function canSeeShipment(shipment: Shipment, role: UserRole, refPrefix?: s
 }
 
 // Check if a shipment can be edited at all
-export function canEditShipment(shipment: Shipment, role: UserRole, refPrefix?: string): boolean {
+export function canEditShipment(shipment: Shipment, roles: UserRole[], refPrefix?: string): boolean {
   // Lost shipments are read-only
   if (shipment.isLost) return false;
   
   // Admin can edit everything
-  if (role === 'admin') return true;
+  if (roles.includes('admin')) return true;
   
   // Sales can only edit their own shipments (by ref prefix)
-  if (role === 'sales') {
+  if (roles.includes('sales')) {
     if (!refPrefix) return false;
     return shipment.referenceId.startsWith(`${refPrefix}-`);
   }
@@ -46,27 +58,44 @@ export function canEditShipment(shipment: Shipment, role: UserRole, refPrefix?: 
   return true;
 }
 
-// Check if a specific field can be edited based on role and shipment stage
+// Check if a specific field can be edited based on roles and shipment stage
 export function canEditField(
   shipment: Shipment,
   fieldName: string,
-  role: UserRole,
+  roles: UserRole[],
   refPrefix?: string
 ): boolean {
   // Global readonly fields are never editable
   if (isGloballyReadOnly(fieldName)) return false;
   
   // Hidden fields cannot be edited
-  if (isFieldHidden(role, fieldName)) return false;
+  if (isFieldHidden(roles, fieldName)) return false;
   
   // Lost or completed shipments are locked (except for admin)
   if (shipment.isLost || shipment.stage === 'completed') {
-    return role === 'admin';
+    return roles.includes('admin');
   }
   
   // Admin can edit everything
-  if (role === 'admin') return true;
+  if (roles.includes('admin')) return true;
   
+  // Check each role - if ANY role can edit the field, return true
+  for (const role of roles) {
+    if (canRoleEditField(shipment, fieldName, role, refPrefix)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+// Helper: Check if a single role can edit a field
+function canRoleEditField(
+  shipment: Shipment,
+  fieldName: string,
+  role: UserRole,
+  refPrefix?: string
+): boolean {
   // Sales: can only edit lead info and client remarks on their own shipments
   if (role === 'sales') {
     // Check ownership by ref prefix
@@ -123,11 +152,17 @@ export function canMoveToStage(shipment: Shipment, targetStage: ShipmentStage): 
   return validTargets.includes(targetStage);
 }
 
-// Check if user can advance from a specific stage
-export function canAdvanceStage(role: UserRole, currentStage: ShipmentStage): boolean {
+// Check if user can advance from a specific stage (multi-role)
+export function canAdvanceStage(roles: UserRole[], currentStage: ShipmentStage): boolean {
   // Admin can always advance any stage
-  if (role === 'admin') return true;
+  if (roles.includes('admin')) return true;
   
+  // Check each role
+  return roles.some(role => canRoleAdvanceStage(role, currentStage));
+}
+
+// Helper: Check if a single role can advance a stage
+function canRoleAdvanceStage(role: UserRole, currentStage: ShipmentStage): boolean {
   switch (currentStage) {
     case 'lead':
       // Lead → Pricing: Sales can advance
@@ -155,12 +190,12 @@ export function canAdvanceStage(role: UserRole, currentStage: ShipmentStage): bo
 }
 
 // Get the reason why a field cannot be edited
-export function getFieldLockReason(fieldName: string, role: UserRole, shipment: Shipment): string {
+export function getFieldLockReason(fieldName: string, roles: UserRole[], shipment: Shipment): string {
   if (isGloballyReadOnly(fieldName)) {
     return 'This field is automatically calculated';
   }
   
-  if (isFieldHidden(role, fieldName)) {
+  if (isFieldHidden(roles, fieldName)) {
     return 'You do not have permission to view this field';
   }
   
@@ -172,35 +207,37 @@ export function getFieldLockReason(fieldName: string, role: UserRole, shipment: 
     return 'This shipment is completed';
   }
   
-  if (role === 'sales') {
+  // Check specific role restrictions
+  const roleNames = roles.join(', ');
+  
+  if (roles.includes('sales') && !roles.includes('admin')) {
     if (FIELD_CATEGORIES.lead.includes(fieldName) && shipment.stage !== 'lead') {
       return 'Lead details are locked after the lead stage';
     }
-    return 'Sales cannot edit this field';
   }
   
-  if (role === 'pricing' && !FIELD_CATEGORIES.pricing.includes(fieldName)) {
+  if (roles.includes('pricing') && !FIELD_CATEGORIES.pricing.includes(fieldName)) {
     return 'Pricing role can only edit pricing fields';
   }
   
-  if (role === 'ops' && !FIELD_CATEGORIES.operations.includes(fieldName)) {
+  if (roles.includes('ops') && !FIELD_CATEGORIES.operations.includes(fieldName)) {
     return 'Operations role can only edit operations fields';
   }
   
-  if (role === 'collections' && !FIELD_CATEGORIES.collections.includes(fieldName)) {
+  if (roles.includes('collections') && !FIELD_CATEGORIES.collections.includes(fieldName)) {
     return 'Collections role can only edit collection fields';
   }
   
-  if (role === 'finance' && !FIELD_CATEGORIES.payables.includes(fieldName)) {
+  if (roles.includes('finance') && !FIELD_CATEGORIES.payables.includes(fieldName)) {
     return 'Finance role can only edit payables fields';
   }
   
   return 'This field is locked';
 }
 
-// Check if user can edit based on role and page (legacy compatibility)
-export function canEditOnPage(role: UserRole, page: string): boolean {
-  if (role === 'admin') return true;
+// Check if user can edit based on roles and page (legacy compatibility)
+export function canEditOnPage(roles: UserRole[], page: string): boolean {
+  if (roles.includes('admin')) return true;
   
   const editPermissions: Record<UserRole, string[]> = {
     admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions'],
@@ -211,5 +248,5 @@ export function canEditOnPage(role: UserRole, page: string): boolean {
     finance: ['/payables'],
   };
   
-  return editPermissions[role]?.includes(page) || false;
+  return roles.some(role => editPermissions[role]?.includes(page));
 }

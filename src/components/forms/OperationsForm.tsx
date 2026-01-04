@@ -33,6 +33,7 @@ import { format } from 'date-fns';
 import { CalendarIcon, Lock, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LockedField } from '@/components/ui/LockedField';
+import { UserRole } from '@/types/permissions';
 
 interface OperationsFormProps {
   shipment: Shipment | null;
@@ -45,6 +46,9 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   const currentUser = useUserStore((s) => s.currentUser);
   const { trackMoveToStage } = useTrackedShipmentActions();
   const { acquireLock, releaseLock } = useLockStore();
+  
+  // Use roles array for multi-role support
+  const userRoles = (currentUser.roles || [currentUser.role]) as UserRole[];
   
   const [formData, setFormData] = useState({
     nssBookingReference: '',
@@ -65,12 +69,12 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   const [hasLock, setHasLock] = useState(false);
   
   // Check if shipment is editable
-  const isEditable = shipment ? canEditShipment(shipment, currentUser.role, currentUser.refPrefix) : false;
+  const isEditable = shipment ? canEditShipment(shipment, userRoles, currentUser.refPrefix) : false;
   
   // Field lock states based on role
-  const bookingRefLocked = shipment ? !canEditField(shipment, 'nssBookingReference', currentUser.role, currentUser.refPrefix) : true;
-  const blTypeLocked = shipment ? !canEditField(shipment, 'blType', currentUser.role, currentUser.refPrefix) : true;
-  const etdLocked = shipment ? !canEditField(shipment, 'etd', currentUser.role, currentUser.refPrefix) : true;
+  const bookingRefLocked = shipment ? !canEditField(shipment, 'nssBookingReference', userRoles, currentUser.refPrefix) : true;
+  const blTypeLocked = shipment ? !canEditField(shipment, 'blType', userRoles, currentUser.refPrefix) : true;
+  const etdLocked = shipment ? !canEditField(shipment, 'etd', userRoles, currentUser.refPrefix) : true;
   
   useEffect(() => {
     if (shipment && open) {
@@ -134,7 +138,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   };
   
   const handleComplete = () => {
-    if (!shipment || !hasLock || !canAdvanceStage(currentUser.role, 'operations')) return;
+    if (!shipment || !hasLock || !canAdvanceStage(userRoles, 'operations')) return;
     
     if (!formData.totalInvoiceAmount) {
       toast.error('Please enter the total invoice amount before completing');
@@ -173,7 +177,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   if (!shipment) return null;
   
   const isReadOnly = !isEditable || !hasLock;
-  const canComplete = canAdvanceStage(currentUser.role, 'operations');
+  const canComplete = canAdvanceStage(userRoles, 'operations');
   const allFieldsLocked = bookingRefLocked && blTypeLocked && etdLocked;
   
   return (
@@ -214,7 +218,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
             <div className="grid grid-cols-2 gap-4">
               <LockedField 
                 isLocked={bookingRefLocked} 
-                lockReason={shipment ? getFieldLockReason('nssBookingReference', currentUser.role, shipment) : undefined}
+                lockReason={shipment ? getFieldLockReason('nssBookingReference', userRoles, shipment) : undefined}
               >
                 <div className="space-y-2">
                   <Label htmlFor="nssBooking">NSS Booking Reference</Label>
@@ -229,7 +233,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
               </LockedField>
               <LockedField 
                 isLocked={bookingRefLocked} 
-                lockReason={shipment ? getFieldLockReason('nssInvoiceNumber', currentUser.role, shipment) : undefined}
+                lockReason={shipment ? getFieldLockReason('nssInvoiceNumber', userRoles, shipment) : undefined}
               >
                 <div className="space-y-2">
                   <Label htmlFor="nssInvoice">NSS Invoice Number</Label>
@@ -250,7 +254,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
             <div className="grid grid-cols-3 gap-4">
               <LockedField 
                 isLocked={blTypeLocked} 
-                lockReason={shipment ? getFieldLockReason('blType', currentUser.role, shipment) : undefined}
+                lockReason={shipment ? getFieldLockReason('blType', userRoles, shipment) : undefined}
               >
                 <div className="space-y-2">
                   <Label>BL Type</Label>
@@ -477,7 +481,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
             </Button>
             {!isReadOnly && !allFieldsLocked && (
               <Button type="submit" variant="secondary">
-                Save Progress
+                Save
               </Button>
             )}
             {!isReadOnly && canComplete && (
