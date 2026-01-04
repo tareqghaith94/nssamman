@@ -51,11 +51,18 @@ export function LeadForm() {
   });
   
   // Auto-set salesperson for sales-only role when dialog opens
+  // Use ref_prefix to find the matching salesperson name from SALESPERSON_REF_PREFIX
   useEffect(() => {
-    if (open && isSalesOnly && profile?.name) {
-      setFormData(prev => ({ ...prev, salesperson: profile.name }));
+    if (open && isSalesOnly && profile?.ref_prefix) {
+      const salespersonName = Object.entries(SALESPERSON_REF_PREFIX).find(
+        ([_, prefix]) => prefix === profile.ref_prefix
+      )?.[0];
+      
+      if (salespersonName) {
+        setFormData(prev => ({ ...prev, salesperson: salespersonName }));
+      }
     }
-  }, [open, isSalesOnly, profile?.name]);
+  }, [open, isSalesOnly, profile?.ref_prefix]);
   
   const addEquipment = () => {
     if (formData.equipment.length < 3) {
