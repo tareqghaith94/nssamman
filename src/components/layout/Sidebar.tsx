@@ -7,13 +7,13 @@ import {
   Truck, 
   CreditCard, 
   Banknote, 
-  Percent,
-  Ship
+  Percent
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useUserStore } from '@/store/userStore';
 import { canAccessPage } from '@/lib/permissions';
 import { RoleSelector } from '@/components/auth/RoleSelector';
+import nssLogo from '@/assets/nss-logo.png';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -37,14 +37,12 @@ export function Sidebar() {
   
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
-      <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
-        <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-          <Ship className="w-6 h-6 text-primary-foreground" />
-        </div>
-        <div>
-          <h1 className="font-heading font-bold text-lg text-sidebar-foreground">FreightFlow</h1>
-          <p className="text-xs text-muted-foreground">Shipment Manager</p>
-        </div>
+      <div className="flex h-20 items-center justify-center px-4 border-b border-sidebar-border">
+        <img 
+          src={nssLogo} 
+          alt="NSS - National Shipping Services" 
+          className="h-14 w-auto object-contain"
+        />
       </div>
       
       <nav className="p-4 space-y-1 flex-1">
