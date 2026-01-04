@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
+import { useLockStore } from '@/store/lockStore';
+import { useUserStore } from '@/store/userStore';
+import { isFieldLocked, getFieldLockReason, canEditShipment } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,7 +21,8 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Shipment, LostReason } from '@/types/shipment';
-import { XCircle } from 'lucide-react';
+import { XCircle, Lock, AlertTriangle } from 'lucide-react';
+import { LockedField } from '@/components/ui/LockedField';
 
 const LOST_REASONS: { value: LostReason; label: string }[] = [
   { value: 'price', label: 'Price too high' },
@@ -39,6 +43,8 @@ interface PricingFormProps {
 export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) {
   const updateShipment = useShipmentStore((s) => s.updateShipment);
   const moveToStage = useShipmentStore((s) => s.moveToStage);
+  const currentUser = useUserStore((s) => s.currentUser);
+  const { acquireLock, releaseLock, isLocked, getLocker } = useLockStore();
   
   const [formData, setFormData] = useState({
     agent: '',
@@ -48,9 +54,17 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   
   const [showLostForm, setShowLostForm] = useState(false);
   const [lostReason, setLostReason] = useState<LostReason | ''>('');
+  const [hasLock, setHasLock] = useState(false);
+  
+  // Check if shipment is editable
+  const isEditable = shipment ? canEditShipment(shipment, currentUser.role) : false;
+  
+  // Field lock states
+  const agentLocked = shipment ? isFieldLocked(shipment, 'agent') : false;
+  const pricingLocked = shipment ? isFieldLocked(shipment, 'sellingPricePerUnit') : false;
   
   useEffect(() => {
-    if (shipment) {
+    if (shipment && open) {
       setFormData({
         agent: shipment.agent || '',
         sellingPricePerUnit: shipment.sellingPricePerUnit || 0,
@@ -58,8 +72,24 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       });
       setShowLostForm(false);
       setLostReason('');
+      
+      // Try to acquire lock
+      if (isEditable) {
+        const acquired = acquireLock(shipment.id, currentUser.id);
+        setHasLock(acquired);
+        if (!acquired) {
+          const locker = getLocker(shipment.id);
+          toast.warning(`This shipment is being edited by another user`);
+        }
+      }
     }
-  }, [shipment]);
+    
+    return () => {
+      if (shipment) {
+        releaseLock(shipment.id);
+      }
+    };
+  }, [shipment, open]);
   
   const profitPerUnit = formData.sellingPricePerUnit - formData.costPerUnit;
   const totalQuantity = shipment?.equipment?.reduce((sum, eq) => sum + eq.quantity, 0) || 1;
@@ -70,7 +100,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!shipment) return;
+    if (!shipment || !isEditable || !hasLock) return;
     
     updateShipment(shipment.id, {
       ...formData,
@@ -81,11 +111,12 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     });
     
     toast.success('Pricing updated successfully');
+    releaseLock(shipment.id);
     onOpenChange(false);
   };
   
   const handleConfirm = () => {
-    if (!shipment) return;
+    if (!shipment || !isEditable || !hasLock) return;
     
     updateShipment(shipment.id, {
       ...formData,
@@ -97,11 +128,12 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     
     moveToStage(shipment.id, 'confirmed');
     toast.success('Shipment confirmed and moved to Confirmed stage');
+    releaseLock(shipment.id);
     onOpenChange(false);
   };
   
   const handleMarkAsLost = () => {
-    if (!shipment || !lostReason) return;
+    if (!shipment || !lostReason || !hasLock) return;
     
     updateShipment(shipment.id, {
       isLost: true,
@@ -110,19 +142,48 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     });
     
     toast.success('Shipment marked as lost');
+    releaseLock(shipment.id);
+    onOpenChange(false);
+  };
+  
+  const handleClose = () => {
+    if (shipment) {
+      releaseLock(shipment.id);
+    }
     onOpenChange(false);
   };
   
   if (!shipment) return null;
   
+  const isReadOnly = !isEditable || !hasLock;
+  
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="font-heading">
+          <DialogTitle className="font-heading flex items-center gap-2">
             Pricing for {shipment.referenceId}
+            {isReadOnly && (
+              <span className="flex items-center gap-1 text-sm font-normal text-muted-foreground">
+                <Lock className="w-4 h-4" />
+                Read Only
+              </span>
+            )}
           </DialogTitle>
         </DialogHeader>
+        
+        {isReadOnly && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm">
+            <AlertTriangle className="w-4 h-4" />
+            <span>
+              {!isEditable 
+                ? 'This shipment cannot be edited'
+                : 'This shipment is being edited by another user'
+              }
+            </span>
+          </div>
+        )}
+        
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="p-4 rounded-lg bg-muted/50 text-sm space-y-1">
             <p><span className="text-muted-foreground">Route:</span> {shipment.portOfLoading} → {shipment.portOfDischarge}</p>
@@ -158,7 +219,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
                   type="button" 
                   variant="destructive" 
                   onClick={handleMarkAsLost}
-                  disabled={!lostReason}
+                  disabled={!lostReason || isReadOnly}
                 >
                   Confirm Lost
                 </Button>
@@ -166,37 +227,55 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             </div>
           ) : (
             <>
-              <div className="space-y-2">
-                <Label htmlFor="agent">Agent Name</Label>
-                <Input
-                  id="agent"
-                  value={formData.agent}
-                  onChange={(e) => setFormData({ ...formData, agent: e.target.value })}
-                  placeholder="Enter agent name"
-                />
-              </div>
+              <LockedField 
+                isLocked={agentLocked} 
+                lockReason={getFieldLockReason('agent')}
+              >
+                <div className="space-y-2">
+                  <Label htmlFor="agent">Agent Name</Label>
+                  <Input
+                    id="agent"
+                    value={formData.agent}
+                    onChange={(e) => setFormData({ ...formData, agent: e.target.value })}
+                    placeholder="Enter agent name"
+                    disabled={isReadOnly || agentLocked}
+                  />
+                </div>
+              </LockedField>
               
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="selling">Selling Price/Unit ($)</Label>
-                  <Input
-                    id="selling"
-                    type="number"
-                    min={0}
-                    value={formData.sellingPricePerUnit}
-                    onChange={(e) => setFormData({ ...formData, sellingPricePerUnit: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="cost">Cost/Unit ($)</Label>
-                  <Input
-                    id="cost"
-                    type="number"
-                    min={0}
-                    value={formData.costPerUnit}
-                    onChange={(e) => setFormData({ ...formData, costPerUnit: parseFloat(e.target.value) || 0 })}
-                  />
-                </div>
+                <LockedField 
+                  isLocked={pricingLocked} 
+                  lockReason={getFieldLockReason('sellingPricePerUnit')}
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="selling">Selling Price/Unit ($)</Label>
+                    <Input
+                      id="selling"
+                      type="number"
+                      min={0}
+                      value={formData.sellingPricePerUnit}
+                      onChange={(e) => setFormData({ ...formData, sellingPricePerUnit: parseFloat(e.target.value) || 0 })}
+                      disabled={isReadOnly || pricingLocked}
+                    />
+                  </div>
+                </LockedField>
+                <LockedField 
+                  isLocked={pricingLocked} 
+                  lockReason={getFieldLockReason('costPerUnit')}
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="cost">Cost/Unit ($)</Label>
+                    <Input
+                      id="cost"
+                      type="number"
+                      min={0}
+                      value={formData.costPerUnit}
+                      onChange={(e) => setFormData({ ...formData, costPerUnit: parseFloat(e.target.value) || 0 })}
+                      disabled={isReadOnly || pricingLocked}
+                    />
+                  </div>
+                </LockedField>
               </div>
               
               <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
@@ -222,19 +301,25 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               </div>
               
               <div className="flex justify-between pt-4">
-                <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowLostForm(true)}>
-                  Mark as Lost
-                </Button>
-                <div className="flex gap-3">
-                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-                    Cancel
+                {!isReadOnly && (
+                  <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowLostForm(true)}>
+                    Mark as Lost
                   </Button>
-                  <Button type="submit" variant="secondary">
-                    Save Draft
+                )}
+                <div className="flex gap-3 ml-auto">
+                  <Button type="button" variant="outline" onClick={handleClose}>
+                    {isReadOnly ? 'Close' : 'Cancel'}
                   </Button>
-                  <Button type="button" onClick={handleConfirm}>
-                    Confirm Quote
-                  </Button>
+                  {!isReadOnly && (
+                    <>
+                      <Button type="submit" variant="secondary" disabled={pricingLocked && agentLocked}>
+                        Save Draft
+                      </Button>
+                      <Button type="button" onClick={handleConfirm} disabled={pricingLocked}>
+                        Confirm Quote
+                      </Button>
+                    </>
+                  )}
                 </div>
               </div>
             </>

@@ -11,6 +11,9 @@ import {
   Ship
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useUserStore } from '@/store/userStore';
+import { canAccessPage } from '@/lib/permissions';
+import { RoleSelector } from '@/components/auth/RoleSelector';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -25,9 +28,15 @@ const navigation = [
 
 export function Sidebar() {
   const location = useLocation();
+  const currentUser = useUserStore((s) => s.currentUser);
+  
+  // Filter navigation based on user role
+  const filteredNavigation = navigation.filter((item) => 
+    canAccessPage(currentUser.role, item.href)
+  );
   
   return (
-    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border">
+    <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
       <div className="flex h-16 items-center gap-3 px-6 border-b border-sidebar-border">
         <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
           <Ship className="w-6 h-6 text-primary-foreground" />
@@ -38,8 +47,8 @@ export function Sidebar() {
         </div>
       </div>
       
-      <nav className="p-4 space-y-1">
-        {navigation.map((item) => {
+      <nav className="p-4 space-y-1 flex-1">
+        {filteredNavigation.map((item) => {
           const isActive = location.pathname === item.href;
           return (
             <NavLink
@@ -58,6 +67,12 @@ export function Sidebar() {
           );
         })}
       </nav>
+      
+      {/* Role selector at bottom for testing */}
+      <div className="p-4 border-t border-sidebar-border">
+        <div className="text-xs text-muted-foreground mb-2">Testing Mode</div>
+        <RoleSelector />
+      </div>
     </aside>
   );
 }
