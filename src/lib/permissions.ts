@@ -125,8 +125,8 @@ export function canMoveToStage(shipment: Shipment, targetStage: ShipmentStage): 
 
 // Check if user can advance shipment stage
 export function canAdvanceStage(role: UserRole): boolean {
-  // Only admin can advance stages - no auto-advance buttons for other roles
-  return role === 'admin';
+  // Admin, Pricing, and Ops can advance stages
+  return role === 'admin' || role === 'pricing' || role === 'ops';
 }
 
 // Get the reason why a field cannot be edited
