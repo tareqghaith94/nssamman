@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
@@ -218,7 +219,7 @@ export function useQuotations() {
     },
   });
 
-  const fetchLineItems = async (quotationId: string): Promise<QuoteLineItem[]> => {
+  const fetchLineItems = useCallback(async (quotationId: string): Promise<QuoteLineItem[]> => {
     const { data, error } = await supabase
       .from('quote_line_items')
       .select('*')
@@ -226,7 +227,7 @@ export function useQuotations() {
 
     if (error) throw error;
     return (data as LineItemRow[]).map(rowToLineItem);
-  };
+  }, []);
 
   return {
     quotations,

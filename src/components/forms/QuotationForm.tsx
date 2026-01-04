@@ -99,7 +99,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
       }
       setValidDays('30');
     }
-  }, [open, shipment, quotation, fetchLineItems]);
+  }, [open, shipment, quotation]);
 
   const addLineItem = () => {
     setLineItems([...lineItems, { description: '', equipmentType: '', unitCost: '', quantity: '1' }]);

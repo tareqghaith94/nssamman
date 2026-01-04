@@ -55,7 +55,7 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
         setLineItems([]);
       });
     }
-  }, [quotation, open, fetchLineItems]);
+  }, [quotation, open]);
 
   if (!quotation) return null;
 
