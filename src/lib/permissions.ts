@@ -203,7 +203,7 @@ export function canEditOnPage(role: UserRole, page: string): boolean {
   if (role === 'admin') return true;
   
   const editPermissions: Record<UserRole, string[]> = {
-    admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions', '/database'],
+    admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions'],
     sales: ['/leads'], // Can only edit on leads page
     pricing: ['/pricing'],
     ops: ['/operations'],
