@@ -13,6 +13,7 @@ interface ShipmentStore {
   getPayables: () => { shipment: Shipment; reminderDate: Date }[];
   getCollections: () => { shipment: Shipment; dueDate: Date }[];
   getCommissions: () => { salesperson: string; shipments: Shipment[]; totalCommission: number }[];
+  clearAllShipments: () => void;
 }
 
 // Helper function to generate reference ID using defined prefixes
@@ -116,6 +117,10 @@ export const useShipmentStore = create<ShipmentStore>()(
           shipments,
           totalCommission: shipments.reduce((sum, s) => sum + (s.totalProfit || 0) * 0.04, 0),
         }));
+      },
+
+      clearAllShipments: () => {
+        set({ shipments: [] });
       },
     }),
     {

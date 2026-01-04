@@ -28,13 +28,25 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
 import { format } from 'date-fns';
-import { Search, Eye, Package, History, DollarSign, FileText } from 'lucide-react';
+import { Search, Eye, Package, History, DollarSign, FileText, Trash2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import { Navigate } from 'react-router-dom';
 import { Shipment, ShipmentStage } from '@/types/shipment';
 import { StatusBadge } from '@/components/ui/StatusBadge';
@@ -52,6 +64,7 @@ const stageOptions: { value: ShipmentStage | 'all'; label: string }[] = [
 export default function Database() {
   const { isAdmin } = useAuth();
   const shipments = useShipmentStore((s) => s.shipments);
+  const clearAllShipments = useShipmentStore((s) => s.clearAllShipments);
   const activities = useActivityStore((s) => s.activities);
   
   const [search, setSearch] = useState('');
@@ -101,28 +114,59 @@ export default function Database() {
         description="Complete view of all shipments and activity"
       />
 
-      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center">
-        <div className="relative flex-1 sm:max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by ref, salesperson, port, agent..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
+      <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center flex-1">
+          <div className="relative flex-1 sm:max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by ref, salesperson, port, agent..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+          <Select value={stageFilter} onValueChange={(v) => setStageFilter(v as ShipmentStage | 'all')}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filter by stage" />
+            </SelectTrigger>
+            <SelectContent>
+              {stageOptions.map((option) => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={stageFilter} onValueChange={(v) => setStageFilter(v as ShipmentStage | 'all')}>
-          <SelectTrigger className="w-[180px]">
-            <SelectValue placeholder="Filter by stage" />
-          </SelectTrigger>
-          <SelectContent>
-            {stageOptions.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" size="sm" disabled={shipments.length === 0}>
+              <Trash2 className="w-4 h-4 mr-2" />
+              Clear All Data
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Clear all shipment data?</AlertDialogTitle>
+              <AlertDialogDescription>
+                This will permanently delete all {shipments.length} shipments and cannot be undone.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={() => {
+                  clearAllShipments();
+                  toast({ title: 'All shipment data cleared' });
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Clear All
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <div className="rounded-lg border bg-card">
