@@ -163,9 +163,9 @@ function shipmentToRow(shipment: Partial<Shipment>): Record<string, unknown> {
 
 export function useShipments() {
   const queryClient = useQueryClient();
-  const { user } = useAuth();
+  const { user, session } = useAuth();
 
-  // Fetch all shipments
+  // Fetch all shipments - start as soon as session exists (parallel with profile/roles)
   const { data: shipments = [], isLoading, error, refetch } = useQuery({
     queryKey: ['shipments'],
     queryFn: async () => {
@@ -177,7 +177,7 @@ export function useShipments() {
       if (error) throw error;
       return (data as ShipmentRow[]).map(rowToShipment);
     },
-    enabled: !!user,
+    enabled: !!session,
   });
 
   // Add shipment mutation
