@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react';
+import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -18,14 +19,14 @@ import { Shipment } from '@/types/shipment';
 import { InvoiceUploadDialog } from '@/components/payables/InvoiceUploadDialog';
 
 export default function Payables() {
-  const shipments = useShipmentStore((s) => s.shipments);
+  const allShipments = useFilteredShipments();
   const updateShipment = useShipmentStore((s) => s.updateShipment);
   
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
 
   const payables = useMemo(() => {
-    const filtered = shipments.filter(
+    const filtered = allShipments.filter(
       (s) => (s.stage === 'operations' || s.stage === 'completed') && s.agent && s.totalCost && !s.agentPaid
     );
     
@@ -43,7 +44,7 @@ export default function Payables() {
       
       return { shipment: s, reminderDate };
     });
-  }, [shipments]);
+  }, [allShipments]);
   
   const getStatus = (reminderDate: Date) => {
     if (isBefore(reminderDate, new Date()) && !isToday(reminderDate)) {

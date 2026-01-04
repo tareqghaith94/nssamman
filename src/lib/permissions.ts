@@ -18,26 +18,29 @@ export function isGloballyReadOnly(fieldName: string): boolean {
   return GLOBAL_READONLY_FIELDS.includes(fieldName);
 }
 
-// Check if user can see a shipment (sales can only see their own)
-export function canSeeShipment(shipment: Shipment, role: UserRole, currentUserName?: string): boolean {
+// Check if user can see a shipment (sales can only see their own by ref prefix)
+export function canSeeShipment(shipment: Shipment, role: UserRole, refPrefix?: string): boolean {
   if (role === 'admin') return true;
   if (role === 'sales') {
-    return shipment.salesperson === currentUserName;
+    // Match by reference ID prefix (e.g., "A-2601-0001" starts with "A-")
+    if (!refPrefix) return false;
+    return shipment.referenceId.startsWith(`${refPrefix}-`);
   }
   return true;
 }
 
 // Check if a shipment can be edited at all
-export function canEditShipment(shipment: Shipment, role: UserRole, currentUserName?: string): boolean {
+export function canEditShipment(shipment: Shipment, role: UserRole, refPrefix?: string): boolean {
   // Lost shipments are read-only
   if (shipment.isLost) return false;
   
   // Admin can edit everything
   if (role === 'admin') return true;
   
-  // Sales can only edit their own shipments
-  if (role === 'sales' && shipment.salesperson !== currentUserName) {
-    return false;
+  // Sales can only edit their own shipments (by ref prefix)
+  if (role === 'sales') {
+    if (!refPrefix) return false;
+    return shipment.referenceId.startsWith(`${refPrefix}-`);
   }
   
   return true;
@@ -48,7 +51,7 @@ export function canEditField(
   shipment: Shipment,
   fieldName: string,
   role: UserRole,
-  currentUserName?: string
+  refPrefix?: string
 ): boolean {
   // Global readonly fields are never editable
   if (isGloballyReadOnly(fieldName)) return false;
@@ -66,7 +69,8 @@ export function canEditField(
   
   // Sales: can only edit lead info and client remarks on their own shipments
   if (role === 'sales') {
-    if (shipment.salesperson !== currentUserName) return false;
+    // Check ownership by ref prefix
+    if (!refPrefix || !shipment.referenceId.startsWith(`${refPrefix}-`)) return false;
     // Can only edit during lead stage for lead fields
     if (FIELD_CATEGORIES.lead.includes(fieldName)) {
       return shipment.stage === 'lead';

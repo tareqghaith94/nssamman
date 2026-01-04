@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -16,11 +17,11 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export default function Collections() {
-  const shipments = useShipmentStore((s) => s.shipments);
+  const allShipments = useFilteredShipments();
   const updateShipment = useShipmentStore((s) => s.updateShipment);
 
   const collections = useMemo(() => {
-    const filtered = shipments.filter(
+    const filtered = allShipments.filter(
       (s) => s.stage === 'completed' && s.completedAt && !s.paymentCollected
     );
     
@@ -29,7 +30,7 @@ export default function Collections() {
       const dueDate = addDays(new Date(s.completedAt!), daysToAdd);
       return { shipment: s, dueDate };
     });
-  }, [shipments]);
+  }, [allShipments]);
   
   const getStatus = (dueDate: Date) => {
     if (isBefore(dueDate, new Date()) && !isToday(dueDate)) {

@@ -1,5 +1,5 @@
 import { useState, useMemo } from 'react';
-import { useShipmentStore } from '@/store/shipmentStore';
+import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Input } from '@/components/ui/input';
 import {
@@ -181,7 +181,7 @@ function ShipmentDetailDialog({ shipment, open, onOpenChange }: ShipmentDetailDi
 }
 
 export default function Database() {
-  const shipments = useShipmentStore((s) => s.shipments);
+  const shipments = useFilteredShipments();
   const [search, setSearch] = useState('');
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [detailDialogOpen, setDetailDialogOpen] = useState(false);
