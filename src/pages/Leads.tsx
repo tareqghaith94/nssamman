@@ -29,8 +29,8 @@ export default function Leads() {
     toast.success(`${shipment.referenceId} moved to Pricing`);
   };
   
-  // Only show move button if user can advance stages
-  const canAdvance = canAdvanceStage(currentUser.role);
+  // Only show move button if user can advance from lead stage
+  const canAdvance = canAdvanceStage(currentUser.role, 'lead');
   
   return (
     <div className="animate-fade-in">

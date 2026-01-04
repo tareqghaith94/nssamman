@@ -28,8 +28,8 @@ export default function Confirmed() {
     toast.success(`${shipment.referenceId} moved to Operations`);
   };
   
-  // Only show move button if user can advance stages
-  const canAdvance = canAdvanceStage(currentUser.role);
+  // Only show move button if user can advance from confirmed stage
+  const canAdvance = canAdvanceStage(currentUser.role, 'confirmed');
   
   return (
     <div className="animate-fade-in">

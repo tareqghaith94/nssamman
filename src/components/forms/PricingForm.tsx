@@ -115,7 +115,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   };
   
   const handleConfirm = () => {
-    if (!shipment || !hasLock || !canAdvanceStage(currentUser.role)) return;
+    if (!shipment || !hasLock || !canAdvanceStage(currentUser.role, 'pricing')) return;
     
     updateShipment(shipment.id, {
       ...formData,
@@ -155,7 +155,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   if (!shipment) return null;
   
   const isReadOnly = !isEditable || !hasLock;
-  const canConfirm = canAdvanceStage(currentUser.role);
+  const canConfirm = canAdvanceStage(currentUser.role, 'pricing');
   
   return (
     <Dialog open={open} onOpenChange={handleClose}>
