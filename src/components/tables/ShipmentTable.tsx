@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format } from 'date-fns';
-import { ArrowRight, Undo2, Edit2 } from 'lucide-react';
+import { ArrowRight, Undo2, Edit2, FileText } from 'lucide-react';
 
 const LOST_REASON_LABELS: Record<LostReason, string> = {
   price: 'Price too high',
@@ -28,6 +28,7 @@ interface ShipmentTableProps {
   onEdit?: (shipment: Shipment) => void;
   onMoveToNext?: (shipment: Shipment) => void;
   onRevert?: (shipment: Shipment) => void;
+  onGenerateQuote?: (shipment: Shipment) => void;
   showPricing?: boolean;
   showOperations?: boolean;
   nextStage?: ShipmentStage;
@@ -38,6 +39,7 @@ export function ShipmentTable({
   onEdit,
   onMoveToNext,
   onRevert,
+  onGenerateQuote,
   showPricing,
   showOperations,
   nextStage,
@@ -132,6 +134,17 @@ export function ShipmentTable({
                         title="Undo to previous stage"
                       >
                         <Undo2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {onGenerateQuote && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onGenerateQuote(shipment)}
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
+                        title="Generate Quotation"
+                      >
+                        <FileText className="w-4 h-4" />
                       </Button>
                     )}
                     {onEdit && (
