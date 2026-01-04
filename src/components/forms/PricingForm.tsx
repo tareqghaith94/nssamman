@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useShipmentStore } from '@/store/shipmentStore';
+import { useShipments } from '@/hooks/useShipments';
 import { useLockStore } from '@/store/lockStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
@@ -43,8 +43,8 @@ interface PricingFormProps {
 }
 
 export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) {
-  const updateShipment = useShipmentStore((s) => s.updateShipment);
-  const moveToStage = useShipmentStore((s) => s.moveToStage);
+  const { updateShipment } = useShipments();
+  const { moveToStage } = useShipments();
   const { profile, roles } = useAuth();
   const { trackMoveToStage, logActivity } = useTrackedShipmentActions();
   const { acquireLock, releaseLock, getLocker } = useLockStore();

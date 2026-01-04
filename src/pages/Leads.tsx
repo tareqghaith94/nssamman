@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
-import { useShipmentStore } from '@/store/shipmentStore';
+import { useShipments } from '@/hooks/useShipments';
 import { useAuth } from '@/hooks/useAuth';
 import { canAdvanceStage } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -13,8 +13,8 @@ import { hasReachedStage } from '@/lib/stageOrder';
 import { UserRole } from '@/types/permissions';
 
 export default function Leads() {
-  const allShipments = useFilteredShipments();
-  const moveToStage = useShipmentStore((s) => s.moveToStage);
+  const { shipments: allShipments, isLoading } = useFilteredShipments();
+  const { moveToStage } = useShipments();
   const { roles } = useAuth();
   const [showHistory, setShowHistory] = useState(false);
 
@@ -28,13 +28,21 @@ export default function Leads() {
     [allShipments, showHistory]
   );
   
-  const handleMoveToNext = (shipment: Shipment) => {
-    moveToStage(shipment.id, 'pricing');
+  const handleMoveToNext = async (shipment: Shipment) => {
+    await moveToStage(shipment.id, 'pricing');
     toast.success(`${shipment.referenceId} moved to Pricing`);
   };
   
   // Only show move button if user can advance from lead stage
   const canAdvance = canAdvanceStage(userRoles, 'lead');
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
   return (
     <div className="animate-fade-in">

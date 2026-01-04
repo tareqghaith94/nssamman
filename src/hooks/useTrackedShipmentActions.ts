@@ -1,15 +1,15 @@
-import { useShipmentStore } from '@/store/shipmentStore';
-import { useActivityStore } from '@/store/activityStore';
+import { useShipments } from '@/hooks/useShipments';
+import { useActivityLogs } from '@/hooks/useActivityLogs';
 import { useAuth } from '@/hooks/useAuth';
 import { Shipment, ShipmentStage } from '@/types/shipment';
 import { ActivityType } from '@/types/activity';
 
 export function useTrackedShipmentActions() {
-  const { addShipment, updateShipment, moveToStage, shipments } = useShipmentStore();
-  const { addActivity } = useActivityStore();
+  const { addShipment, updateShipment, moveToStage, shipments } = useShipments();
+  const { addActivity } = useActivityLogs();
   const { profile } = useAuth();
 
-  const logActivity = (
+  const logActivity = async (
     shipmentId: string,
     referenceId: string,
     type: ActivityType,
@@ -18,114 +18,127 @@ export function useTrackedShipmentActions() {
     newValue?: string,
     field?: string
   ) => {
-    addActivity({
-      shipmentId,
-      referenceId,
-      type,
-      description,
-      user: profile?.name || 'Unknown',
-      userRole: profile?.role || 'Unknown',
-      previousValue,
-      newValue,
-      field,
-    });
-  };
-
-  const createShipment = (shipmentData: Omit<Shipment, 'id' | 'referenceId' | 'createdAt' | 'stage'>) => {
-    // We need to calculate what the reference ID will be
-    const existingCount = shipments.filter(s => s.salesperson === shipmentData.salesperson).length + 1;
-    const year = new Date().getFullYear().toString().slice(-2);
-    const month = (new Date().getMonth() + 1).toString().padStart(2, '0');
-    
-    addShipment(shipmentData);
-    
-    // Get the newly added shipment
-    const newShipments = useShipmentStore.getState().shipments;
-    const newShipment = newShipments[newShipments.length - 1];
-    
-    if (newShipment) {
-      logActivity(
-        newShipment.id,
-        newShipment.referenceId,
-        'created',
-        `Created new lead for ${shipmentData.salesperson}: ${shipmentData.portOfLoading} → ${shipmentData.portOfDischarge}`
-      );
+    try {
+      await addActivity({
+        shipmentId,
+        referenceId,
+        type,
+        description,
+        user: profile?.name || 'Unknown',
+        userRole: profile?.role || 'Unknown',
+        previousValue,
+        newValue,
+        field,
+      });
+    } catch (error) {
+      console.error('Error logging activity:', error);
     }
   };
 
-  const trackUpdateShipment = (
+  const createShipment = async (shipmentData: Omit<Shipment, 'id' | 'referenceId' | 'createdAt' | 'stage'>) => {
+    try {
+      const newShipment = await addShipment(shipmentData);
+      
+      if (newShipment) {
+        await logActivity(
+          newShipment.id,
+          newShipment.referenceId,
+          'created',
+          `Created new lead for ${shipmentData.salesperson}: ${shipmentData.portOfLoading} → ${shipmentData.portOfDischarge}`
+        );
+      }
+      
+      return newShipment;
+    } catch (error) {
+      console.error('Error creating shipment:', error);
+      throw error;
+    }
+  };
+
+  const trackUpdateShipment = async (
     shipment: Shipment,
     updates: Partial<Shipment>,
     changedFields?: { field: string; oldValue: string; newValue: string }[]
   ) => {
-    updateShipment(shipment.id, updates);
+    try {
+      await updateShipment(shipment.id, updates);
 
-    // Log specific field changes
-    if (changedFields && changedFields.length > 0) {
-      changedFields.forEach(({ field, oldValue, newValue }) => {
-        logActivity(
+      // Log specific field changes
+      if (changedFields && changedFields.length > 0) {
+        for (const { field, oldValue, newValue } of changedFields) {
+          await logActivity(
+            shipment.id,
+            shipment.referenceId,
+            'field_update',
+            `Updated ${field}`,
+            oldValue,
+            newValue,
+            field
+          );
+        }
+      }
+
+      // Check for special updates
+      if (updates.isLost && !shipment.isLost) {
+        await logActivity(
           shipment.id,
           shipment.referenceId,
-          'field_update',
-          `Updated ${field}`,
-          oldValue,
-          newValue,
-          field
+          'marked_lost',
+          `Marked as lost: ${updates.lostReason || 'No reason specified'}`
         );
-      });
-    }
+      }
 
-    // Check for special updates
-    if (updates.isLost && !shipment.isLost) {
-      logActivity(
-        shipment.id,
-        shipment.referenceId,
-        'marked_lost',
-        `Marked as lost: ${updates.lostReason || 'No reason specified'}`
-      );
-    }
+      if (updates.paymentCollected && !shipment.paymentCollected) {
+        await logActivity(
+          shipment.id,
+          shipment.referenceId,
+          'payment_collected',
+          `Payment collected for $${shipment.totalInvoiceAmount?.toLocaleString() || 'N/A'}`
+        );
+      }
 
-    if (updates.paymentCollected && !shipment.paymentCollected) {
-      logActivity(
-        shipment.id,
-        shipment.referenceId,
-        'payment_collected',
-        `Payment collected for $${shipment.totalInvoiceAmount?.toLocaleString() || 'N/A'}`
-      );
-    }
+      if (updates.agentPaid && !shipment.agentPaid) {
+        await logActivity(
+          shipment.id,
+          shipment.referenceId,
+          'agent_paid',
+          `Agent ${shipment.agent} paid $${shipment.agentInvoiceAmount?.toLocaleString() || shipment.totalCost?.toLocaleString() || 'N/A'}`
+        );
+      }
 
-    if (updates.agentPaid && !shipment.agentPaid) {
-      logActivity(
-        shipment.id,
-        shipment.referenceId,
-        'agent_paid',
-        `Agent ${shipment.agent} paid $${shipment.agentInvoiceAmount?.toLocaleString() || shipment.totalCost?.toLocaleString() || 'N/A'}`
-      );
-    }
-
-    if (updates.agentInvoiceUploaded && !shipment.agentInvoiceUploaded) {
-      logActivity(
-        shipment.id,
-        shipment.referenceId,
-        'invoice_uploaded',
-        `Agent invoice uploaded: ${updates.agentInvoiceFileName || 'Unknown file'}`
-      );
+      if (updates.agentInvoiceUploaded && !shipment.agentInvoiceUploaded) {
+        await logActivity(
+          shipment.id,
+          shipment.referenceId,
+          'invoice_uploaded',
+          `Agent invoice uploaded: ${updates.agentInvoiceFileName || 'Unknown file'}`
+        );
+      }
+    } catch (error) {
+      console.error('Error updating shipment:', error);
+      throw error;
     }
   };
 
-  const trackMoveToStage = (shipment: Shipment, newStage: ShipmentStage) => {
+  const trackMoveToStage = async (shipment: Shipment, newStage: ShipmentStage) => {
     const previousStage = shipment.stage;
-    moveToStage(shipment.id, newStage);
     
-    logActivity(
-      shipment.id,
-      shipment.referenceId,
-      'stage_change',
-      `Moved from ${previousStage} to ${newStage}`,
-      previousStage,
-      newStage,
-      'stage'
-    );
+    try {
+      await moveToStage(shipment.id, newStage);
+      
+      await logActivity(
+        shipment.id,
+        shipment.referenceId,
+        'stage_change',
+        `Moved from ${previousStage} to ${newStage}`,
+        previousStage,
+        newStage,
+        'stage'
+      );
+    } catch (error) {
+      console.error('Error moving shipment to stage:', error);
+      throw error;
+    }
   };
 
   return {
@@ -133,5 +146,8 @@ export function useTrackedShipmentActions() {
     trackUpdateShipment,
     trackMoveToStage,
     logActivity,
+    shipments,
+    updateShipment,
+    moveToStage,
   };
 }

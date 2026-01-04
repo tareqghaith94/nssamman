@@ -17,7 +17,7 @@ import {
 } from '@/components/ui/select';
 import { format } from 'date-fns';
 import { Edit2, Check, X } from 'lucide-react';
-import { useShipmentStore } from '@/store/shipmentStore';
+import { useShipments } from '@/hooks/useShipments';
 
 const OPS_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
 
@@ -50,10 +50,10 @@ function TextCell({ value }: { value: string | undefined }) {
 }
 
 export function OperationsCombinedTable({ shipments, onEdit }: OperationsCombinedTableProps) {
-  const updateShipment = useShipmentStore((state) => state.updateShipment);
+  const { updateShipment } = useShipments();
 
-  const handleOpsOwnerChange = (shipmentId: string, value: string) => {
-    updateShipment(shipmentId, { opsOwner: value as 'Uma' | 'Rania' | 'Mozayan' });
+  const handleOpsOwnerChange = async (shipmentId: string, value: string) => {
+    await updateShipment(shipmentId, { opsOwner: value as 'Uma' | 'Rania' | 'Mozayan' });
   };
 
   return (

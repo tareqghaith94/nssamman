@@ -18,7 +18,7 @@ import { useMemo } from 'react';
 import { UserRole } from '@/types/permissions';
 
 export default function Dashboard() {
-  const shipments = useFilteredShipments();
+  const { shipments, isLoading } = useFilteredShipments();
   const { profile, roles } = useAuth();
   
   // Use roles from auth for multi-role support
@@ -74,6 +74,14 @@ export default function Dashboard() {
   const recentShipments = [...shipments]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
   return (
     <div className="animate-fade-in">

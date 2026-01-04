@@ -8,7 +8,7 @@ import { Shipment } from '@/types/shipment';
 import { hasReachedStage } from '@/lib/stageOrder';
 
 export default function Pricing() {
-  const allShipments = useFilteredShipments();
+  const { shipments: allShipments, isLoading } = useFilteredShipments();
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -24,6 +24,14 @@ export default function Pricing() {
     setSelectedShipment(shipment);
     setFormOpen(true);
   };
+  
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
   
   return (
     <div className="animate-fade-in">
