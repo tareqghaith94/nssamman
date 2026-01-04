@@ -1,6 +1,9 @@
 import { useMemo } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useShipmentStore } from '@/store/shipmentStore';
+import { useAuth } from '@/hooks/useAuth';
+import { canEditOnPage } from '@/lib/permissions';
+import { UserRole } from '@/types/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +23,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 export default function Collections() {
   const allShipments = useFilteredShipments();
   const updateShipment = useShipmentStore((s) => s.updateShipment);
+  const { roles } = useAuth();
+  const userRoles = (roles || []) as UserRole[];
+  const canEdit = canEditOnPage(userRoles, '/collections');
 
   const collections = useMemo(() => {
     const filtered = allShipments.filter(
@@ -153,6 +159,7 @@ export default function Collections() {
                         size="sm"
                         onClick={() => handleMarkCollected(shipment.id, shipment.referenceId)}
                         className="h-8 gap-1 text-success hover:text-success"
+                        disabled={!canEdit}
                       >
                         <Check className="w-4 h-4" />
                         Mark Collected
