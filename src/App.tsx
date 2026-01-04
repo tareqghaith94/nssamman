@@ -13,6 +13,7 @@ import Operations from "./pages/Operations";
 import Payables from "./pages/Payables";
 import Collections from "./pages/Collections";
 import Commissions from "./pages/Commissions";
+import ActivityLog from "./pages/ActivityLog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -34,6 +35,7 @@ const App = () => (
               <Route path="/payables" element={<Payables />} />
               <Route path="/collections" element={<Collections />} />
               <Route path="/commissions" element={<Commissions />} />
+              <Route path="/activity-log" element={<ActivityLog />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </ProtectedRoute>

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useShipmentStore } from '@/store/shipmentStore';
 import { useUserStore } from '@/store/userStore';
+import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,7 +28,7 @@ const SALESPEOPLE = Object.keys(SALESPERSON_REF_PREFIX) as readonly string[];
 
 export function LeadForm() {
   const [open, setOpen] = useState(false);
-  const addShipment = useShipmentStore((s) => s.addShipment);
+  const { createShipment } = useTrackedShipmentActions();
   const currentUser = useUserStore((s) => s.currentUser);
   
   // Sales users can only create leads for themselves
@@ -83,7 +83,7 @@ export function LeadForm() {
       return;
     }
     
-    addShipment(formData);
+    createShipment(formData);
     toast.success('Lead created successfully');
     setOpen(false);
     setFormData({

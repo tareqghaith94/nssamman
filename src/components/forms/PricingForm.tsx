@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { useLockStore } from '@/store/lockStore';
 import { useUserStore } from '@/store/userStore';
+import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
 import { canEditField, getFieldLockReason, canEditShipment, canAdvanceStage } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const updateShipment = useShipmentStore((s) => s.updateShipment);
   const moveToStage = useShipmentStore((s) => s.moveToStage);
   const currentUser = useUserStore((s) => s.currentUser);
+  const { trackMoveToStage, logActivity } = useTrackedShipmentActions();
   const { acquireLock, releaseLock, getLocker } = useLockStore();
   
   const [formData, setFormData] = useState({
@@ -125,7 +127,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       totalProfit,
     });
     
-    moveToStage(shipment.id, 'confirmed');
+    trackMoveToStage(shipment, 'confirmed');
     toast.success('Shipment confirmed and moved to Confirmed stage');
     releaseLock(shipment.id);
     onOpenChange(false);
@@ -140,6 +142,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       lostAt: new Date(),
     });
     
+    logActivity(shipment.id, shipment.referenceId, 'marked_lost', `Marked as lost: ${lostReason}`);
     toast.success('Shipment marked as lost');
     releaseLock(shipment.id);
     onOpenChange(false);

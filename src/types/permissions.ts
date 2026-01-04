@@ -20,7 +20,7 @@ export const SALESPERSON_REF_PREFIX: Record<string, string> = {
 
 // Page access permissions by role
 export const PAGE_PERMISSIONS: Record<UserRole, string[]> = {
-  admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions'],
+  admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions', '/activity-log'],
   sales: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions'], // Can see own commissions
   pricing: ['/', '/leads', '/pricing', '/confirmed'],
   ops: ['/', '/operations', '/confirmed'],
