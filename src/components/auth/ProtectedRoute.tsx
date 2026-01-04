@@ -15,13 +15,25 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const navigate = useNavigate();
   const { isAuthenticated, profile, loading } = useAuth();
   
+  // Calculate access BEFORE any hooks that depend on it
+  const userRole = profile?.role as UserRole | undefined;
+  const hasAccess = userRole ? canAccessPage(userRole, location.pathname) : true;
+  
+  // ALL useEffect hooks MUST be called before any conditional returns
   useEffect(() => {
     if (!loading && !isAuthenticated) {
       navigate('/auth', { replace: true });
     }
   }, [loading, isAuthenticated, navigate]);
 
-  // Show loading while checking auth
+  useEffect(() => {
+    if (!loading && profile && !hasAccess) {
+      toast.error(`Access denied. ${profile.role} role cannot access this page.`);
+      navigate('/');
+    }
+  }, [loading, profile, hasAccess, navigate]);
+
+  // NOW we can have conditional returns (after all hooks)
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -33,12 +45,10 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // Not authenticated - redirect handled by useEffect
   if (!isAuthenticated) {
     return null;
   }
 
-  // No profile yet - user exists but no profile created
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -51,17 +61,6 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
       </div>
     );
   }
-
-  // Check page access based on role
-  const userRole = profile.role as UserRole;
-  const hasAccess = canAccessPage(userRole, location.pathname);
-  
-  useEffect(() => {
-    if (profile && !hasAccess) {
-      toast.error(`Access denied. ${profile.role} role cannot access this page.`);
-      navigate('/');
-    }
-  }, [hasAccess, navigate, profile]);
 
   if (!hasAccess) {
     return null;
