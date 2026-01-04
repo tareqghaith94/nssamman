@@ -141,10 +141,37 @@ export function useTrackedShipmentActions() {
     }
   };
 
+  const trackRevertStage = async (shipment: Shipment, previousStage: ShipmentStage) => {
+    const currentStage = shipment.stage;
+    
+    try {
+      // If reverting from completed, clear the completedAt field
+      if (currentStage === 'completed') {
+        await updateShipment(shipment.id, { completedAt: undefined });
+      }
+      
+      await moveToStage(shipment.id, previousStage);
+      
+      await logActivity(
+        shipment.id,
+        shipment.referenceId,
+        'stage_revert',
+        `Reverted from ${currentStage} to ${previousStage}`,
+        currentStage,
+        previousStage,
+        'stage'
+      );
+    } catch (error) {
+      console.error('Error reverting shipment stage:', error);
+      throw error;
+    }
+  };
+
   return {
     createShipment,
     trackUpdateShipment,
     trackMoveToStage,
+    trackRevertStage,
     logActivity,
     shipments,
     updateShipment,

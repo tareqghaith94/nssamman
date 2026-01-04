@@ -1,17 +1,28 @@
 import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
+import { useAuth } from '@/hooks/useAuth';
+import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
+import { canRevertStage, getPreviousStage } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
 import { PricingForm } from '@/components/forms/PricingForm';
+import { RevertConfirmDialog } from '@/components/dialogs/RevertConfirmDialog';
 import { StageFilter } from '@/components/ui/StageFilter';
 import { Shipment } from '@/types/shipment';
 import { hasReachedStage } from '@/lib/stageOrder';
+import { UserRole } from '@/types/permissions';
+import { toast } from 'sonner';
 
 export default function Pricing() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
+  const { roles } = useAuth();
+  const { trackRevertStage } = useTrackedShipmentActions();
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [revertShipment, setRevertShipment] = useState<Shipment | null>(null);
+  
+  const userRoles = (roles || []) as UserRole[];
 
   const shipments = useMemo(
     () => showHistory
@@ -24,6 +35,17 @@ export default function Pricing() {
     setSelectedShipment(shipment);
     setFormOpen(true);
   };
+  
+  const handleRevert = async (shipment: Shipment) => {
+    const previousStage = getPreviousStage(shipment.stage);
+    if (!previousStage) return;
+    
+    await trackRevertStage(shipment, previousStage);
+    toast.success(`${shipment.referenceId} reverted to ${previousStage}`);
+    setRevertShipment(null);
+  };
+  
+  const canRevert = canRevertStage(userRoles, 'pricing');
   
   if (isLoading) {
     return (
@@ -44,6 +66,7 @@ export default function Pricing() {
       <ShipmentTable
         shipments={shipments}
         onEdit={showHistory ? undefined : handleEdit}
+        onRevert={!showHistory && canRevert ? (ship) => setRevertShipment(ship) : undefined}
         showPricing
       />
       
@@ -52,6 +75,17 @@ export default function Pricing() {
         open={formOpen}
         onOpenChange={setFormOpen}
       />
+      
+      {revertShipment && (
+        <RevertConfirmDialog
+          open={!!revertShipment}
+          onOpenChange={(open) => !open && setRevertShipment(null)}
+          onConfirm={() => handleRevert(revertShipment)}
+          currentStage={revertShipment.stage}
+          previousStage={getPreviousStage(revertShipment.stage) || 'lead'}
+          referenceId={revertShipment.referenceId}
+        />
+      )}
     </div>
   );
 }

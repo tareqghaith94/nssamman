@@ -1,6 +1,7 @@
 export type ActivityType = 
   | 'created' 
   | 'stage_change' 
+  | 'stage_revert'
   | 'field_update' 
   | 'marked_lost'
   | 'payment_collected'

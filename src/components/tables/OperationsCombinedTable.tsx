@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { format } from 'date-fns';
-import { Edit2, Check, X } from 'lucide-react';
+import { Edit2, Check, X, ArrowLeft } from 'lucide-react';
 import { useShipments } from '@/hooks/useShipments';
 
 const OPS_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
@@ -24,6 +24,7 @@ const OPS_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
 interface OperationsCombinedTableProps {
   shipments: Shipment[];
   onEdit?: (shipment: Shipment) => void;
+  onRevert?: (shipment: Shipment) => void;
 }
 
 function CheckIcon({ value }: { value: boolean | undefined }) {
@@ -49,7 +50,7 @@ function TextCell({ value }: { value: string | undefined }) {
   return <span className={value ? 'text-xs' : 'text-muted-foreground text-xs'}>{value || '-'}</span>;
 }
 
-export function OperationsCombinedTable({ shipments, onEdit }: OperationsCombinedTableProps) {
+export function OperationsCombinedTable({ shipments, onEdit, onRevert }: OperationsCombinedTableProps) {
   const { updateShipment } = useShipments();
 
   const handleOpsOwnerChange = async (shipmentId: string, value: string) => {
@@ -171,16 +172,29 @@ export function OperationsCombinedTable({ shipments, onEdit }: OperationsCombine
                   <DateCell date={shipment.doReleaseDate} />
                 </TableCell>
                 <TableCell className="text-right">
-                  {onEdit && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => onEdit(shipment)}
-                      className="h-8 w-8 p-0"
-                    >
-                      <Edit2 className="w-4 h-4" />
-                    </Button>
-                  )}
+                  <div className="flex items-center justify-end gap-1">
+                    {onRevert && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onRevert(shipment)}
+                        className="h-8 gap-1 text-muted-foreground hover:text-foreground text-xs"
+                      >
+                        <ArrowLeft className="w-3 h-3" />
+                        Revert
+                      </Button>
+                    )}
+                    {onEdit && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onEdit(shipment)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))

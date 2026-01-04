@@ -1,5 +1,5 @@
 import { Shipment, ShipmentStage } from '@/types/shipment';
-import { UserRole, PAGE_PERMISSIONS, GLOBAL_READONLY_FIELDS, HIDDEN_FIELDS, FIELD_CATEGORIES, VALID_TRANSITIONS } from '@/types/permissions';
+import { UserRole, PAGE_PERMISSIONS, GLOBAL_READONLY_FIELDS, HIDDEN_FIELDS, FIELD_CATEGORIES, VALID_TRANSITIONS, REVERSE_TRANSITIONS } from '@/types/permissions';
 import { STAGE_ORDER_MAP } from '@/lib/stageOrder';
 
 // Check if a user with given roles can access a specific page
@@ -187,6 +187,47 @@ function canRoleAdvanceStage(role: UserRole, currentStage: ShipmentStage): boole
     default:
       return false;
   }
+}
+
+// Check if user can revert from a specific stage (multi-role)
+export function canRevertStage(roles: UserRole[], currentStage: ShipmentStage): boolean {
+  // Can't revert from lead - no previous stage
+  if (currentStage === 'lead') return false;
+  
+  // Admin can always revert any stage
+  if (roles.includes('admin')) return true;
+  
+  // Check each role
+  return roles.some(role => canRoleRevertStage(role, currentStage));
+}
+
+// Helper: Check if a single role can revert a stage
+function canRoleRevertStage(role: UserRole, currentStage: ShipmentStage): boolean {
+  switch (currentStage) {
+    case 'pricing':
+      // Pricing → Lead: Pricing team can revert
+      return role === 'pricing';
+    
+    case 'confirmed':
+      // Confirmed → Pricing: Pricing team can revert
+      return role === 'pricing';
+    
+    case 'operations':
+      // Operations → Confirmed: Ops team can revert
+      return role === 'ops';
+    
+    case 'completed':
+      // Completed → Operations: Ops team can revert
+      return role === 'ops';
+    
+    default:
+      return false;
+  }
+}
+
+// Get the previous stage for revert
+export function getPreviousStage(currentStage: ShipmentStage): ShipmentStage | null {
+  return (REVERSE_TRANSITIONS[currentStage] as ShipmentStage) || null;
 }
 
 // Get the reason why a field cannot be edited

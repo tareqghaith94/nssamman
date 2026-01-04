@@ -75,11 +75,19 @@ export const FIELD_CATEGORIES = {
   commissions: ['commissionRate', 'commissionAmount'],
 };
 
-// Valid stage transitions
+// Valid stage transitions (includes reverse transitions for undo)
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   lead: ['pricing'],
-  pricing: ['confirmed'],
-  confirmed: ['operations'],
-  operations: ['completed'],
-  completed: [],
+  pricing: ['confirmed', 'lead'],           // Can go back to lead
+  confirmed: ['operations', 'pricing'],     // Can go back to pricing
+  operations: ['completed', 'confirmed'],   // Can go back to confirmed
+  completed: ['operations'],                // Can go back to operations
+};
+
+// Reverse transitions for undo functionality
+export const REVERSE_TRANSITIONS: Record<string, string> = {
+  pricing: 'lead',
+  confirmed: 'pricing',
+  operations: 'confirmed',
+  completed: 'operations',
 };
