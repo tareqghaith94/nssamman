@@ -1,6 +1,9 @@
 import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useShipmentStore } from '@/store/shipmentStore';
+import { useAuth } from '@/hooks/useAuth';
+import { canEditOnPage } from '@/lib/permissions';
+import { UserRole } from '@/types/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
 import {
@@ -21,6 +24,9 @@ import { InvoiceUploadDialog } from '@/components/payables/InvoiceUploadDialog';
 export default function Payables() {
   const allShipments = useFilteredShipments();
   const updateShipment = useShipmentStore((s) => s.updateShipment);
+  const { roles } = useAuth();
+  const userRoles = (roles || []) as UserRole[];
+  const canEdit = canEditOnPage(userRoles, '/payables');
   
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
@@ -176,6 +182,7 @@ export default function Payables() {
                           size="sm"
                           onClick={() => handleOpenUploadDialog(shipment)}
                           className="h-8 gap-1"
+                          disabled={!canEdit}
                         >
                           <Upload className="w-4 h-4" />
                           {hasInvoice ? 'Update' : 'Upload'}
@@ -185,7 +192,7 @@ export default function Payables() {
                           size="sm"
                           onClick={() => handleMarkPaid(shipment.id, shipment.referenceId)}
                           className="h-8 gap-1 text-success hover:text-success"
-                          disabled={!hasInvoice}
+                          disabled={!hasInvoice || !canEdit}
                         >
                           <Check className="w-4 h-4" />
                           Mark Paid
