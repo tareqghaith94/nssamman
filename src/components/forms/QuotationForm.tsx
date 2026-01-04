@@ -4,11 +4,31 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuotations } from '@/hooks/useQuotations';
 import { Shipment, ModeOfTransport } from '@/types/shipment';
-import { Quotation, QuotationStatus, QuoteLineItem } from '@/types/quotation';
+import { Quotation, QuotationStatus } from '@/types/quotation';
+import { WORLD_PORTS } from '@/lib/ports';
 import { toast } from 'sonner';
 import { Plus, Trash2 } from 'lucide-react';
+
+const MODE_OPTIONS: { value: ModeOfTransport; label: string }[] = [
+  { value: 'sea', label: 'Sea' },
+  { value: 'air', label: 'Air' },
+  { value: 'land', label: 'Land' },
+  { value: 'multimodal', label: 'Multimodal' },
+];
+
+const EQUIPMENT_OPTIONS = [
+  { value: '20ft', label: "20' Standard" },
+  { value: '40ft', label: "40' Standard" },
+  { value: '40hc', label: "40' HC" },
+  { value: '45ft', label: "45' HC" },
+  { value: 'lcl', label: 'LCL' },
+  { value: 'breakbulk', label: 'Breakbulk' },
+  { value: 'airfreight', label: 'Air Freight' },
+  { value: 'per_bl', label: 'Per BL' },
+];
 
 interface QuotationFormProps {
   open: boolean;
@@ -33,7 +53,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
   const [pod, setPod] = useState('');
   const [modeOfTransport, setModeOfTransport] = useState<ModeOfTransport>('sea');
   const [lineItems, setLineItems] = useState<LineItemInput[]>([
-    { description: 'Ocean Freight', equipmentType: '40HC', unitCost: '', quantity: '1' }
+    { description: 'Ocean Freight', equipmentType: '40hc', unitCost: '', quantity: '1' }
   ]);
   const [remarks, setRemarks] = useState('');
   const [validDays, setValidDays] = useState('30');
@@ -70,7 +90,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
           }
         }).catch(() => {
           // On error, use equipment
-          setLineItems([{ description: 'Ocean Freight', equipmentType: '40HC', unitCost: '', quantity: '1' }]);
+          setLineItems([{ description: 'Ocean Freight', equipmentType: '40hc', unitCost: '', quantity: '1' }]);
         });
       } else if (shipment) {
         // Pre-fill from shipment
@@ -94,7 +114,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
         setPol('');
         setPod('');
         setModeOfTransport('sea');
-        setLineItems([{ description: 'Ocean Freight', equipmentType: '40HC', unitCost: '', quantity: '1' }]);
+        setLineItems([{ description: 'Ocean Freight', equipmentType: '40hc', unitCost: '', quantity: '1' }]);
         setRemarks('');
       }
       setValidDays('30');
@@ -158,7 +178,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
           pol,
           pod,
           modeOfTransport,
-          equipment: [], // No longer using equipment array for pricing
+          equipment: [],
           remarks: remarks || undefined,
           status,
           validUntil,
@@ -173,7 +193,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
           pol,
           pod,
           modeOfTransport,
-          equipment: [], // No longer using equipment array for pricing
+          equipment: [],
           remarks: remarks || undefined,
           status,
           validUntil,
@@ -227,37 +247,52 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
             />
           </div>
 
-          {/* Route - Simple Text Inputs */}
+          {/* Route - Dropdowns */}
           <div className="grid grid-cols-3 gap-4">
             <div>
-              <Label htmlFor="pol">POL *</Label>
-              <Input
-                id="pol"
-                value={pol}
-                onChange={(e) => setPol(e.target.value)}
-                placeholder="e.g. Aqaba"
-                className="mt-1"
-              />
+              <Label>POL *</Label>
+              <Select value={pol} onValueChange={setPol}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select port" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px] bg-background z-50">
+                  {WORLD_PORTS.map((port) => (
+                    <SelectItem key={port} value={port}>
+                      {port}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <Label htmlFor="pod">POD *</Label>
-              <Input
-                id="pod"
-                value={pod}
-                onChange={(e) => setPod(e.target.value)}
-                placeholder="e.g. Shanghai"
-                className="mt-1"
-              />
+              <Label>POD *</Label>
+              <Select value={pod} onValueChange={setPod}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select port" />
+                </SelectTrigger>
+                <SelectContent className="max-h-[300px] bg-background z-50">
+                  {WORLD_PORTS.map((port) => (
+                    <SelectItem key={port} value={port}>
+                      {port}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <div>
-              <Label htmlFor="mode">Mode</Label>
-              <Input
-                id="mode"
-                value={modeOfTransport}
-                onChange={(e) => setModeOfTransport(e.target.value as ModeOfTransport)}
-                placeholder="sea"
-                className="mt-1"
-              />
+              <Label>Mode</Label>
+              <Select value={modeOfTransport} onValueChange={(v) => setModeOfTransport(v as ModeOfTransport)}>
+                <SelectTrigger className="mt-1">
+                  <SelectValue placeholder="Select mode" />
+                </SelectTrigger>
+                <SelectContent className="bg-background z-50">
+                  {MODE_OPTIONS.map((mode) => (
+                    <SelectItem key={mode.value} value={mode.value}>
+                      {mode.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
 
@@ -275,7 +310,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
             </div>
             <div className="border rounded-md overflow-hidden">
               {/* Header */}
-              <div className="grid grid-cols-[1fr_120px_100px_70px_100px_40px] bg-muted/50 text-sm font-medium">
+              <div className="grid grid-cols-[1fr_130px_100px_70px_100px_40px] bg-muted/50 text-sm font-medium">
                 <div className="p-2 border-r border-border">Description</div>
                 <div className="p-2 border-r border-border">Equip / Type</div>
                 <div className="p-2 border-r border-border text-right">Unit Cost</div>
@@ -285,19 +320,28 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
               </div>
               {/* Rows */}
               {lineItems.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_120px_100px_70px_100px_40px] border-t border-border">
+                <div key={idx} className="grid grid-cols-[1fr_130px_100px_70px_100px_40px] border-t border-border">
                   <Input
                     value={item.description}
                     onChange={(e) => updateLineItem(idx, 'description', e.target.value)}
                     placeholder="Ocean Freight"
                     className="border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
                   />
-                  <Input
-                    value={item.equipmentType}
-                    onChange={(e) => updateLineItem(idx, 'equipmentType', e.target.value)}
-                    placeholder="40HC / Per BL"
-                    className="border-0 border-l border-border rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
-                  />
+                  <Select 
+                    value={item.equipmentType} 
+                    onValueChange={(v) => updateLineItem(idx, 'equipmentType', v)}
+                  >
+                    <SelectTrigger className="border-0 border-l border-border rounded-none h-10 focus:ring-0 focus:ring-offset-0">
+                      <SelectValue placeholder="Select" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-background z-50">
+                      {EQUIPMENT_OPTIONS.map((eq) => (
+                        <SelectItem key={eq.value} value={eq.value}>
+                          {eq.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                   <Input
                     type="number"
                     value={item.unitCost}
@@ -326,7 +370,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
                 </div>
               ))}
               {/* Total Row */}
-              <div className="grid grid-cols-[1fr_120px_100px_70px_100px_40px] border-t-2 border-border bg-muted/50">
+              <div className="grid grid-cols-[1fr_130px_100px_70px_100px_40px] border-t-2 border-border bg-muted/50">
                 <div className="col-span-4 p-2 text-right font-semibold">TOTAL</div>
                 <div className="p-2 text-right font-bold border-l border-border">
                   ${grandTotal.toLocaleString()}
@@ -335,7 +379,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
               </div>
             </div>
             <p className="text-xs text-muted-foreground mt-2">
-              Use "Per BL" in Equipment Type for flat fees (e.g., Documentation Fee, BL Fee)
+              Use "Per BL" for flat fees (e.g., Documentation Fee, BL Fee)
             </p>
           </div>
 
