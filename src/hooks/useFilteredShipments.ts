@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
-import { useUserStore } from '@/store/userStore';
+import { useAuth } from '@/hooks/useAuth';
 import { canSeeShipment } from '@/lib/permissions';
 import { Shipment } from '@/types/shipment';
 import { UserRole } from '@/types/permissions';
@@ -12,14 +12,18 @@ import { UserRole } from '@/types/permissions';
  */
 export function useFilteredShipments(): Shipment[] {
   const allShipments = useShipmentStore((s) => s.shipments);
-  const currentUser = useUserStore((s) => s.currentUser);
+  const { profile, roles } = useAuth();
   
-  // Use roles array for multi-role support
-  const userRoles = (currentUser.roles || [currentUser.role]) as UserRole[];
+  // Use roles from auth (database) for proper permission checking
+  const userRoles = (roles || []) as UserRole[];
+  const refPrefix = profile?.ref_prefix || undefined;
   
   return useMemo(() => {
+    // If no roles yet (loading), show nothing
+    if (userRoles.length === 0) return [];
+    
     return allShipments.filter((shipment) => 
-      canSeeShipment(shipment, userRoles, currentUser.refPrefix)
+      canSeeShipment(shipment, userRoles, refPrefix)
     );
-  }, [allShipments, userRoles, currentUser.refPrefix]);
+  }, [allShipments, userRoles, refPrefix]);
 }

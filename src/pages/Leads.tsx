@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useShipmentStore } from '@/store/shipmentStore';
-import { useUserStore } from '@/store/userStore';
+import { useAuth } from '@/hooks/useAuth';
 import { canAdvanceStage } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
@@ -15,11 +15,11 @@ import { UserRole } from '@/types/permissions';
 export default function Leads() {
   const allShipments = useFilteredShipments();
   const moveToStage = useShipmentStore((s) => s.moveToStage);
-  const currentUser = useUserStore((s) => s.currentUser);
+  const { roles } = useAuth();
   const [showHistory, setShowHistory] = useState(false);
 
-  // Use roles array for multi-role support
-  const userRoles = (currentUser.roles || [currentUser.role]) as UserRole[];
+  // Use roles from auth for multi-role support
+  const userRoles = (roles || []) as UserRole[];
 
   const shipments = useMemo(
     () => showHistory

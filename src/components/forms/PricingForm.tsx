@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { useLockStore } from '@/store/lockStore';
-import { useUserStore } from '@/store/userStore';
+import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
 import { canEditField, getFieldLockReason, canEditShipment, canAdvanceStage } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
@@ -45,12 +45,14 @@ interface PricingFormProps {
 export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) {
   const updateShipment = useShipmentStore((s) => s.updateShipment);
   const moveToStage = useShipmentStore((s) => s.moveToStage);
-  const currentUser = useUserStore((s) => s.currentUser);
+  const { profile, roles } = useAuth();
   const { trackMoveToStage, logActivity } = useTrackedShipmentActions();
   const { acquireLock, releaseLock, getLocker } = useLockStore();
   
-  // Use roles array for multi-role support
-  const userRoles = (currentUser.roles || [currentUser.role]) as UserRole[];
+  // Use roles from auth for multi-role support
+  const userRoles = (roles || []) as UserRole[];
+  const userId = profile?.user_id || '';
+  const refPrefix = profile?.ref_prefix || undefined;
   
   const [formData, setFormData] = useState({
     agent: '',
@@ -63,11 +65,11 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const [hasLock, setHasLock] = useState(false);
   
   // Check if shipment is editable
-  const isEditable = shipment ? canEditShipment(shipment, userRoles, currentUser.refPrefix) : false;
+  const isEditable = shipment ? canEditShipment(shipment, userRoles, refPrefix) : false;
   
   // Field lock states based on role and stage
-  const agentLocked = shipment ? !canEditField(shipment, 'agent', userRoles, currentUser.refPrefix) : true;
-  const pricingLocked = shipment ? !canEditField(shipment, 'sellingPricePerUnit', userRoles, currentUser.refPrefix) : true;
+  const agentLocked = shipment ? !canEditField(shipment, 'agent', userRoles, refPrefix) : true;
+  const pricingLocked = shipment ? !canEditField(shipment, 'sellingPricePerUnit', userRoles, refPrefix) : true;
   
   useEffect(() => {
     if (shipment && open) {
@@ -80,8 +82,8 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       setLostReason('');
       
       // Try to acquire lock
-      if (isEditable) {
-        const acquired = acquireLock(shipment.id, currentUser.id);
+      if (isEditable && userId) {
+        const acquired = acquireLock(shipment.id, userId);
         setHasLock(acquired);
         if (!acquired) {
           toast.warning(`This shipment is being edited by another user`);
