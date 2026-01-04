@@ -19,13 +19,18 @@ import {
 import { format } from 'date-fns';
 import { DollarSign, TrendingUp, User } from 'lucide-react';
 import { Shipment } from '@/types/shipment';
+import { UserRole } from '@/types/permissions';
 
 export default function Commissions() {
   const shipments = useShipmentStore((s) => s.shipments);
   const currentUser = useUserStore((s) => s.currentUser);
   
+  // Use roles array for multi-role support
+  const userRoles = (currentUser.roles || [currentUser.role]) as UserRole[];
+  
   // Sales users only see their own shipments (by ref prefix)
-  const isSales = currentUser.role === 'sales';
+  // Check if user has sales role but NOT admin role
+  const isSalesOnly = userRoles.includes('sales') && !userRoles.includes('admin');
 
   const commissions = useMemo(() => {
     // Filter to completed shipments with payment collected
@@ -33,8 +38,8 @@ export default function Commissions() {
       (s) => s.stage === 'completed' && s.paymentCollected && s.totalProfit
     );
     
-    // Sales users only see their own shipments
-    if (isSales && currentUser.refPrefix) {
+    // Sales-only users see only their own shipments
+    if (isSalesOnly && currentUser.refPrefix) {
       collectedShipments = collectedShipments.filter(
         (s) => s.referenceId.startsWith(`${currentUser.refPrefix}-`)
       );
@@ -53,7 +58,7 @@ export default function Commissions() {
       shipments: ships,
       totalCommission: ships.reduce((sum, s) => sum + (s.totalProfit || 0) * 0.04, 0),
     }));
-  }, [shipments, isSales, currentUser.refPrefix]);
+  }, [shipments, isSalesOnly, currentUser.refPrefix]);
   
   const totalCommission = commissions.reduce((sum, c) => sum + c.totalCommission, 0);
   const totalGP = commissions.reduce(
@@ -64,8 +69,8 @@ export default function Commissions() {
   return (
     <div className="animate-fade-in">
       <PageHeader
-        title={isSales ? "My Commissions" : "Commissions"}
-        description={isSales 
+        title={isSalesOnly ? "My Commissions" : "Commissions"}
+        description={isSalesOnly 
           ? "Your commissions (4% of Gross Profit on collected shipments)"
           : "Sales team commissions (4% of Gross Profit on collected shipments)"
         }
