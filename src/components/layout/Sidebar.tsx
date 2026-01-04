@@ -9,13 +9,17 @@ import {
   Banknote, 
   Percent,
   ScrollText,
-  Database
+  Database,
+  UserCog,
+  LogOut
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { useUserStore } from '@/store/userStore';
+import { useAuth } from '@/hooks/useAuth';
 import { canAccessPage } from '@/lib/permissions';
-import { RoleSelector } from '@/components/auth/RoleSelector';
+import { Button } from '@/components/ui/button';
+import { toast } from 'sonner';
 import nssLogo from '@/assets/nss-logo.png';
+import { UserRole } from '@/types/permissions';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -28,16 +32,28 @@ const navigation = [
   { name: 'Commissions', href: '/commissions', icon: Percent },
   { name: 'Database', href: '/database', icon: Database },
   { name: 'Activity Log', href: '/activity-log', icon: ScrollText },
+  { name: 'Users', href: '/users', icon: UserCog },
 ];
 
 export function Sidebar() {
   const location = useLocation();
-  const currentUser = useUserStore((s) => s.currentUser);
+  const { profile, signOut } = useAuth();
+  
+  const userRole = (profile?.role || 'sales') as UserRole;
   
   // Filter navigation based on user role
   const filteredNavigation = navigation.filter((item) => 
-    canAccessPage(currentUser.role, item.href)
+    canAccessPage(userRole, item.href)
   );
+
+  const handleSignOut = async () => {
+    const { error } = await signOut();
+    if (error) {
+      toast.error('Failed to sign out');
+    } else {
+      toast.success('Signed out successfully');
+    }
+  };
   
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
@@ -49,7 +65,7 @@ export function Sidebar() {
         />
       </div>
       
-      <nav className="p-4 space-y-1 flex-1">
+      <nav className="p-4 space-y-1 flex-1 overflow-y-auto">
         {filteredNavigation.map((item) => {
           const isActive = location.pathname === item.href;
           return (
@@ -70,10 +86,23 @@ export function Sidebar() {
         })}
       </nav>
       
-      {/* Role selector at bottom for testing */}
+      {/* User info and sign out */}
       <div className="p-4 border-t border-sidebar-border">
-        <div className="text-xs text-muted-foreground mb-2">Testing Mode</div>
-        <RoleSelector />
+        {profile && (
+          <div className="mb-3">
+            <p className="text-sm font-medium text-sidebar-foreground">{profile.name}</p>
+            <p className="text-xs text-muted-foreground capitalize">{profile.role}</p>
+          </div>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-2"
+          onClick={handleSignOut}
+        >
+          <LogOut className="w-4 h-4" />
+          Sign Out
+        </Button>
       </div>
     </aside>
   );

@@ -15,6 +15,9 @@ import Collections from "./pages/Collections";
 import Commissions from "./pages/Commissions";
 import Database from "./pages/Database";
 import ActivityLog from "./pages/ActivityLog";
+import UserManagement from "./pages/UserManagement";
+import Auth from "./pages/Auth";
+import Setup from "./pages/Setup";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -25,23 +28,36 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <AppLayout>
-          <ProtectedRoute>
-            <Routes>
-              <Route path="/" element={<Index />} />
-              <Route path="/leads" element={<Leads />} />
-              <Route path="/pricing" element={<Pricing />} />
-              <Route path="/confirmed" element={<Confirmed />} />
-              <Route path="/operations" element={<Operations />} />
-              <Route path="/payables" element={<Payables />} />
-              <Route path="/collections" element={<Collections />} />
-              <Route path="/commissions" element={<Commissions />} />
-              <Route path="/database" element={<Database />} />
-              <Route path="/activity-log" element={<ActivityLog />} />
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </ProtectedRoute>
-        </AppLayout>
+        <Routes>
+          {/* Public routes */}
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/setup" element={<Setup />} />
+          
+          {/* Protected routes */}
+          <Route
+            path="/*"
+            element={
+              <AppLayout>
+                <ProtectedRoute>
+                  <Routes>
+                    <Route path="/" element={<Index />} />
+                    <Route path="/leads" element={<Leads />} />
+                    <Route path="/pricing" element={<Pricing />} />
+                    <Route path="/confirmed" element={<Confirmed />} />
+                    <Route path="/operations" element={<Operations />} />
+                    <Route path="/payables" element={<Payables />} />
+                    <Route path="/collections" element={<Collections />} />
+                    <Route path="/commissions" element={<Commissions />} />
+                    <Route path="/database" element={<Database />} />
+                    <Route path="/activity-log" element={<ActivityLog />} />
+                    <Route path="/users" element={<UserManagement />} />
+                    <Route path="*" element={<NotFound />} />
+                  </Routes>
+                </ProtectedRoute>
+              </AppLayout>
+            }
+          />
+        </Routes>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
