@@ -21,13 +21,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { format } from 'date-fns';
-import { Search, Trash2, FileText, ArrowRight, Edit, AlertTriangle, DollarSign, Upload } from 'lucide-react';
+import { Search, Trash2, FileText, ArrowRight, ArrowLeft, Edit, AlertTriangle, DollarSign, Upload } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { ActivityType } from '@/types/activity';
 
 const activityTypeLabels: Record<ActivityType, { label: string; icon: React.ReactNode; variant: 'default' | 'secondary' | 'destructive' | 'outline' }> = {
   created: { label: 'Created', icon: <FileText className="w-3 h-3" />, variant: 'default' },
   stage_change: { label: 'Stage Change', icon: <ArrowRight className="w-3 h-3" />, variant: 'secondary' },
+  stage_revert: { label: 'Stage Revert', icon: <ArrowLeft className="w-3 h-3" />, variant: 'secondary' },
   field_update: { label: 'Field Update', icon: <Edit className="w-3 h-3" />, variant: 'outline' },
   marked_lost: { label: 'Marked Lost', icon: <AlertTriangle className="w-3 h-3" />, variant: 'destructive' },
   payment_collected: { label: 'Payment Collected', icon: <DollarSign className="w-3 h-3" />, variant: 'default' },

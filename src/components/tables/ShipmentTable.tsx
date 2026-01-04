@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format } from 'date-fns';
-import { ArrowRight, Edit2 } from 'lucide-react';
+import { ArrowRight, ArrowLeft, Edit2 } from 'lucide-react';
 
 const LOST_REASON_LABELS: Record<LostReason, string> = {
   price: 'Price too high',
@@ -27,6 +27,7 @@ interface ShipmentTableProps {
   shipments: Shipment[];
   onEdit?: (shipment: Shipment) => void;
   onMoveToNext?: (shipment: Shipment) => void;
+  onRevert?: (shipment: Shipment) => void;
   showPricing?: boolean;
   showOperations?: boolean;
   nextStage?: ShipmentStage;
@@ -36,6 +37,7 @@ export function ShipmentTable({
   shipments,
   onEdit,
   onMoveToNext,
+  onRevert,
   showPricing,
   showOperations,
   nextStage,
@@ -121,6 +123,17 @@ export function ShipmentTable({
                 )}
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
+                    {onRevert && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onRevert(shipment)}
+                        className="h-8 gap-1 text-muted-foreground hover:text-foreground"
+                      >
+                        <ArrowLeft className="w-4 h-4" />
+                        Revert
+                      </Button>
+                    )}
                     {onEdit && (
                       <Button
                         variant="ghost"

@@ -3,7 +3,7 @@ import { useShipments } from '@/hooks/useShipments';
 import { useLockStore } from '@/store/lockStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
-import { canEditField, getFieldLockReason, canEditShipment, canAdvanceStage } from '@/lib/permissions';
+import { canEditField, getFieldLockReason, canEditShipment, canAdvanceStage, canRevertStage, getPreviousStage } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -27,10 +27,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { RevertConfirmDialog } from '@/components/dialogs/RevertConfirmDialog';
 import { toast } from 'sonner';
 import { Shipment, BLType } from '@/types/shipment';
 import { format } from 'date-fns';
-import { CalendarIcon, Lock, AlertTriangle } from 'lucide-react';
+import { CalendarIcon, Lock, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LockedField } from '@/components/ui/LockedField';
 import { UserRole } from '@/types/permissions';
@@ -44,7 +45,7 @@ interface OperationsFormProps {
 export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormProps) {
   const { updateShipment } = useShipments();
   const { profile, roles } = useAuth();
-  const { trackMoveToStage } = useTrackedShipmentActions();
+  const { trackMoveToStage, trackRevertStage } = useTrackedShipmentActions();
   const { acquireLock, releaseLock } = useLockStore();
   
   // Use roles from auth for multi-role support
@@ -69,6 +70,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   });
   
   const [hasLock, setHasLock] = useState(false);
+  const [showRevertDialog, setShowRevertDialog] = useState(false);
   
   // Check if shipment is editable
   const isEditable = shipment ? canEditShipment(shipment, userRoles, refPrefix) : false;
@@ -169,6 +171,17 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
     onOpenChange(false);
   };
   
+  const handleRevert = async () => {
+    if (!shipment) return;
+    const previousStage = getPreviousStage(shipment.stage);
+    if (!previousStage) return;
+    
+    await trackRevertStage(shipment, previousStage);
+    toast.success(`${shipment.referenceId} reverted to ${previousStage}`);
+    setShowRevertDialog(false);
+    onOpenChange(false);
+  };
+  
   const handleClose = () => {
     if (shipment) {
       releaseLock(shipment.id);
@@ -180,6 +193,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   
   const isReadOnly = !isEditable || !hasLock;
   const canComplete = canAdvanceStage(userRoles, 'operations');
+  const canRevert = shipment.stage === 'completed' && canRevertStage(userRoles, 'completed');
   const allFieldsLocked = bookingRefLocked && blTypeLocked && etdLocked;
   
   return (
@@ -477,22 +491,48 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
             </div>
           </div>
           
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={handleClose}>
-              {isReadOnly ? 'Close' : 'Cancel'}
-            </Button>
-            {!isReadOnly && !allFieldsLocked && (
-              <Button type="submit" variant="secondary">
-                Save
+          <div className="flex justify-between pt-4">
+            <div>
+              {canRevert && (
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setShowRevertDialog(true)}
+                  className="gap-1"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Revert to Operations
+                </Button>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <Button type="button" variant="outline" onClick={handleClose}>
+                {isReadOnly ? 'Close' : 'Cancel'}
               </Button>
-            )}
-            {!isReadOnly && canComplete && (
-              <Button type="button" onClick={handleComplete}>
-                Mark Complete
-              </Button>
-            )}
+              {!isReadOnly && !allFieldsLocked && (
+                <Button type="submit" variant="secondary">
+                  Save
+                </Button>
+              )}
+              {!isReadOnly && canComplete && (
+                <Button type="button" onClick={handleComplete}>
+                  Mark Complete
+                </Button>
+              )}
+            </div>
           </div>
         </form>
+        
+        {showRevertDialog && (
+          <RevertConfirmDialog
+            open={showRevertDialog}
+            onOpenChange={setShowRevertDialog}
+            onConfirm={handleRevert}
+            currentStage={shipment.stage}
+            previousStage={getPreviousStage(shipment.stage) || 'operations'}
+            referenceId={shipment.referenceId}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
