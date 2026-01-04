@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Pencil } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
@@ -67,13 +67,23 @@ export default function UserManagement() {
   const [users, setUsers] = useState<UserWithRoles[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [updating, setUpdating] = useState(false);
+  const [editingUser, setEditingUser] = useState<UserWithRoles | null>(null);
   
   const [formData, setFormData] = useState({
     email: '',
     password: '',
     name: '',
     selectedRoles: ['sales'] as AppRole[],
+    department: '',
+    ref_prefix: '',
+  });
+
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    selectedRoles: [] as AppRole[],
     department: '',
     ref_prefix: '',
   });
@@ -127,9 +137,18 @@ export default function UserManagement() {
         ? prev.selectedRoles.filter(r => r !== role)
         : [...prev.selectedRoles, role];
       
-      // Ensure at least one role is selected
       if (newRoles.length === 0) return prev;
+      return { ...prev, selectedRoles: newRoles };
+    });
+  };
+
+  const toggleEditRole = (role: AppRole) => {
+    setEditFormData(prev => {
+      const newRoles = prev.selectedRoles.includes(role)
+        ? prev.selectedRoles.filter(r => r !== role)
+        : [...prev.selectedRoles, role];
       
+      if (newRoles.length === 0) return prev;
       return { ...prev, selectedRoles: newRoles };
     });
   };
@@ -154,7 +173,6 @@ export default function UserManagement() {
 
     setCreating(true);
 
-    // Create auth user
     const { data: authData, error: authError } = await supabase.auth.signUp({
       email: formData.email,
       password: formData.password,
@@ -175,10 +193,8 @@ export default function UserManagement() {
       return;
     }
 
-    // Use the first selected role as the primary role in profile
     const primaryRole = formData.selectedRoles[0];
 
-    // Create profile
     const { error: profileError } = await supabase
       .from('profiles')
       .insert({
@@ -195,7 +211,6 @@ export default function UserManagement() {
       return;
     }
 
-    // Insert all roles into user_roles table
     const roleInserts = formData.selectedRoles.map(role => ({
       user_id: authData.user!.id,
       role,
@@ -208,7 +223,7 @@ export default function UserManagement() {
     if (rolesError) {
       toast.error('User created but roles assignment failed: ' + rolesError.message);
     } else {
-      toast.success(`User ${formData.name} created with ${formData.selectedRoles.length} role(s)`);
+      toast.success(`User ${formData.name} created successfully`);
     }
 
     setCreateDialogOpen(false);
@@ -224,6 +239,86 @@ export default function UserManagement() {
     setCreating(false);
   };
 
+  const openEditDialog = (user: UserWithRoles) => {
+    setEditingUser(user);
+    setEditFormData({
+      name: user.name,
+      selectedRoles: user.roles.length > 0 ? user.roles : [user.role],
+      department: user.department || '',
+      ref_prefix: user.ref_prefix || '',
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleUpdateUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!editingUser) return;
+
+    if (!editFormData.name) {
+      toast.error('Name is required');
+      return;
+    }
+
+    if (editFormData.selectedRoles.length === 0) {
+      toast.error('Please select at least one role');
+      return;
+    }
+
+    setUpdating(true);
+
+    const primaryRole = editFormData.selectedRoles[0];
+
+    // Update profile
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        name: editFormData.name,
+        role: primaryRole,
+        department: editFormData.department || null,
+        ref_prefix: editFormData.selectedRoles.includes('sales') ? editFormData.ref_prefix || null : null,
+      })
+      .eq('id', editingUser.id);
+
+    if (profileError) {
+      toast.error('Failed to update profile: ' + profileError.message);
+      setUpdating(false);
+      return;
+    }
+
+    // Delete existing roles and insert new ones
+    const { error: deleteError } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', editingUser.user_id);
+
+    if (deleteError) {
+      toast.error('Failed to update roles: ' + deleteError.message);
+      setUpdating(false);
+      return;
+    }
+
+    const roleInserts = editFormData.selectedRoles.map(role => ({
+      user_id: editingUser.user_id,
+      role,
+    }));
+
+    const { error: rolesError } = await supabase
+      .from('user_roles')
+      .insert(roleInserts);
+
+    if (rolesError) {
+      toast.error('Profile updated but roles failed: ' + rolesError.message);
+    } else {
+      toast.success(`User ${editFormData.name} updated successfully`);
+    }
+
+    setEditDialogOpen(false);
+    setEditingUser(null);
+    fetchUsersWithRoles();
+    setUpdating(false);
+  };
+
   if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -236,8 +331,8 @@ export default function UserManagement() {
     return <Navigate to="/" replace />;
   }
 
-  // Check if sales role is selected (to show ref prefix field)
   const hasSalesRole = formData.selectedRoles.includes('sales');
+  const editHasSalesRole = editFormData.selectedRoles.includes('sales');
 
   return (
     <div className="space-y-6">
@@ -308,9 +403,6 @@ export default function UserManagement() {
                       </div>
                     ))}
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    Users with multiple roles will have combined permissions
-                  </p>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="department">Department</Label>
@@ -339,28 +431,14 @@ export default function UserManagement() {
                         ))}
                       </SelectContent>
                     </Select>
-                    <p className="text-xs text-muted-foreground">
-                      Used for generating shipment reference IDs (required for Sales role)
-                    </p>
                   </div>
                 )}
                 <div className="flex justify-end gap-3 pt-4">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setCreateDialogOpen(false)}
-                  >
+                  <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)}>
                     Cancel
                   </Button>
                   <Button type="submit" disabled={creating}>
-                    {creating ? (
-                      <>
-                        <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      'Create User'
-                    )}
+                    {creating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating...</> : 'Create User'}
                   </Button>
                 </div>
               </form>
@@ -368,6 +446,84 @@ export default function UserManagement() {
           </Dialog>
         }
       />
+
+      {/* Edit User Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Edit User</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={handleUpdateUser} className="space-y-4 mt-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Full Name *</Label>
+              <Input
+                id="edit-name"
+                value={editFormData.name}
+                onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                placeholder="John Doe"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Roles * (select one or more)</Label>
+              <div className="grid grid-cols-2 gap-2 p-3 rounded-lg border bg-muted/20">
+                {ROLES.map((role) => (
+                  <div key={role.value} className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`edit-role-${role.value}`}
+                      checked={editFormData.selectedRoles.includes(role.value)}
+                      onCheckedChange={() => toggleEditRole(role.value)}
+                    />
+                    <Label 
+                      htmlFor={`edit-role-${role.value}`} 
+                      className="text-sm font-normal cursor-pointer"
+                    >
+                      {role.label}
+                    </Label>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-department">Department</Label>
+              <Input
+                id="edit-department"
+                value={editFormData.department}
+                onChange={(e) => setEditFormData({ ...editFormData, department: e.target.value })}
+                placeholder="e.g., Sales, Operations"
+              />
+            </div>
+            {editHasSalesRole && (
+              <div className="space-y-2">
+                <Label htmlFor="edit-ref_prefix">Reference Prefix</Label>
+                <Select
+                  value={editFormData.ref_prefix}
+                  onValueChange={(v) => setEditFormData({ ...editFormData, ref_prefix: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select prefix" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {REF_PREFIXES.map((prefix) => (
+                      <SelectItem key={prefix} value={prefix}>
+                        {prefix}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex justify-end gap-3 pt-4">
+              <Button type="button" variant="outline" onClick={() => setEditDialogOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={updating}>
+                {updating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving...</> : 'Save Changes'}
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <div className="rounded-lg border bg-card">
         <Table>
@@ -378,18 +534,19 @@ export default function UserManagement() {
               <TableHead>Department</TableHead>
               <TableHead>Ref Prefix</TableHead>
               <TableHead>Created</TableHead>
+              <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8">
+                <TableCell colSpan={6} className="text-center py-8">
                   <Loader2 className="w-6 h-6 animate-spin mx-auto" />
                 </TableCell>
               </TableRow>
             ) : users.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   No users found. Create the first user above.
                 </TableCell>
               </TableRow>
@@ -426,6 +583,16 @@ export default function UserManagement() {
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
                     {format(new Date(user.created_at), 'MMM d, yyyy')}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openEditDialog(user)}
+                      className="h-8 w-8 p-0"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
