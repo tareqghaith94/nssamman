@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
@@ -6,7 +6,11 @@ import { OperationsForm } from '@/components/forms/OperationsForm';
 import { Shipment } from '@/types/shipment';
 
 export default function Operations() {
-  const shipments = useShipmentStore((s) => s.shipments.filter((ship) => ship.stage === 'operations'));
+  const allShipments = useShipmentStore((s) => s.shipments);
+  const shipments = useMemo(
+    () => allShipments.filter((ship) => ship.stage === 'operations'),
+    [allShipments]
+  );
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   
