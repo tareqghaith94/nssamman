@@ -55,6 +55,12 @@ export interface Shipment {
   agentPaid?: boolean;
   agentPaidDate?: Date;
   
+  // Agent invoice tracking
+  agentInvoiceUploaded?: boolean;
+  agentInvoiceFileName?: string;
+  agentInvoiceAmount?: number;
+  agentInvoiceDate?: Date;
+  
   // Lost shipment tracking
   isLost?: boolean;
   lostReason?: LostReason;
