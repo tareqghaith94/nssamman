@@ -1,5 +1,6 @@
 import { Shipment, ShipmentStage } from '@/types/shipment';
-import { UserRole, PAGE_PERMISSIONS, FIELD_LOCK_RULES, STAGE_ORDER, VALID_TRANSITIONS } from '@/types/permissions';
+import { UserRole, PAGE_PERMISSIONS, FIELD_LOCK_RULES, VALID_TRANSITIONS } from '@/types/permissions';
+import { STAGE_ORDER_MAP } from '@/lib/stageOrder';
 
 // Check if a user role can access a specific page
 export function canAccessPage(role: UserRole, path: string): boolean {
@@ -31,8 +32,8 @@ export function isFieldLocked(shipment: Shipment, fieldName: string): boolean {
     return shipment.stage === 'completed';
   }
   
-  const currentStageOrder = STAGE_ORDER[shipment.stage];
-  const lockStageOrder = STAGE_ORDER[lockAfterStage];
+  const currentStageOrder = STAGE_ORDER_MAP[shipment.stage];
+  const lockStageOrder = STAGE_ORDER_MAP[lockAfterStage as ShipmentStage];
   
   // Field is locked if current stage is at or past the lock stage
   return currentStageOrder >= lockStageOrder;

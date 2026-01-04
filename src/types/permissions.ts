@@ -30,15 +30,6 @@ export const FIELD_LOCK_RULES: Record<string, string> = {
   blType: 'completed',
 };
 
-// Stage order for comparison
-export const STAGE_ORDER: Record<string, number> = {
-  lead: 0,
-  pricing: 1,
-  confirmed: 2,
-  operations: 3,
-  completed: 4,
-};
-
 // Valid stage transitions
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   lead: ['pricing'],
