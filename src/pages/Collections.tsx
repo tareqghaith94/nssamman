@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Button } from '@/components/ui/button';
@@ -15,8 +16,25 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
 export default function Collections() {
-  const collections = useShipmentStore((s) => s.getCollections());
+  const shipments = useShipmentStore((s) => s.shipments);
   const updateShipment = useShipmentStore((s) => s.updateShipment);
+
+  const collections = useMemo(() => {
+    const filtered = shipments.filter(
+      (s) => s.stage === 'completed' && s.completedAt && !s.paymentCollected
+    );
+    
+    return filtered.map((s) => {
+      let daysToAdd = 0;
+      switch (s.paymentTerms) {
+        case '30days': daysToAdd = 30; break;
+        case '60days': daysToAdd = 60; break;
+        case '90days': daysToAdd = 90; break;
+      }
+      const dueDate = addDays(new Date(s.completedAt!), daysToAdd);
+      return { shipment: s, dueDate };
+    });
+  }, [shipments]);
   
   const getStatus = (dueDate: Date) => {
     if (isBefore(dueDate, new Date()) && !isToday(dueDate)) {

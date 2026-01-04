@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import { Shipment } from '@/types/shipment';
 
 export default function Leads() {
-  const shipments = useShipmentStore((s) => s.getShipmentsByStage('lead'));
+  const shipments = useShipmentStore((s) => s.shipments.filter((ship) => ship.stage === 'lead'));
   const moveToStage = useShipmentStore((s) => s.moveToStage);
   
   const handleMoveToNext = (shipment: Shipment) => {

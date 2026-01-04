@@ -6,7 +6,7 @@ import { OperationsForm } from '@/components/forms/OperationsForm';
 import { Shipment } from '@/types/shipment';
 
 export default function Operations() {
-  const shipments = useShipmentStore((s) => s.getShipmentsByStage('operations'));
+  const shipments = useShipmentStore((s) => s.shipments.filter((ship) => ship.stage === 'operations'));
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   

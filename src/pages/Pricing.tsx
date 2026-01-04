@@ -6,7 +6,7 @@ import { PricingForm } from '@/components/forms/PricingForm';
 import { Shipment } from '@/types/shipment';
 
 export default function Pricing() {
-  const shipments = useShipmentStore((s) => s.getShipmentsByStage('pricing'));
+  const shipments = useShipmentStore((s) => s.shipments.filter((ship) => ship.stage === 'pricing'));
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   
