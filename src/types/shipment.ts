@@ -1,6 +1,6 @@
 export type ShipmentStage = 'lead' | 'pricing' | 'confirmed' | 'operations' | 'completed';
 export type PaymentTerms = '0' | '30' | '60' | '90';
-export type EquipmentType = '20ft' | '40ft' | '40hc' | '45ft' | 'lcl' | 'breakbulk';
+export type EquipmentType = '20ft' | '40ft' | '40hc' | '45ft' | 'lcl' | 'breakbulk' | 'airfreight';
 export type ModeOfTransport = 'sea' | 'air' | 'land' | 'multimodal';
 export type Incoterm = 'EXW' | 'FCA' | 'CPT' | 'CIP' | 'DAP' | 'DPU' | 'DDP' | 'FAS' | 'FOB' | 'CFR' | 'CIF';
 
