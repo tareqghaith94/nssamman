@@ -18,7 +18,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { canAccessPage } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
-import nssLogo from '@/assets/nss-logo.png';
+import nssLogo from '@/assets/nss-logo.svg';
 import { UserRole } from '@/types/permissions';
 
 const navigation = [
@@ -58,11 +58,11 @@ export function Sidebar() {
   
   return (
     <aside className="fixed left-0 top-0 z-40 h-screen w-64 bg-sidebar border-r border-sidebar-border flex flex-col">
-      <div className="flex h-20 items-center justify-center px-4 border-b border-sidebar-border">
+      <div className="flex h-24 items-center justify-center px-4 border-b border-sidebar-border">
         <img 
           src={nssLogo} 
           alt="NSS - National Shipping Services" 
-          className="h-14 w-auto object-contain"
+          className="h-16 w-auto object-contain"
         />
       </div>
       

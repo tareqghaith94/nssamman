@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, Ship } from 'lucide-react';
-import nssLogo from '@/assets/nss-logo.png';
+import nssLogo from '@/assets/nss-logo.svg';
 
 export default function Auth() {
   const navigate = useNavigate();
@@ -55,7 +55,7 @@ export default function Auth() {
           <img 
             src={nssLogo} 
             alt="NSS - National Shipping Services" 
-            className="h-20 w-auto object-contain mb-4"
+            className="h-28 w-auto object-contain mb-4"
           />
           <h1 className="text-2xl font-heading font-bold text-foreground">
             Shipment Management System
