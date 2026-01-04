@@ -16,7 +16,7 @@ export default function Pricing() {
   const shipments = useMemo(
     () => showHistory
       ? allShipments.filter((ship) => hasReachedStage(ship.stage, 'pricing'))
-      : allShipments.filter((ship) => ship.stage === 'pricing'),
+      : allShipments.filter((ship) => ship.stage === 'pricing' && !ship.isLost),
     [allShipments, showHistory]
   );
   

@@ -3,6 +3,7 @@ export type PaymentTerms = '0' | '30' | '60' | '90';
 export type EquipmentType = '20ft' | '40ft' | '40hc' | '45ft' | 'lcl' | 'breakbulk' | 'airfreight';
 export type ModeOfTransport = 'sea' | 'air' | 'land' | 'multimodal';
 export type Incoterm = 'EXW' | 'FCA' | 'CPT' | 'CIP' | 'DAP' | 'DPU' | 'DDP' | 'FAS' | 'FOB' | 'CFR' | 'CIF';
+export type LostReason = 'price' | 'competitor' | 'cancelled' | 'timing' | 'requirements' | 'no_response' | 'other';
 
 export interface EquipmentItem {
   type: EquipmentType;
@@ -51,6 +52,11 @@ export interface Shipment {
   paymentCollectedDate?: Date;
   agentPaid?: boolean;
   agentPaidDate?: Date;
+  
+  // Lost shipment tracking
+  isLost?: boolean;
+  lostReason?: LostReason;
+  lostAt?: Date;
 }
 
 export interface Payable {

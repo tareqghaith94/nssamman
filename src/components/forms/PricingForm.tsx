@@ -9,8 +9,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { toast } from 'sonner';
-import { Shipment } from '@/types/shipment';
+import { Shipment, LostReason } from '@/types/shipment';
+import { XCircle } from 'lucide-react';
+
+const LOST_REASONS: { value: LostReason; label: string }[] = [
+  { value: 'price', label: 'Price too high' },
+  { value: 'competitor', label: 'Lost to competitor' },
+  { value: 'cancelled', label: 'Customer cancelled' },
+  { value: 'timing', label: 'Schedule/timing issue' },
+  { value: 'requirements', label: 'Service requirements not met' },
+  { value: 'no_response', label: 'No response from customer' },
+  { value: 'other', label: 'Other' },
+];
 
 interface PricingFormProps {
   shipment: Shipment | null;
@@ -28,6 +46,9 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     costPerUnit: 0,
   });
   
+  const [showLostForm, setShowLostForm] = useState(false);
+  const [lostReason, setLostReason] = useState<LostReason | ''>('');
+  
   useEffect(() => {
     if (shipment) {
       setFormData({
@@ -35,6 +56,8 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         sellingPricePerUnit: shipment.sellingPricePerUnit || 0,
         costPerUnit: shipment.costPerUnit || 0,
       });
+      setShowLostForm(false);
+      setLostReason('');
     }
   }, [shipment]);
   
@@ -77,6 +100,19 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     onOpenChange(false);
   };
   
+  const handleMarkAsLost = () => {
+    if (!shipment || !lostReason) return;
+    
+    updateShipment(shipment.id, {
+      isLost: true,
+      lostReason: lostReason as LostReason,
+      lostAt: new Date(),
+    });
+    
+    toast.success('Shipment marked as lost');
+    onOpenChange(false);
+  };
+  
   if (!shipment) return null;
   
   return (
@@ -93,72 +129,116 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipment?.map((eq, i) => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'}</p>
           </div>
           
-          <div className="space-y-2">
-            <Label htmlFor="agent">Agent Name</Label>
-            <Input
-              id="agent"
-              value={formData.agent}
-              onChange={(e) => setFormData({ ...formData, agent: e.target.value })}
-              placeholder="Enter agent name"
-            />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="selling">Selling Price/Unit ($)</Label>
-              <Input
-                id="selling"
-                type="number"
-                min={0}
-                value={formData.sellingPricePerUnit}
-                onChange={(e) => setFormData({ ...formData, sellingPricePerUnit: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cost">Cost/Unit ($)</Label>
-              <Input
-                id="cost"
-                type="number"
-                min={0}
-                value={formData.costPerUnit}
-                onChange={(e) => setFormData({ ...formData, costPerUnit: parseFloat(e.target.value) || 0 })}
-              />
-            </div>
-          </div>
-          
-          <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-            <h4 className="font-medium text-sm mb-3">Calculated Values</h4>
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <p className="text-muted-foreground">Profit/Unit</p>
-                <p className="font-semibold text-lg">${profitPerUnit.toFixed(2)}</p>
+          {showLostForm ? (
+            <div className="space-y-4 p-4 rounded-lg border border-destructive/30 bg-destructive/5">
+              <div className="flex items-center gap-2 text-destructive">
+                <XCircle className="w-5 h-5" />
+                <h4 className="font-medium">Mark as Lost</h4>
               </div>
-              <div>
-                <p className="text-muted-foreground">Total Selling</p>
-                <p className="font-semibold text-lg">${totalSellingPrice.toFixed(2)}</p>
+              <div className="space-y-2">
+                <Label htmlFor="lostReason">Reason for Loss</Label>
+                <Select value={lostReason} onValueChange={(v) => setLostReason(v as LostReason)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a reason" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LOST_REASONS.map((reason) => (
+                      <SelectItem key={reason.value} value={reason.value}>
+                        {reason.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
-              <div>
-                <p className="text-muted-foreground">Total Cost</p>
-                <p className="font-semibold text-lg">${totalCost.toFixed(2)}</p>
-              </div>
-              <div>
-                <p className="text-muted-foreground">Total Profit</p>
-                <p className="font-semibold text-lg text-success">${totalProfit.toFixed(2)}</p>
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="outline" onClick={() => setShowLostForm(false)}>
+                  Back
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={handleMarkAsLost}
+                  disabled={!lostReason}
+                >
+                  Confirm Lost
+                </Button>
               </div>
             </div>
-          </div>
-          
-          <div className="flex justify-end gap-3 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" variant="secondary">
-              Save Draft
-            </Button>
-            <Button type="button" onClick={handleConfirm}>
-              Confirm Quote
-            </Button>
-          </div>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <Label htmlFor="agent">Agent Name</Label>
+                <Input
+                  id="agent"
+                  value={formData.agent}
+                  onChange={(e) => setFormData({ ...formData, agent: e.target.value })}
+                  placeholder="Enter agent name"
+                />
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="selling">Selling Price/Unit ($)</Label>
+                  <Input
+                    id="selling"
+                    type="number"
+                    min={0}
+                    value={formData.sellingPricePerUnit}
+                    onChange={(e) => setFormData({ ...formData, sellingPricePerUnit: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cost">Cost/Unit ($)</Label>
+                  <Input
+                    id="cost"
+                    type="number"
+                    min={0}
+                    value={formData.costPerUnit}
+                    onChange={(e) => setFormData({ ...formData, costPerUnit: parseFloat(e.target.value) || 0 })}
+                  />
+                </div>
+              </div>
+              
+              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <h4 className="font-medium text-sm mb-3">Calculated Values</h4>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Profit/Unit</p>
+                    <p className="font-semibold text-lg">${profitPerUnit.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Selling</p>
+                    <p className="font-semibold text-lg">${totalSellingPrice.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Cost</p>
+                    <p className="font-semibold text-lg">${totalCost.toFixed(2)}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Profit</p>
+                    <p className="font-semibold text-lg text-success">${totalProfit.toFixed(2)}</p>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="flex justify-between pt-4">
+                <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowLostForm(true)}>
+                  Mark as Lost
+                </Button>
+                <div className="flex gap-3">
+                  <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="secondary">
+                    Save Draft
+                  </Button>
+                  <Button type="button" onClick={handleConfirm}>
+                    Confirm Quote
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </form>
       </DialogContent>
     </Dialog>
