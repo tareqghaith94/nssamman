@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useQuotations } from '@/hooks/useQuotations';
 import { Shipment, EquipmentItem, ModeOfTransport } from '@/types/shipment';
 import { Quotation, QuotationStatus } from '@/types/quotation';
@@ -18,8 +17,6 @@ interface QuotationFormProps {
   quotation?: Quotation | null;
 }
 
-const EQUIPMENT_TYPES = ['20ft', '40ft', '40hc', '45ft', 'lcl', 'breakbulk', 'airfreight'];
-
 export function QuotationForm({ open, onOpenChange, shipment, quotation }: QuotationFormProps) {
   const { createQuotation, updateQuotation, isCreating, isUpdating } = useQuotations();
   
@@ -28,12 +25,12 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
   const [pol, setPol] = useState('');
   const [pod, setPod] = useState('');
   const [modeOfTransport, setModeOfTransport] = useState<ModeOfTransport>('sea');
-  const [equipment, setEquipment] = useState<EquipmentItem[]>([{ type: '40ft', quantity: 1 }]);
+  const [equipment, setEquipment] = useState<EquipmentItem[]>([{ type: '40hc', quantity: 1 }]);
   const [oceanFreightAmount, setOceanFreightAmount] = useState<string>('');
   const [exwAmount, setExwAmount] = useState<string>('');
   const [exwQty, setExwQty] = useState<string>('');
   const [remarks, setRemarks] = useState('');
-  const [validDays, setValidDays] = useState('14');
+  const [validDays, setValidDays] = useState('30');
 
   // Reset form when dialog opens with new data
   useEffect(() => {
@@ -45,7 +42,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
         setPol(quotation.pol);
         setPod(quotation.pod);
         setModeOfTransport(quotation.modeOfTransport);
-        setEquipment(quotation.equipment.length > 0 ? quotation.equipment : [{ type: '40ft', quantity: 1 }]);
+        setEquipment(quotation.equipment.length > 0 ? quotation.equipment : [{ type: '40hc', quantity: 1 }]);
         setOceanFreightAmount(quotation.oceanFreightAmount?.toString() || '');
         setExwAmount(quotation.exwAmount?.toString() || '');
         setExwQty(quotation.exwQty?.toString() || '');
@@ -57,7 +54,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
         setPol(shipment.portOfLoading);
         setPod(shipment.portOfDischarge);
         setModeOfTransport(shipment.modeOfTransport);
-        setEquipment(shipment.equipment.length > 0 ? shipment.equipment : [{ type: '40ft', quantity: 1 }]);
+        setEquipment(shipment.equipment.length > 0 ? shipment.equipment : [{ type: '40hc', quantity: 1 }]);
         setOceanFreightAmount(shipment.sellingPricePerUnit?.toString() || '');
         setExwAmount('');
         setExwQty('');
@@ -69,18 +66,18 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
         setPol('');
         setPod('');
         setModeOfTransport('sea');
-        setEquipment([{ type: '40ft', quantity: 1 }]);
+        setEquipment([{ type: '40hc', quantity: 1 }]);
         setOceanFreightAmount('');
         setExwAmount('');
         setExwQty('');
         setRemarks('');
       }
-      setValidDays('14');
+      setValidDays('30');
     }
   }, [open, shipment, quotation]);
 
   const addEquipment = () => {
-    setEquipment([...equipment, { type: '40ft', quantity: 1 }]);
+    setEquipment([...equipment, { type: '40hc', quantity: 1 }]);
   };
 
   const removeEquipment = (index: number) => {
@@ -89,19 +86,21 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
     }
   };
 
-  const updateEquipment = (index: number, field: 'type' | 'quantity', value: string | number) => {
+  const updateEquipmentType = (index: number, value: string) => {
     const updated = [...equipment];
-    if (field === 'type') {
-      updated[index].type = value as EquipmentItem['type'];
-    } else {
-      updated[index].quantity = Number(value) || 1;
-    }
+    updated[index].type = value as EquipmentItem['type'];
+    setEquipment(updated);
+  };
+
+  const updateEquipmentQty = (index: number, value: string) => {
+    const updated = [...equipment];
+    updated[index].quantity = Number(value) || 1;
     setEquipment(updated);
   };
 
   const handleSubmit = async (status: QuotationStatus) => {
     if (!clientName || !pol || !pod) {
-      toast.error('Please fill in required fields');
+      toast.error('Please fill in client name, POL, and POD');
       return;
     }
 
@@ -156,225 +155,213 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
   const exwTotal = (parseFloat(exwAmount) || 0) * (parseInt(exwQty) || 0);
   const grandTotal = oceanTotal + exwTotal;
 
+  const isLoading = isCreating || isUpdating;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {quotation ? `Edit ${quotation.quoteNumber}` : shipment ? `Generate Quote for ${shipment.referenceId}` : 'New Quotation'}
+            {quotation ? `Edit ${quotation.quoteNumber}` : shipment ? `Quote for ${shipment.referenceId}` : 'New Quotation'}
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Client Details */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="clientName">Client Name *</Label>
-              <Input
-                id="clientName"
-                value={clientName}
-                onChange={(e) => setClientName(e.target.value)}
-                placeholder="Enter client name"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="validDays">Valid For (Days)</Label>
-              <Select value={validDays} onValueChange={setValidDays}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="7">7 days</SelectItem>
-                  <SelectItem value="14">14 days</SelectItem>
-                  <SelectItem value="30">30 days</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="clientAddress">Client Address</Label>
-            <Textarea
-              id="clientAddress"
-              value={clientAddress}
-              onChange={(e) => setClientAddress(e.target.value)}
-              placeholder="Enter client address"
-              rows={2}
+        <div className="space-y-5 py-4">
+          {/* Client Name */}
+          <div>
+            <Label htmlFor="clientName">Client Name *</Label>
+            <Input
+              id="clientName"
+              value={clientName}
+              onChange={(e) => setClientName(e.target.value)}
+              placeholder="Enter client name"
+              className="mt-1"
             />
           </div>
 
-          {/* Route Details */}
+          {/* Client Address */}
+          <div>
+            <Label htmlFor="clientAddress">Client Address</Label>
+            <Input
+              id="clientAddress"
+              value={clientAddress}
+              onChange={(e) => setClientAddress(e.target.value)}
+              placeholder="Optional"
+              className="mt-1"
+            />
+          </div>
+
+          {/* Route - Simple Text Inputs */}
           <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="pol">Port of Loading *</Label>
+            <div>
+              <Label htmlFor="pol">POL *</Label>
               <Input
                 id="pol"
                 value={pol}
                 onChange={(e) => setPol(e.target.value)}
-                placeholder="e.g., Jebel Ali"
+                placeholder="e.g. Aqaba"
+                className="mt-1"
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="pod">Port of Discharge *</Label>
+            <div>
+              <Label htmlFor="pod">POD *</Label>
               <Input
                 id="pod"
                 value={pod}
                 onChange={(e) => setPod(e.target.value)}
-                placeholder="e.g., Rotterdam"
+                placeholder="e.g. Shanghai"
+                className="mt-1"
               />
             </div>
-            <div className="space-y-2">
-              <Label>Mode of Transport</Label>
-              <Select value={modeOfTransport} onValueChange={(v) => setModeOfTransport(v as ModeOfTransport)}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sea">Sea</SelectItem>
-                  <SelectItem value="air">Air</SelectItem>
-                  <SelectItem value="land">Land</SelectItem>
-                  <SelectItem value="multimodal">Multimodal</SelectItem>
-                </SelectContent>
-              </Select>
+            <div>
+              <Label htmlFor="mode">Mode</Label>
+              <Input
+                id="mode"
+                value={modeOfTransport}
+                onChange={(e) => setModeOfTransport(e.target.value as ModeOfTransport)}
+                placeholder="sea"
+                className="mt-1"
+              />
             </div>
           </div>
 
-          {/* Equipment */}
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
+          {/* Equipment - Spreadsheet Style Table */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
               <Label>Equipment</Label>
-              <Button type="button" variant="outline" size="sm" onClick={addEquipment}>
-                <Plus className="h-4 w-4 mr-1" /> Add
-              </Button>
+              <button
+                type="button"
+                onClick={addEquipment}
+                className="text-sm text-primary hover:underline flex items-center gap-1"
+              >
+                <Plus className="h-3 w-3" /> Add row
+              </button>
             </div>
-            {equipment.map((eq, idx) => (
-              <div key={idx} className="flex items-center gap-3">
-                <Select
-                  value={eq.type}
-                  onValueChange={(v) => updateEquipment(idx, 'type', v)}
-                >
-                  <SelectTrigger className="w-32">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EQUIPMENT_TYPES.map((type) => (
-                      <SelectItem key={type} value={type}>{type}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  min="1"
-                  value={eq.quantity}
-                  onChange={(e) => updateEquipment(idx, 'quantity', e.target.value)}
-                  className="w-20"
-                />
-                <span className="text-sm text-muted-foreground">units</span>
-                {equipment.length > 1 && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => removeEquipment(idx)}
-                  >
-                    <Trash2 className="h-4 w-4 text-destructive" />
-                  </Button>
-                )}
+            <div className="border rounded-md overflow-hidden">
+              <div className="grid grid-cols-[1fr_80px_40px] bg-muted/50 text-sm font-medium">
+                <div className="p-2 border-r border-border">Type</div>
+                <div className="p-2 border-r border-border text-center">Qty</div>
+                <div className="p-2"></div>
               </div>
-            ))}
+              {equipment.map((eq, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr_80px_40px] border-t border-border">
+                  <Input
+                    value={eq.type}
+                    onChange={(e) => updateEquipmentType(idx, e.target.value)}
+                    placeholder="40' HC"
+                    className="border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
+                  />
+                  <Input
+                    type="number"
+                    value={eq.quantity}
+                    onChange={(e) => updateEquipmentQty(idx, e.target.value)}
+                    className="border-0 border-l border-border rounded-none text-center focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
+                    min={1}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeEquipment(idx)}
+                    className="flex items-center justify-center text-muted-foreground hover:text-destructive border-l border-border h-10"
+                    disabled={equipment.length === 1}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
 
-          {/* Pricing */}
-          <div className="space-y-4 p-4 bg-muted/30 rounded-lg">
-            <h3 className="font-medium">Pricing</h3>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="oceanFreight">Ocean Freight (per unit)</Label>
-                <div className="relative">
-                  <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                  <Input
-                    id="oceanFreight"
-                    type="number"
-                    value={oceanFreightAmount}
-                    onChange={(e) => setOceanFreightAmount(e.target.value)}
-                    className="pl-7"
-                    placeholder="0.00"
-                  />
-                </div>
-                {oceanTotal > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Total: ${oceanTotal.toLocaleString()} ({getTotalUnits()} units)
-                  </p>
-                )}
+          {/* Pricing - Simple Layout */}
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 items-end">
+              <div>
+                <Label htmlFor="oceanFreight">Ocean Freight $ (per unit)</Label>
+                <Input
+                  id="oceanFreight"
+                  type="number"
+                  value={oceanFreightAmount}
+                  onChange={(e) => setOceanFreightAmount(e.target.value)}
+                  placeholder="0"
+                  className="mt-1"
+                />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="exw">Ex-Works / Pickup</Label>
-                <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <span className="absolute left-3 top-2.5 text-muted-foreground">$</span>
-                    <Input
-                      id="exw"
-                      type="number"
-                      value={exwAmount}
-                      onChange={(e) => setExwAmount(e.target.value)}
-                      className="pl-7"
-                      placeholder="0.00"
-                    />
-                  </div>
-                  <Input
-                    type="number"
-                    min="0"
-                    value={exwQty}
-                    onChange={(e) => setExwQty(e.target.value)}
-                    className="w-20"
-                    placeholder="Qty"
-                  />
-                </div>
-                {exwTotal > 0 && (
-                  <p className="text-xs text-muted-foreground">
-                    Total: ${exwTotal.toLocaleString()}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="pt-2 border-t">
-              <p className="text-right font-semibold">
-                Grand Total: <span className="text-lg">${grandTotal.toLocaleString()}</span>
+              <p className="text-sm text-muted-foreground pb-2">
+                × {getTotalUnits()} = <span className="font-medium">${oceanTotal.toLocaleString()}</span>
               </p>
             </div>
+
+            <div className="grid grid-cols-3 gap-4 items-end">
+              <div>
+                <Label htmlFor="exwAmount">Ex-Works $ (per unit)</Label>
+                <Input
+                  id="exwAmount"
+                  type="number"
+                  value={exwAmount}
+                  onChange={(e) => setExwAmount(e.target.value)}
+                  placeholder="0"
+                  className="mt-1"
+                />
+              </div>
+              <div>
+                <Label htmlFor="exwQty">Ex-Works Qty</Label>
+                <Input
+                  id="exwQty"
+                  type="number"
+                  value={exwQty}
+                  onChange={(e) => setExwQty(e.target.value)}
+                  placeholder="0"
+                  className="mt-1"
+                />
+              </div>
+              <p className="text-sm text-muted-foreground pb-2">
+                = <span className="font-medium">${exwTotal.toLocaleString()}</span>
+              </p>
+            </div>
+
+            <div className="flex justify-between items-center pt-3 border-t text-lg font-semibold">
+              <span>Total</span>
+              <span>${grandTotal.toLocaleString()}</span>
+            </div>
+          </div>
+
+          {/* Validity - Simple Input */}
+          <div>
+            <Label htmlFor="validDays">Valid for (days)</Label>
+            <Input
+              id="validDays"
+              type="number"
+              value={validDays}
+              onChange={(e) => setValidDays(e.target.value)}
+              className="mt-1 w-24"
+            />
           </div>
 
           {/* Remarks */}
-          <div className="space-y-2">
+          <div>
             <Label htmlFor="remarks">Remarks</Label>
             <Textarea
               id="remarks"
               value={remarks}
               onChange={(e) => setRemarks(e.target.value)}
-              placeholder="Any special notes or conditions..."
-              rows={3}
+              placeholder="Special notes..."
+              className="mt-1"
+              rows={2}
             />
           </div>
-        </div>
 
-        <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button
-            variant="secondary"
-            onClick={() => handleSubmit('draft')}
-            disabled={isCreating || isUpdating}
-          >
-            Save Draft
-          </Button>
-          <Button
-            onClick={() => handleSubmit('issued')}
-            disabled={isCreating || isUpdating}
-          >
-            {quotation ? 'Update & Issue' : 'Create & Issue'}
-          </Button>
-        </DialogFooter>
+          {/* Actions */}
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isLoading}>
+              Cancel
+            </Button>
+            <Button variant="secondary" onClick={() => handleSubmit('draft')} disabled={isLoading}>
+              Save Draft
+            </Button>
+            <Button onClick={() => handleSubmit('issued')} disabled={isLoading}>
+              {quotation ? 'Update & Issue' : 'Issue Quotation'}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
