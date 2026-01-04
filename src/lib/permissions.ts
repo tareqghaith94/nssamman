@@ -30,15 +30,24 @@ export function isGloballyReadOnly(fieldName: string): boolean {
   return GLOBAL_READONLY_FIELDS.includes(fieldName);
 }
 
-// Check if user can see a shipment (sales can only see their own by ref prefix)
+// Check if user can see a shipment (sales-only users see only their own by ref prefix)
 export function canSeeShipment(shipment: Shipment, roles: UserRole[], refPrefix?: string): boolean {
+  // Admin sees everything
   if (roles.includes('admin')) return true;
+  
+  // Roles that need full visibility (check BEFORE sales to handle multi-role users)
+  if (roles.includes('ops') || roles.includes('pricing') || 
+      roles.includes('collections') || roles.includes('finance')) {
+    return true;
+  }
+  
+  // Sales-ONLY users see only their own shipments
   if (roles.includes('sales')) {
-    // Match by reference ID prefix (e.g., "A-2601-0001" starts with "A-")
     if (!refPrefix) return false;
     return shipment.referenceId.startsWith(`${refPrefix}-`);
   }
-  return true;
+  
+  return false;
 }
 
 // Check if a shipment can be edited at all
@@ -49,13 +58,19 @@ export function canEditShipment(shipment: Shipment, roles: UserRole[], refPrefix
   // Admin can edit everything
   if (roles.includes('admin')) return true;
   
-  // Sales can only edit their own shipments (by ref prefix)
+  // Roles that can edit any shipment (check BEFORE sales to handle multi-role users)
+  if (roles.includes('ops') || roles.includes('pricing') || 
+      roles.includes('collections') || roles.includes('finance')) {
+    return true;
+  }
+  
+  // Sales-ONLY users can only edit their own shipments
   if (roles.includes('sales')) {
     if (!refPrefix) return false;
     return shipment.referenceId.startsWith(`${refPrefix}-`);
   }
   
-  return true;
+  return false;
 }
 
 // Check if a specific field can be edited based on roles and shipment stage
