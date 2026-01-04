@@ -22,12 +22,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -39,13 +33,12 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from '@/components/ui/tabs';
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { format } from 'date-fns';
-import { Search, Eye, Package, History, DollarSign, FileText, Trash2 } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Navigate } from 'react-router-dom';
 import { Shipment, ShipmentStage } from '@/types/shipment';
@@ -62,15 +55,23 @@ const stageOptions: { value: ShipmentStage | 'all'; label: string }[] = [
 ];
 
 export default function Database() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, loading } = useAuth();
   const shipments = useShipmentStore((s) => s.shipments);
   const clearAllShipments = useShipmentStore((s) => s.clearAllShipments);
   const activities = useActivityStore((s) => s.activities);
   
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<ShipmentStage | 'all'>('all');
-  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [expandedRows, setExpandedRows] = useState<string[]>([]);
+
+  // Show loading while auth is being checked
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   // Only admin can access this page
   if (!isAdmin) {
@@ -92,9 +93,20 @@ export default function Database() {
     return activities.filter((a) => a.shipmentId === shipmentId);
   };
 
-  const openDetails = (shipment: Shipment) => {
-    setSelectedShipment(shipment);
-    setDetailsOpen(true);
+  const toggleRow = (shipmentId: string) => {
+    setExpandedRows((prev) =>
+      prev.includes(shipmentId)
+        ? prev.filter((id) => id !== shipmentId)
+        : [...prev, shipmentId]
+    );
+  };
+
+  const toggleAllRows = () => {
+    if (expandedRows.length === filteredShipments.length) {
+      setExpandedRows([]);
+    } else {
+      setExpandedRows(filteredShipments.map((s) => s.id));
+    }
   };
 
   const formatDate = (date: Date | undefined) => {
@@ -106,6 +118,8 @@ export default function Database() {
     if (amount === undefined || amount === null) return '-';
     return `$${amount.toLocaleString()}`;
   };
+
+  const allExpanded = expandedRows.length === filteredShipments.length && filteredShipments.length > 0;
 
   return (
     <div className="space-y-6">
@@ -139,40 +153,62 @@ export default function Database() {
           </Select>
         </div>
 
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button variant="destructive" size="sm" disabled={shipments.length === 0}>
-              <Trash2 className="w-4 h-4 mr-2" />
-              Clear All Data
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Clear all shipment data?</AlertDialogTitle>
-              <AlertDialogDescription>
-                This will permanently delete all {shipments.length} shipments and cannot be undone.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction
-                onClick={() => {
-                  clearAllShipments();
-                  toast({ title: 'All shipment data cleared' });
-                }}
-                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              >
-                Clear All
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={toggleAllRows}
+            disabled={filteredShipments.length === 0}
+          >
+            {allExpanded ? (
+              <>
+                <ChevronUp className="w-4 h-4 mr-2" />
+                Collapse All
+              </>
+            ) : (
+              <>
+                <ChevronDown className="w-4 h-4 mr-2" />
+                Expand All
+              </>
+            )}
+          </Button>
+
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm" disabled={shipments.length === 0}>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Clear All Data
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Clear all shipment data?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will permanently delete all {shipments.length} shipments and cannot be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={() => {
+                    clearAllShipments();
+                    toast({ title: 'All shipment data cleared' });
+                  }}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                >
+                  Clear All
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </div>
 
       <div className="rounded-lg border bg-card">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]"></TableHead>
               <TableHead className="w-[130px]">Reference</TableHead>
               <TableHead className="w-[100px]">Salesperson</TableHead>
               <TableHead>Route</TableHead>
@@ -182,7 +218,6 @@ export default function Database() {
               <TableHead className="w-[100px] text-right">Cost</TableHead>
               <TableHead className="w-[100px] text-right">Profit</TableHead>
               <TableHead className="w-[100px]">Created</TableHead>
-              <TableHead className="w-[80px]">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -193,47 +228,70 @@ export default function Database() {
                 </TableCell>
               </TableRow>
             ) : (
-              filteredShipments.map((shipment) => (
-                <TableRow key={shipment.id} className={shipment.isLost ? 'opacity-60' : ''}>
-                  <TableCell className="font-mono text-sm">
-                    {shipment.referenceId}
-                    {shipment.isLost && (
-                      <Badge variant="destructive" className="ml-2 text-xs">Lost</Badge>
-                    )}
-                  </TableCell>
-                  <TableCell className="text-sm">{shipment.salesperson}</TableCell>
-                  <TableCell className="text-sm">
-                    <span className="text-muted-foreground">{shipment.portOfLoading}</span>
-                    <span className="mx-1">→</span>
-                    <span>{shipment.portOfDischarge}</span>
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge stage={shipment.stage} />
-                  </TableCell>
-                  <TableCell className="text-sm">{shipment.agent || '-'}</TableCell>
-                  <TableCell className="text-right text-sm">
-                    {formatCurrency(shipment.totalSellingPrice)}
-                  </TableCell>
-                  <TableCell className="text-right text-sm">
-                    {formatCurrency(shipment.totalCost)}
-                  </TableCell>
-                  <TableCell className="text-right text-sm font-medium text-success">
-                    {formatCurrency(shipment.totalProfit)}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(shipment.createdAt)}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => openDetails(shipment)}
-                    >
-                      <Eye className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))
+              filteredShipments.map((shipment) => {
+                const isExpanded = expandedRows.includes(shipment.id);
+                const shipmentActivities = getShipmentActivities(shipment.id);
+
+                return (
+                  <Collapsible key={shipment.id} open={isExpanded} onOpenChange={() => toggleRow(shipment.id)} asChild>
+                    <>
+                      <CollapsibleTrigger asChild>
+                        <TableRow 
+                          className={`cursor-pointer hover:bg-muted/50 ${shipment.isLost ? 'opacity-60' : ''}`}
+                        >
+                          <TableCell>
+                            {isExpanded ? (
+                              <ChevronUp className="w-4 h-4 text-muted-foreground" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4 text-muted-foreground" />
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono text-sm">
+                            {shipment.referenceId}
+                            {shipment.isLost && (
+                              <Badge variant="destructive" className="ml-2 text-xs">Lost</Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-sm">{shipment.salesperson}</TableCell>
+                          <TableCell className="text-sm">
+                            <span className="text-muted-foreground">{shipment.portOfLoading}</span>
+                            <span className="mx-1">→</span>
+                            <span>{shipment.portOfDischarge}</span>
+                          </TableCell>
+                          <TableCell>
+                            <StatusBadge stage={shipment.stage} />
+                          </TableCell>
+                          <TableCell className="text-sm">{shipment.agent || '-'}</TableCell>
+                          <TableCell className="text-right text-sm">
+                            {formatCurrency(shipment.totalSellingPrice)}
+                          </TableCell>
+                          <TableCell className="text-right text-sm">
+                            {formatCurrency(shipment.totalCost)}
+                          </TableCell>
+                          <TableCell className="text-right text-sm font-medium text-success">
+                            {formatCurrency(shipment.totalProfit)}
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">
+                            {formatDate(shipment.createdAt)}
+                          </TableCell>
+                        </TableRow>
+                      </CollapsibleTrigger>
+                      <CollapsibleContent asChild>
+                        <TableRow className="bg-muted/30 hover:bg-muted/30">
+                          <TableCell colSpan={10} className="p-0">
+                            <ExpandedShipmentDetails 
+                              shipment={shipment} 
+                              activities={shipmentActivities}
+                              formatDate={formatDate}
+                              formatCurrency={formatCurrency}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      </CollapsibleContent>
+                    </>
+                  </Collapsible>
+                );
+              })
             )}
           </TableBody>
         </Table>
@@ -242,139 +300,118 @@ export default function Database() {
       <div className="text-sm text-muted-foreground">
         Showing {filteredShipments.length} of {shipments.length} shipments
       </div>
+    </div>
+  );
+}
 
-      {/* Shipment Details Dialog */}
-      <Dialog open={detailsOpen} onOpenChange={setDetailsOpen}>
-        <DialogContent className="sm:max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="font-heading flex items-center gap-2">
-              <Package className="w-5 h-5" />
-              {selectedShipment?.referenceId}
-              {selectedShipment?.isLost && (
-                <Badge variant="destructive">Lost</Badge>
-              )}
-            </DialogTitle>
-          </DialogHeader>
+function ExpandedShipmentDetails({ 
+  shipment, 
+  activities,
+  formatDate, 
+  formatCurrency 
+}: { 
+  shipment: Shipment; 
+  activities: ActivityLog[];
+  formatDate: (date: Date | undefined) => string;
+  formatCurrency: (amount: number | undefined) => string;
+}) {
+  return (
+    <div className="p-4 space-y-4">
+      {/* Row 1: Basic Info & Equipment */}
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+        <DetailItem label="Mode of Transport" value={shipment.modeOfTransport || '-'} />
+        <DetailItem label="Incoterm" value={shipment.incoterm || '-'} />
+        <DetailItem label="Payment Terms" value={`${shipment.paymentTerms} days`} />
+        <DetailItem 
+          label="Equipment" 
+          value={shipment.equipment?.map(eq => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'} 
+        />
+        <DetailItem label="Ops Owner" value={shipment.opsOwner || '-'} />
+        <DetailItem label="Completed At" value={formatDate(shipment.completedAt)} />
+      </div>
 
-          {selectedShipment && (
-            <Tabs defaultValue="details" className="mt-4">
-              <TabsList className="grid w-full grid-cols-3">
-                <TabsTrigger value="details" className="gap-2">
-                  <FileText className="w-4 h-4" />
-                  Details
-                </TabsTrigger>
-                <TabsTrigger value="financials" className="gap-2">
-                  <DollarSign className="w-4 h-4" />
-                  Financials
-                </TabsTrigger>
-                <TabsTrigger value="activity" className="gap-2">
-                  <History className="w-4 h-4" />
-                  Activity
-                </TabsTrigger>
-              </TabsList>
+      {/* Row 2: Pricing Details */}
+      <div className="border-t pt-4">
+        <h4 className="text-sm font-medium mb-3 text-muted-foreground">Pricing</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <DetailItem label="Sell/Unit" value={formatCurrency(shipment.sellingPricePerUnit)} />
+          <DetailItem label="Cost/Unit" value={formatCurrency(shipment.costPerUnit)} />
+          <DetailItem label="Profit/Unit" value={formatCurrency(shipment.profitPerUnit)} />
+          <DetailItem label="Total Quantity" value={shipment.equipment?.reduce((sum, eq) => sum + eq.quantity, 0) || '-'} />
+          <DetailItem label="Invoice Amount" value={formatCurrency(shipment.totalInvoiceAmount)} />
+        </div>
+      </div>
 
-              <TabsContent value="details" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <DetailItem label="Salesperson" value={selectedShipment.salesperson} />
-                  <DetailItem label="Stage" value={<StatusBadge stage={selectedShipment.stage} />} />
-                  <DetailItem label="Port of Loading" value={selectedShipment.portOfLoading} />
-                  <DetailItem label="Port of Discharge" value={selectedShipment.portOfDischarge} />
-                  <DetailItem label="Mode of Transport" value={selectedShipment.modeOfTransport || '-'} />
-                  <DetailItem label="Incoterm" value={selectedShipment.incoterm || '-'} />
-                  <DetailItem label="Payment Terms" value={`${selectedShipment.paymentTerms} days`} />
-                  <DetailItem label="Agent" value={selectedShipment.agent || '-'} />
-                  <DetailItem 
-                    label="Equipment" 
-                    value={selectedShipment.equipment?.map(eq => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'} 
-                  />
-                  <DetailItem label="Created" value={formatDate(selectedShipment.createdAt)} />
-                </div>
+      {/* Row 3: Operations Details */}
+      <div className="border-t pt-4">
+        <h4 className="text-sm font-medium mb-3 text-muted-foreground">Operations</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <DetailItem label="NSS Booking Ref" value={shipment.nssBookingReference || '-'} />
+          <DetailItem label="NSS Invoice #" value={shipment.nssInvoiceNumber || '-'} />
+          <DetailItem label="BL Type" value={shipment.blType?.toUpperCase() || '-'} />
+          <DetailItem label="BL Draft OK" value={shipment.blDraftApproval ? '✓' : '-'} />
+          <DetailItem label="Final BL" value={shipment.finalBLIssued ? '✓' : '-'} />
+          <DetailItem label="Terminal Cutoff" value={formatDate(shipment.terminalCutoff)} />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4 mt-3">
+          <DetailItem label="Gate-In" value={formatDate(shipment.gateInTerminal)} />
+          <DetailItem label="ETD" value={formatDate(shipment.etd)} />
+          <DetailItem label="ETA" value={formatDate(shipment.eta)} />
+          <DetailItem label="Arrival Notice" value={shipment.arrivalNoticeSent ? '✓' : '-'} />
+          <DetailItem label="DO Issued" value={shipment.doIssued ? '✓' : '-'} />
+          <DetailItem label="DO Release Date" value={formatDate(shipment.doReleaseDate)} />
+        </div>
+      </div>
 
-                {selectedShipment.stage === 'operations' || selectedShipment.stage === 'completed' ? (
-                  <>
-                    <div className="border-t pt-4 mt-4">
-                      <h4 className="font-medium mb-3">Operations Details</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <DetailItem label="NSS Booking Ref" value={selectedShipment.nssBookingReference || '-'} />
-                        <DetailItem label="NSS Invoice #" value={selectedShipment.nssInvoiceNumber || '-'} />
-                        <DetailItem label="BL Type" value={selectedShipment.blType?.toUpperCase() || '-'} />
-                        <DetailItem label="BL Draft Approved" value={selectedShipment.blDraftApproval ? 'Yes' : 'No'} />
-                        <DetailItem label="Final BL Issued" value={selectedShipment.finalBLIssued ? 'Yes' : 'No'} />
-                        <DetailItem label="ETD" value={formatDate(selectedShipment.etd)} />
-                        <DetailItem label="ETA" value={formatDate(selectedShipment.eta)} />
-                        <DetailItem label="Arrival Notice Sent" value={selectedShipment.arrivalNoticeSent ? 'Yes' : 'No'} />
-                        <DetailItem label="DO Issued" value={selectedShipment.doIssued ? 'Yes' : 'No'} />
-                        <DetailItem label="Completed" value={formatDate(selectedShipment.completedAt)} />
-                      </div>
-                    </div>
-                  </>
-                ) : null}
+      {/* Row 4: Payments */}
+      <div className="border-t pt-4">
+        <h4 className="text-sm font-medium mb-3 text-muted-foreground">Payments</h4>
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+          <DetailItem 
+            label="Payment Collected" 
+            value={shipment.paymentCollected ? `✓ ${formatDate(shipment.paymentCollectedDate)}` : '-'} 
+          />
+          <DetailItem 
+            label="Agent Paid" 
+            value={shipment.agentPaid ? `✓ ${formatDate(shipment.agentPaidDate)}` : '-'} 
+          />
+          <DetailItem label="Agent Invoice Uploaded" value={shipment.agentInvoiceUploaded ? '✓' : '-'} />
+          <DetailItem label="Agent Invoice Amount" value={formatCurrency(shipment.agentInvoiceAmount)} />
+          <DetailItem label="Agent Invoice Date" value={formatDate(shipment.agentInvoiceDate)} />
+        </div>
+      </div>
 
-                {selectedShipment.isLost && (
-                  <div className="border-t pt-4 mt-4">
-                    <h4 className="font-medium mb-3 text-destructive">Lost Details</h4>
-                    <div className="grid grid-cols-2 gap-4">
-                      <DetailItem label="Reason" value={selectedShipment.lostReason || '-'} />
-                      <DetailItem label="Lost Date" value={formatDate(selectedShipment.lostAt)} />
-                    </div>
-                  </div>
-                )}
-              </TabsContent>
+      {/* Row 5: Lost Details (if applicable) */}
+      {shipment.isLost && (
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-medium mb-3 text-destructive">Lost Details</h4>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <DetailItem label="Lost Reason" value={shipment.lostReason || '-'} />
+            <DetailItem label="Lost Date" value={formatDate(shipment.lostAt)} />
+          </div>
+        </div>
+      )}
 
-              <TabsContent value="financials" className="space-y-4 mt-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <DetailItem label="Selling Price/Unit" value={formatCurrency(selectedShipment.sellingPricePerUnit)} />
-                  <DetailItem label="Cost/Unit" value={formatCurrency(selectedShipment.costPerUnit)} />
-                  <DetailItem label="Profit/Unit" value={formatCurrency(selectedShipment.profitPerUnit)} />
-                  <DetailItem label="Total Quantity" value={selectedShipment.equipment?.reduce((sum, eq) => sum + eq.quantity, 0) || '-'} />
-                </div>
-                <div className="border-t pt-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="p-4 rounded-lg bg-muted/50">
-                      <p className="text-sm text-muted-foreground">Total Selling</p>
-                      <p className="text-xl font-semibold">{formatCurrency(selectedShipment.totalSellingPrice)}</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-muted/50">
-                      <p className="text-sm text-muted-foreground">Total Cost</p>
-                      <p className="text-xl font-semibold">{formatCurrency(selectedShipment.totalCost)}</p>
-                    </div>
-                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                      <p className="text-sm text-muted-foreground">Total Profit</p>
-                      <p className="text-xl font-semibold text-success">{formatCurrency(selectedShipment.totalProfit)}</p>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="border-t pt-4">
-                  <h4 className="font-medium mb-3">Payment Status</h4>
-                  <div className="grid grid-cols-2 gap-4">
-                    <DetailItem 
-                      label="Invoice Amount" 
-                      value={formatCurrency(selectedShipment.totalInvoiceAmount)} 
-                    />
-                    <DetailItem 
-                      label="Payment Collected" 
-                      value={selectedShipment.paymentCollected ? `Yes (${formatDate(selectedShipment.paymentCollectedDate)})` : 'No'} 
-                    />
-                    <DetailItem 
-                      label="Agent Paid" 
-                      value={selectedShipment.agentPaid ? `Yes (${formatDate(selectedShipment.agentPaidDate)})` : 'No'} 
-                    />
-                    <DetailItem 
-                      label="Agent Invoice Amount" 
-                      value={formatCurrency(selectedShipment.agentInvoiceAmount)} 
-                    />
-                  </div>
-                </div>
-              </TabsContent>
-
-              <TabsContent value="activity" className="mt-4">
-                <ShipmentActivityList activities={getShipmentActivities(selectedShipment.id)} />
-              </TabsContent>
-            </Tabs>
-          )}
-        </DialogContent>
-      </Dialog>
+      {/* Row 6: Activity Log */}
+      {activities.length > 0 && (
+        <div className="border-t pt-4">
+          <h4 className="text-sm font-medium mb-3 text-muted-foreground">Recent Activity</h4>
+          <div className="space-y-2 max-h-32 overflow-y-auto">
+            {activities.slice(0, 5).map((activity) => (
+              <div key={activity.id} className="text-xs flex items-center gap-2">
+                <span className="text-muted-foreground">{formatDate(activity.timestamp)}</span>
+                <span>{activity.description}</span>
+                <span className="text-muted-foreground">by {activity.user}</span>
+              </div>
+            ))}
+            {activities.length > 5 && (
+              <div className="text-xs text-muted-foreground">
+                + {activities.length - 5} more activities
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -382,44 +419,8 @@ export default function Database() {
 function DetailItem({ label, value }: { label: string; value: React.ReactNode }) {
   return (
     <div>
-      <p className="text-sm text-muted-foreground">{label}</p>
-      <div className="font-medium">{value}</div>
-    </div>
-  );
-}
-
-function ShipmentActivityList({ activities }: { activities: ActivityLog[] }) {
-  if (activities.length === 0) {
-    return (
-      <div className="text-center py-8 text-muted-foreground">
-        No activity recorded for this shipment
-      </div>
-    );
-  }
-
-  return (
-    <div className="space-y-3">
-      {activities.map((activity) => (
-        <div
-          key={activity.id}
-          className="flex items-start gap-3 p-3 rounded-lg bg-muted/50 border"
-        >
-          <div className="flex-1">
-            <p className="text-sm font-medium">{activity.description}</p>
-            {activity.previousValue && activity.newValue && (
-              <p className="text-xs text-muted-foreground mt-1">
-                {activity.previousValue} → {activity.newValue}
-              </p>
-            )}
-            <p className="text-xs text-muted-foreground mt-1">
-              By {activity.user} ({activity.userRole}) • {format(new Date(activity.timestamp), 'MMM d, yyyy HH:mm')}
-            </p>
-          </div>
-          <Badge variant="outline" className="text-xs capitalize">
-            {activity.type.replace('_', ' ')}
-          </Badge>
-        </div>
-      ))}
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <div className="text-sm font-medium">{value}</div>
     </div>
   );
 }
