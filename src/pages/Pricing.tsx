@@ -3,16 +3,22 @@ import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
 import { PricingForm } from '@/components/forms/PricingForm';
+import { StageFilter } from '@/components/ui/StageFilter';
 import { Shipment } from '@/types/shipment';
+import { hasReachedStage } from '@/lib/stageOrder';
 
 export default function Pricing() {
   const allShipments = useShipmentStore((s) => s.shipments);
-  const shipments = useMemo(
-    () => allShipments.filter((ship) => ship.stage === 'pricing'),
-    [allShipments]
-  );
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  const shipments = useMemo(
+    () => showHistory
+      ? allShipments.filter((ship) => hasReachedStage(ship.stage, 'pricing'))
+      : allShipments.filter((ship) => ship.stage === 'pricing'),
+    [allShipments, showHistory]
+  );
   
   const handleEdit = (shipment: Shipment) => {
     setSelectedShipment(shipment);
@@ -24,11 +30,12 @@ export default function Pricing() {
       <PageHeader
         title="Pricing"
         description="Process quotation requests and assign agents"
+        action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
       />
       
       <ShipmentTable
         shipments={shipments}
-        onEdit={handleEdit}
+        onEdit={showHistory ? undefined : handleEdit}
         showPricing
       />
       
