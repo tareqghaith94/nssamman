@@ -1,6 +1,7 @@
-import { Shipment, ShipmentStage } from '@/types/shipment';
+import { Shipment, ShipmentStage, LostReason } from '@/types/shipment';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -11,6 +12,16 @@ import {
 } from '@/components/ui/table';
 import { format } from 'date-fns';
 import { ArrowRight, Edit2 } from 'lucide-react';
+
+const LOST_REASON_LABELS: Record<LostReason, string> = {
+  price: 'Price too high',
+  competitor: 'Lost to competitor',
+  cancelled: 'Customer cancelled',
+  timing: 'Schedule/timing issue',
+  requirements: 'Requirements not met',
+  no_response: 'No response',
+  other: 'Other',
+};
 
 interface ShipmentTableProps {
   shipments: Shipment[];
@@ -82,7 +93,13 @@ export function ShipmentTable({
                   )) || '-'}
                 </TableCell>
                 <TableCell>
-                  <StatusBadge stage={shipment.stage} />
+                  {shipment.isLost ? (
+                    <Badge variant="destructive" className="text-xs" title={shipment.lostReason ? LOST_REASON_LABELS[shipment.lostReason] : undefined}>
+                      Lost
+                    </Badge>
+                  ) : (
+                    <StatusBadge stage={shipment.stage} />
+                  )}
                 </TableCell>
                 {showPricing && (
                   <>
