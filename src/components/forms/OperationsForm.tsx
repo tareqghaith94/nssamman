@@ -32,6 +32,8 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   const moveToStage = useShipmentStore((s) => s.moveToStage);
   
   const [formData, setFormData] = useState({
+    nssBookingReference: '',
+    nssInvoiceNumber: '',
     blType: '' as BLType,
     blDraftApproval: false,
     finalBLIssued: false,
@@ -48,6 +50,8 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   useEffect(() => {
     if (shipment) {
       setFormData({
+        nssBookingReference: shipment.nssBookingReference || '',
+        nssInvoiceNumber: shipment.nssInvoiceNumber || '',
         blType: shipment.blType || '' as BLType,
         blDraftApproval: shipment.blDraftApproval || false,
         finalBLIssued: shipment.finalBLIssued || false,
@@ -69,6 +73,8 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
     if (!shipment) return;
     
     updateShipment(shipment.id, {
+      nssBookingReference: formData.nssBookingReference,
+      nssInvoiceNumber: formData.nssInvoiceNumber,
       blType: formData.blType,
       blDraftApproval: formData.blDraftApproval,
       finalBLIssued: formData.finalBLIssued,
@@ -95,6 +101,8 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
     }
     
     updateShipment(shipment.id, {
+      nssBookingReference: formData.nssBookingReference,
+      nssInvoiceNumber: formData.nssInvoiceNumber,
       blType: formData.blType,
       blDraftApproval: formData.blDraftApproval,
       finalBLIssued: formData.finalBLIssued,
@@ -127,6 +135,30 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
           <div className="p-4 rounded-lg bg-muted/50 text-sm space-y-1">
             <p><span className="text-muted-foreground">Route:</span> {shipment.portOfLoading} → {shipment.portOfDischarge}</p>
             <p><span className="text-muted-foreground">Agent:</span> {shipment.agent}</p>
+          </div>
+          
+          <div className="space-y-4">
+            <h4 className="font-medium">Reference Numbers</h4>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="nssBooking">NSS Booking Reference</Label>
+                <Input
+                  id="nssBooking"
+                  value={formData.nssBookingReference}
+                  onChange={(e) => setFormData({ ...formData, nssBookingReference: e.target.value })}
+                  placeholder="Enter booking reference"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="nssInvoice">NSS Invoice Number</Label>
+                <Input
+                  id="nssInvoice"
+                  value={formData.nssInvoiceNumber}
+                  onChange={(e) => setFormData({ ...formData, nssInvoiceNumber: e.target.value })}
+                  placeholder="Enter invoice number"
+                />
+              </div>
+            </div>
           </div>
           
           <div className="space-y-4">
