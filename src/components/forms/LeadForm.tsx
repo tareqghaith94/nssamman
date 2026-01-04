@@ -174,6 +174,7 @@ export function LeadForm() {
                     <SelectItem value="45ft">45ft Container</SelectItem>
                     <SelectItem value="lcl">LCL</SelectItem>
                     <SelectItem value="breakbulk">Breakbulk</SelectItem>
+                    <SelectItem value="airfreight">Airfreight</SelectItem>
                   </SelectContent>
                 </Select>
                 <Input
