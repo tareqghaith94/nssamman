@@ -123,10 +123,35 @@ export function canMoveToStage(shipment: Shipment, targetStage: ShipmentStage): 
   return validTargets.includes(targetStage);
 }
 
-// Check if user can advance shipment stage
-export function canAdvanceStage(role: UserRole): boolean {
-  // Admin, Pricing, and Ops can advance stages
-  return role === 'admin' || role === 'pricing' || role === 'ops';
+// Check if user can advance from a specific stage
+export function canAdvanceStage(role: UserRole, currentStage: ShipmentStage): boolean {
+  // Admin can always advance any stage
+  if (role === 'admin') return true;
+  
+  switch (currentStage) {
+    case 'lead':
+      // Lead → Pricing: Sales can advance
+      return role === 'sales';
+    
+    case 'pricing':
+      // Pricing → Confirmed (or Lost): Pricing team can advance
+      return role === 'pricing';
+    
+    case 'confirmed':
+      // Confirmed → Operations: Ops team can advance
+      return role === 'ops';
+    
+    case 'operations':
+      // Operations → Completed: Ops team can advance
+      return role === 'ops';
+    
+    case 'completed':
+      // No further advancement possible
+      return false;
+    
+    default:
+      return false;
+  }
 }
 
 // Get the reason why a field cannot be edited

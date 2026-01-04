@@ -133,7 +133,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   };
   
   const handleComplete = () => {
-    if (!shipment || !hasLock || !canAdvanceStage(currentUser.role)) return;
+    if (!shipment || !hasLock || !canAdvanceStage(currentUser.role, 'operations')) return;
     
     if (!formData.totalInvoiceAmount) {
       toast.error('Please enter the total invoice amount before completing');
@@ -172,7 +172,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
   if (!shipment) return null;
   
   const isReadOnly = !isEditable || !hasLock;
-  const canComplete = canAdvanceStage(currentUser.role);
+  const canComplete = canAdvanceStage(currentUser.role, 'operations');
   const allFieldsLocked = bookingRefLocked && blTypeLocked && etdLocked;
   
   return (
