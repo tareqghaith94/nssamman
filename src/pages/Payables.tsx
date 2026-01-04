@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { canEditOnPage } from '@/lib/permissions';
 import { UserRole } from '@/types/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { StageFilter } from '@/components/ui/StageFilter';
 import { Button } from '@/components/ui/button';
 import {
   Table,
@@ -30,11 +31,14 @@ export default function Payables() {
   
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  const [showHistory, setShowHistory] = useState(false);
 
   const payables = useMemo(() => {
-    const filtered = allShipments.filter(
-      (s) => (s.stage === 'operations' || s.stage === 'completed') && s.agent && s.totalCost && !s.agentPaid
-    );
+    // Current: Only pending payables (operations/completed + has agent + has cost + not paid)
+    // History: All shipments with an agent that reached operations or completed
+    const filtered = showHistory
+      ? allShipments.filter((s) => (s.stage === 'operations' || s.stage === 'completed') && s.agent && s.totalCost)
+      : allShipments.filter((s) => (s.stage === 'operations' || s.stage === 'completed') && s.agent && s.totalCost && !s.agentPaid);
     
     return filtered.map((s) => {
       const isExport = s.portOfLoading.toLowerCase().includes('aqaba');
@@ -50,7 +54,7 @@ export default function Payables() {
       
       return { shipment: s, reminderDate };
     });
-  }, [allShipments]);
+  }, [allShipments, showHistory]);
   
   const getStatus = (reminderDate: Date) => {
     if (isBefore(reminderDate, new Date()) && !isToday(reminderDate)) {
@@ -101,6 +105,7 @@ export default function Payables() {
       <PageHeader
         title="Payables"
         description="Track payments due to agents"
+        action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
       />
       
       <div className="mb-6 p-4 glass-card rounded-xl flex items-center justify-between">
@@ -176,28 +181,35 @@ export default function Payables() {
                       )}
                     </TableCell>
                     <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-2">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenUploadDialog(shipment)}
-                          className="h-8 gap-1"
-                          disabled={!canEdit}
-                        >
-                          <Upload className="w-4 h-4" />
-                          {hasInvoice ? 'Update' : 'Upload'}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleMarkPaid(shipment.id, shipment.referenceId)}
-                          className="h-8 gap-1 text-success hover:text-success"
-                          disabled={!hasInvoice || !canEdit}
-                        >
+                      {shipment.agentPaid ? (
+                        <span className="text-success text-sm font-medium flex items-center justify-end gap-1">
                           <Check className="w-4 h-4" />
-                          Mark Paid
-                        </Button>
-                      </div>
+                          Paid
+                        </span>
+                      ) : (
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenUploadDialog(shipment)}
+                            className="h-8 gap-1"
+                            disabled={!canEdit}
+                          >
+                            <Upload className="w-4 h-4" />
+                            {hasInvoice ? 'Update' : 'Upload'}
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMarkPaid(shipment.id, shipment.referenceId)}
+                            className="h-8 gap-1 text-success hover:text-success"
+                            disabled={!hasInvoice || !canEdit}
+                          >
+                            <Check className="w-4 h-4" />
+                            Mark Paid
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 );
