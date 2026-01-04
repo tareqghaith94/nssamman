@@ -22,6 +22,8 @@ import { toast } from 'sonner';
 import { EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, EquipmentItem } from '@/types/shipment';
 import { WORLD_PORTS, INCOTERMS } from '@/lib/ports';
 
+const SALESPEOPLE = ['Amjad', 'Tareq', 'Mozayan', 'Rania', 'Sanad', 'Uma', 'Marwan'] as const;
+
 export function LeadForm() {
   const [open, setOpen] = useState(false);
   const addShipment = useShipmentStore((s) => s.addShipment);
@@ -96,13 +98,20 @@ export function LeadForm() {
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
           <div className="space-y-2">
-            <Label htmlFor="salesperson">Salesperson Name *</Label>
-            <Input
-              id="salesperson"
+            <Label>Salesperson *</Label>
+            <Select
               value={formData.salesperson}
-              onChange={(e) => setFormData({ ...formData, salesperson: e.target.value })}
-              placeholder="Enter salesperson name"
-            />
+              onValueChange={(v) => setFormData({ ...formData, salesperson: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select salesperson" />
+              </SelectTrigger>
+              <SelectContent>
+                {SALESPEOPLE.map((name) => (
+                  <SelectItem key={name} value={name}>{name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="grid grid-cols-2 gap-4">
