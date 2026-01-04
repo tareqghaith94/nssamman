@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { OperationsTable } from '@/components/tables/OperationsTable';
+import { ShipmentTable } from '@/components/tables/ShipmentTable';
+import { OperationsActionsTable } from '@/components/tables/OperationsActionsTable';
 import { OperationsForm } from '@/components/forms/OperationsForm';
 import { StageFilter } from '@/components/ui/StageFilter';
 import { Shipment } from '@/types/shipment';
@@ -26,14 +27,21 @@ export default function Operations() {
   };
   
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Operations"
         description="Track shipments through the logistics process"
         action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
       />
       
-      <OperationsTable
+      <ShipmentTable
+        shipments={shipments}
+        onEdit={showHistory ? undefined : handleEdit}
+        showOperations
+        showPricing
+      />
+      
+      <OperationsActionsTable
         shipments={shipments}
         onEdit={showHistory ? undefined : handleEdit}
       />
