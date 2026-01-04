@@ -5,8 +5,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useQuotations } from '@/hooks/useQuotations';
-import { Shipment, EquipmentItem, ModeOfTransport } from '@/types/shipment';
-import { Quotation, QuotationStatus } from '@/types/quotation';
+import { Shipment, ModeOfTransport } from '@/types/shipment';
+import { Quotation, QuotationStatus, QuoteLineItem } from '@/types/quotation';
 import { toast } from 'sonner';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -17,18 +17,24 @@ interface QuotationFormProps {
   quotation?: Quotation | null;
 }
 
+interface LineItemInput {
+  description: string;
+  equipmentType: string;
+  unitCost: string;
+  quantity: string;
+}
+
 export function QuotationForm({ open, onOpenChange, shipment, quotation }: QuotationFormProps) {
-  const { createQuotation, updateQuotation, isCreating, isUpdating } = useQuotations();
+  const { createQuotation, updateQuotation, fetchLineItems, isCreating, isUpdating } = useQuotations();
   
   const [clientName, setClientName] = useState('');
   const [clientAddress, setClientAddress] = useState('');
   const [pol, setPol] = useState('');
   const [pod, setPod] = useState('');
   const [modeOfTransport, setModeOfTransport] = useState<ModeOfTransport>('sea');
-  const [equipment, setEquipment] = useState<EquipmentItem[]>([{ type: '40hc', quantity: 1 }]);
-  const [oceanFreightAmount, setOceanFreightAmount] = useState<string>('');
-  const [exwAmount, setExwAmount] = useState<string>('');
-  const [exwQty, setExwQty] = useState<string>('');
+  const [lineItems, setLineItems] = useState<LineItemInput[]>([
+    { description: 'Ocean Freight', equipmentType: '40HC', unitCost: '', quantity: '1' }
+  ]);
   const [remarks, setRemarks] = useState('');
   const [validDays, setValidDays] = useState('30');
 
@@ -36,17 +42,36 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
   useEffect(() => {
     if (open) {
       if (quotation) {
-        // Editing existing quotation
+        // Editing existing quotation - load line items
         setClientName(quotation.clientName);
         setClientAddress(quotation.clientAddress || '');
         setPol(quotation.pol);
         setPod(quotation.pod);
         setModeOfTransport(quotation.modeOfTransport);
-        setEquipment(quotation.equipment.length > 0 ? quotation.equipment : [{ type: '40hc', quantity: 1 }]);
-        setOceanFreightAmount(quotation.oceanFreightAmount?.toString() || '');
-        setExwAmount(quotation.exwAmount?.toString() || '');
-        setExwQty(quotation.exwQty?.toString() || '');
         setRemarks(quotation.remarks || '');
+        
+        // Load existing line items
+        fetchLineItems(quotation.id).then((items) => {
+          if (items.length > 0) {
+            setLineItems(items.map(item => ({
+              description: item.description,
+              equipmentType: item.equipmentType || '',
+              unitCost: item.unitCost.toString(),
+              quantity: item.quantity.toString(),
+            })));
+          } else {
+            // Fallback to equipment-based if no line items
+            setLineItems(quotation.equipment.map(eq => ({
+              description: 'Ocean Freight',
+              equipmentType: eq.type,
+              unitCost: (quotation.oceanFreightAmount || 0).toString(),
+              quantity: eq.quantity.toString(),
+            })));
+          }
+        }).catch(() => {
+          // On error, use equipment
+          setLineItems([{ description: 'Ocean Freight', equipmentType: '40HC', unitCost: '', quantity: '1' }]);
+        });
       } else if (shipment) {
         // Pre-fill from shipment
         setClientName('');
@@ -54,11 +79,14 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
         setPol(shipment.portOfLoading);
         setPod(shipment.portOfDischarge);
         setModeOfTransport(shipment.modeOfTransport);
-        setEquipment(shipment.equipment.length > 0 ? shipment.equipment : [{ type: '40hc', quantity: 1 }]);
-        setOceanFreightAmount(shipment.sellingPricePerUnit?.toString() || '');
-        setExwAmount('');
-        setExwQty('');
         setRemarks('');
+        // Create line items from shipment equipment
+        setLineItems(shipment.equipment.map(eq => ({
+          description: 'Ocean Freight',
+          equipmentType: eq.type,
+          unitCost: (shipment.sellingPricePerUnit || 0).toString(),
+          quantity: eq.quantity.toString(),
+        })));
       } else {
         // New blank quotation
         setClientName('');
@@ -66,37 +94,36 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
         setPol('');
         setPod('');
         setModeOfTransport('sea');
-        setEquipment([{ type: '40hc', quantity: 1 }]);
-        setOceanFreightAmount('');
-        setExwAmount('');
-        setExwQty('');
+        setLineItems([{ description: 'Ocean Freight', equipmentType: '40HC', unitCost: '', quantity: '1' }]);
         setRemarks('');
       }
       setValidDays('30');
     }
-  }, [open, shipment, quotation]);
+  }, [open, shipment, quotation, fetchLineItems]);
 
-  const addEquipment = () => {
-    setEquipment([...equipment, { type: '40hc', quantity: 1 }]);
+  const addLineItem = () => {
+    setLineItems([...lineItems, { description: '', equipmentType: '', unitCost: '', quantity: '1' }]);
   };
 
-  const removeEquipment = (index: number) => {
-    if (equipment.length > 1) {
-      setEquipment(equipment.filter((_, i) => i !== index));
+  const removeLineItem = (index: number) => {
+    if (lineItems.length > 1) {
+      setLineItems(lineItems.filter((_, i) => i !== index));
     }
   };
 
-  const updateEquipmentType = (index: number, value: string) => {
-    const updated = [...equipment];
-    updated[index].type = value as EquipmentItem['type'];
-    setEquipment(updated);
+  const updateLineItem = (index: number, field: keyof LineItemInput, value: string) => {
+    const updated = [...lineItems];
+    updated[index][field] = value;
+    setLineItems(updated);
   };
 
-  const updateEquipmentQty = (index: number, value: string) => {
-    const updated = [...equipment];
-    updated[index].quantity = Number(value) || 1;
-    setEquipment(updated);
+  const calculateAmount = (item: LineItemInput) => {
+    const cost = parseFloat(item.unitCost) || 0;
+    const qty = parseInt(item.quantity) || 0;
+    return cost * qty;
   };
+
+  const grandTotal = lineItems.reduce((sum, item) => sum + calculateAmount(item), 0);
 
   const handleSubmit = async (status: QuotationStatus) => {
     if (!clientName || !pol || !pod) {
@@ -104,8 +131,23 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
       return;
     }
 
+    if (lineItems.every(item => !item.description)) {
+      toast.error('Please add at least one line item');
+      return;
+    }
+
     const validUntil = new Date();
     validUntil.setDate(validUntil.getDate() + parseInt(validDays));
+
+    // Convert line items for API
+    const lineItemsData = lineItems
+      .filter(item => item.description)
+      .map(item => ({
+        description: item.description,
+        equipmentType: item.equipmentType || undefined,
+        unitCost: parseFloat(item.unitCost) || 0,
+        quantity: parseInt(item.quantity) || 1,
+      }));
 
     try {
       if (quotation) {
@@ -116,13 +158,11 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
           pol,
           pod,
           modeOfTransport,
-          equipment,
-          oceanFreightAmount: oceanFreightAmount ? parseFloat(oceanFreightAmount) : undefined,
-          exwAmount: exwAmount ? parseFloat(exwAmount) : undefined,
-          exwQty: exwQty ? parseInt(exwQty) : undefined,
+          equipment: [], // No longer using equipment array for pricing
           remarks: remarks || undefined,
           status,
           validUntil,
+          lineItems: lineItemsData,
         });
         toast.success('Quotation updated');
       } else {
@@ -133,14 +173,12 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
           pol,
           pod,
           modeOfTransport,
-          equipment,
-          oceanFreightAmount: oceanFreightAmount ? parseFloat(oceanFreightAmount) : undefined,
-          exwAmount: exwAmount ? parseFloat(exwAmount) : undefined,
-          exwQty: exwQty ? parseInt(exwQty) : undefined,
+          equipment: [], // No longer using equipment array for pricing
           remarks: remarks || undefined,
           status,
           validUntil,
           issuedAt: status === 'issued' ? new Date() : undefined,
+          lineItems: lineItemsData,
         });
         toast.success(status === 'issued' ? 'Quotation created and issued' : 'Draft saved');
       }
@@ -150,16 +188,11 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
     }
   };
 
-  const getTotalUnits = () => equipment.reduce((sum, eq) => sum + eq.quantity, 0);
-  const oceanTotal = (parseFloat(oceanFreightAmount) || 0) * getTotalUnits();
-  const exwTotal = (parseFloat(exwAmount) || 0) * (parseInt(exwQty) || 0);
-  const grandTotal = oceanTotal + exwTotal;
-
   const isLoading = isCreating || isUpdating;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {quotation ? `Edit ${quotation.quoteNumber}` : shipment ? `Quote for ${shipment.referenceId}` : 'New Quotation'}
@@ -225,103 +258,82 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
             </div>
           </div>
 
-          {/* Equipment - Spreadsheet Style Table */}
+          {/* Line Items - Spreadsheet Style */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <Label>Equipment</Label>
+              <Label>Line Items</Label>
               <button
                 type="button"
-                onClick={addEquipment}
+                onClick={addLineItem}
                 className="text-sm text-primary hover:underline flex items-center gap-1"
               >
-                <Plus className="h-3 w-3" /> Add row
+                <Plus className="h-3 w-3" /> Add line
               </button>
             </div>
             <div className="border rounded-md overflow-hidden">
-              <div className="grid grid-cols-[1fr_80px_40px] bg-muted/50 text-sm font-medium">
-                <div className="p-2 border-r border-border">Type</div>
+              {/* Header */}
+              <div className="grid grid-cols-[1fr_120px_100px_70px_100px_40px] bg-muted/50 text-sm font-medium">
+                <div className="p-2 border-r border-border">Description</div>
+                <div className="p-2 border-r border-border">Equip / Type</div>
+                <div className="p-2 border-r border-border text-right">Unit Cost</div>
                 <div className="p-2 border-r border-border text-center">Qty</div>
+                <div className="p-2 border-r border-border text-right">Amount</div>
                 <div className="p-2"></div>
               </div>
-              {equipment.map((eq, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_80px_40px] border-t border-border">
+              {/* Rows */}
+              {lineItems.map((item, idx) => (
+                <div key={idx} className="grid grid-cols-[1fr_120px_100px_70px_100px_40px] border-t border-border">
                   <Input
-                    value={eq.type}
-                    onChange={(e) => updateEquipmentType(idx, e.target.value)}
-                    placeholder="40' HC"
+                    value={item.description}
+                    onChange={(e) => updateLineItem(idx, 'description', e.target.value)}
+                    placeholder="Ocean Freight"
                     className="border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
                   />
                   <Input
+                    value={item.equipmentType}
+                    onChange={(e) => updateLineItem(idx, 'equipmentType', e.target.value)}
+                    placeholder="40HC / Per BL"
+                    className="border-0 border-l border-border rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
+                  />
+                  <Input
                     type="number"
-                    value={eq.quantity}
-                    onChange={(e) => updateEquipmentQty(idx, e.target.value)}
+                    value={item.unitCost}
+                    onChange={(e) => updateLineItem(idx, 'unitCost', e.target.value)}
+                    placeholder="0"
+                    className="border-0 border-l border-border rounded-none text-right focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
+                  />
+                  <Input
+                    type="number"
+                    value={item.quantity}
+                    onChange={(e) => updateLineItem(idx, 'quantity', e.target.value)}
                     className="border-0 border-l border-border rounded-none text-center focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
                     min={1}
                   />
+                  <div className="flex items-center justify-end border-l border-border px-2 text-sm font-medium bg-muted/30">
+                    ${calculateAmount(item).toLocaleString()}
+                  </div>
                   <button
                     type="button"
-                    onClick={() => removeEquipment(idx)}
+                    onClick={() => removeLineItem(idx)}
                     className="flex items-center justify-center text-muted-foreground hover:text-destructive border-l border-border h-10"
-                    disabled={equipment.length === 1}
+                    disabled={lineItems.length === 1}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
                 </div>
               ))}
-            </div>
-          </div>
-
-          {/* Pricing - Simple Layout */}
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 items-end">
-              <div>
-                <Label htmlFor="oceanFreight">Ocean Freight $ (per unit)</Label>
-                <Input
-                  id="oceanFreight"
-                  type="number"
-                  value={oceanFreightAmount}
-                  onChange={(e) => setOceanFreightAmount(e.target.value)}
-                  placeholder="0"
-                  className="mt-1"
-                />
+              {/* Total Row */}
+              <div className="grid grid-cols-[1fr_120px_100px_70px_100px_40px] border-t-2 border-border bg-muted/50">
+                <div className="col-span-4 p-2 text-right font-semibold">TOTAL</div>
+                <div className="p-2 text-right font-bold border-l border-border">
+                  ${grandTotal.toLocaleString()}
+                </div>
+                <div className="border-l border-border"></div>
               </div>
-              <p className="text-sm text-muted-foreground pb-2">
-                × {getTotalUnits()} = <span className="font-medium">${oceanTotal.toLocaleString()}</span>
-              </p>
             </div>
-
-            <div className="grid grid-cols-3 gap-4 items-end">
-              <div>
-                <Label htmlFor="exwAmount">Ex-Works $ (per unit)</Label>
-                <Input
-                  id="exwAmount"
-                  type="number"
-                  value={exwAmount}
-                  onChange={(e) => setExwAmount(e.target.value)}
-                  placeholder="0"
-                  className="mt-1"
-                />
-              </div>
-              <div>
-                <Label htmlFor="exwQty">Ex-Works Qty</Label>
-                <Input
-                  id="exwQty"
-                  type="number"
-                  value={exwQty}
-                  onChange={(e) => setExwQty(e.target.value)}
-                  placeholder="0"
-                  className="mt-1"
-                />
-              </div>
-              <p className="text-sm text-muted-foreground pb-2">
-                = <span className="font-medium">${exwTotal.toLocaleString()}</span>
-              </p>
-            </div>
-
-            <div className="flex justify-between items-center pt-3 border-t text-lg font-semibold">
-              <span>Total</span>
-              <span>${grandTotal.toLocaleString()}</span>
-            </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Use "Per BL" in Equipment Type for flat fees (e.g., Documentation Fee, BL Fee)
+            </p>
           </div>
 
           {/* Validity - Simple Input */}

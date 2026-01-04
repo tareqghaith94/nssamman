@@ -145,7 +145,7 @@ export function useQuotations() {
   });
 
   const updateQuotationMutation = useMutation({
-    mutationFn: async ({ id, ...updates }: Partial<Quotation> & { id: string }) => {
+    mutationFn: async ({ id, lineItems, ...updates }: Partial<Quotation> & { id: string; lineItems?: Omit<QuoteLineItem, 'id' | 'quotationId' | 'amount'>[] }) => {
       const { data, error } = await supabase
         .from('quotations')
         .update({
@@ -168,6 +168,29 @@ export function useQuotations() {
         .single();
 
       if (error) throw error;
+
+      // Update line items if provided
+      if (lineItems && lineItems.length > 0) {
+        // Delete existing line items
+        await supabase
+          .from('quote_line_items')
+          .delete()
+          .eq('quotation_id', id);
+
+        // Insert new line items
+        const { error: lineError } = await supabase
+          .from('quote_line_items')
+          .insert(lineItems.map(item => ({
+            quotation_id: id,
+            description: item.description,
+            equipment_type: item.equipmentType || null,
+            unit_cost: item.unitCost,
+            quantity: item.quantity,
+          })));
+
+        if (lineError) throw lineError;
+      }
+
       return rowToQuotation(data as QuotationRow);
     },
     onSuccess: () => {
