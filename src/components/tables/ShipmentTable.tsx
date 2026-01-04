@@ -11,7 +11,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format } from 'date-fns';
-import { ArrowRight, ArrowLeft, Edit2 } from 'lucide-react';
+import { ArrowRight, Undo2, Edit2 } from 'lucide-react';
 
 const LOST_REASON_LABELS: Record<LostReason, string> = {
   price: 'Price too high',
@@ -128,10 +128,10 @@ export function ShipmentTable({
                         variant="ghost"
                         size="sm"
                         onClick={() => onRevert(shipment)}
-                        className="h-8 gap-1 text-muted-foreground hover:text-foreground"
+                        className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground"
+                        title="Undo to previous stage"
                       >
-                        <ArrowLeft className="w-4 h-4" />
-                        Revert
+                        <Undo2 className="w-4 h-4" />
                       </Button>
                     )}
                     {onEdit && (
