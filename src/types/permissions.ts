@@ -8,10 +8,10 @@ export interface User {
 
 // Page access permissions by role
 export const PAGE_PERMISSIONS: Record<UserRole, string[]> = {
-  admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions'],
-  sales: ['/', '/leads', '/pricing', '/confirmed', '/operations'],
-  finance: ['/', '/payables', '/collections', '/commissions'],
-  operations: ['/', '/operations'],
+  admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions', '/database'],
+  sales: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/database'],
+  finance: ['/', '/payables', '/collections', '/commissions', '/database'],
+  operations: ['/', '/operations', '/database'],
 };
 
 // Fields that become locked after certain stages

@@ -75,7 +75,7 @@ export function canEditOnPage(role: UserRole, page: string): boolean {
   
   // Role-specific edit permissions
   const editPermissions: Record<UserRole, string[]> = {
-    admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions'],
+    admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions', '/database'],
     sales: ['/leads', '/pricing'],
     finance: ['/payables', '/collections', '/commissions'],
     operations: ['/operations'],
