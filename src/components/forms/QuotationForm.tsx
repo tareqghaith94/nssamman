@@ -192,7 +192,10 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-3xl max-h-[90vh] overflow-y-auto"
+        onPointerDownOutside={(e) => e.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>
             {quotation ? `Edit ${quotation.quoteNumber}` : shipment ? `Quote for ${shipment.referenceId}` : 'New Quotation'}
