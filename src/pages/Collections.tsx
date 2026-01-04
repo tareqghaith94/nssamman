@@ -12,9 +12,10 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format, isBefore, isToday, addDays } from 'date-fns';
-import { Check, AlertCircle, Clock } from 'lucide-react';
+import { Check, AlertCircle, Clock, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function Collections() {
   const allShipments = useFilteredShipments();
@@ -55,6 +56,7 @@ export default function Collections() {
   );
   
   const totalDue = collections.reduce((sum, c) => sum + (c.shipment.totalInvoiceAmount || 0), 0);
+  const missingAmountCount = collections.filter(c => !c.shipment.totalInvoiceAmount).length;
   
   return (
     <div className="animate-fade-in">
@@ -67,6 +69,12 @@ export default function Collections() {
         <div>
           <p className="text-sm text-muted-foreground">Total Outstanding</p>
           <p className="text-2xl font-heading font-bold">${totalDue.toLocaleString()}</p>
+          {missingAmountCount > 0 && (
+            <p className="text-xs text-amber-500 flex items-center gap-1 mt-1">
+              <AlertTriangle className="w-3 h-3" />
+              {missingAmountCount} shipment(s) missing invoice amount
+            </p>
+          )}
         </div>
         <div className="text-right">
           <p className="text-sm text-muted-foreground">Pending Collections</p>
@@ -123,7 +131,21 @@ export default function Collections() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      ${shipment.totalInvoiceAmount?.toLocaleString()}
+                      {shipment.totalInvoiceAmount ? (
+                        `$${shipment.totalInvoiceAmount.toLocaleString()}`
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="text-amber-500 flex items-center gap-1 justify-end cursor-help">
+                              <AlertTriangle className="w-3 h-3" />
+                              Not set
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Invoice amount not set in Operations</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

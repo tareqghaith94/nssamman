@@ -301,7 +301,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               </div>
               
               <div className="flex justify-between pt-4">
-                {!isReadOnly && currentUser.role === 'admin' && (
+                {!isReadOnly && (currentUser.role === 'admin' || currentUser.role === 'pricing') && (
                   <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowLostForm(true)}>
                     Mark as Lost
                   </Button>

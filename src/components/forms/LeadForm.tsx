@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
+import { useUserStore } from '@/store/userStore';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,12 +22,17 @@ import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, EquipmentItem } from '@/types/shipment';
 import { WORLD_PORTS, INCOTERMS } from '@/lib/ports';
+import { SALESPERSON_REF_PREFIX } from '@/types/permissions';
 
-const SALESPEOPLE = ['Amjad', 'Tareq', 'Mozayan', 'Rania', 'Sanad', 'Uma', 'Marwan'] as const;
+const SALESPEOPLE = Object.keys(SALESPERSON_REF_PREFIX) as readonly string[];
 
 export function LeadForm() {
   const [open, setOpen] = useState(false);
   const addShipment = useShipmentStore((s) => s.addShipment);
+  const currentUser = useUserStore((s) => s.currentUser);
+  
+  // Sales users can only create leads for themselves
+  const isSales = currentUser.role === 'sales';
   
   const [formData, setFormData] = useState({
     salesperson: '',
@@ -37,6 +43,13 @@ export function LeadForm() {
     paymentTerms: '' as PaymentTerms,
     incoterm: '' as Incoterm,
   });
+  
+  // Auto-set salesperson for sales role when dialog opens
+  useEffect(() => {
+    if (open && isSales && currentUser.name) {
+      setFormData(prev => ({ ...prev, salesperson: currentUser.name }));
+    }
+  }, [open, isSales, currentUser.name]);
   
   const addEquipment = () => {
     if (formData.equipment.length < 3) {
@@ -102,6 +115,7 @@ export function LeadForm() {
             <Select
               value={formData.salesperson}
               onValueChange={(v) => setFormData({ ...formData, salesperson: v })}
+              disabled={isSales}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select salesperson" />
@@ -112,6 +126,9 @@ export function LeadForm() {
                 ))}
               </SelectContent>
             </Select>
+            {isSales && (
+              <p className="text-xs text-muted-foreground">You can only create leads for yourself</p>
+            )}
           </div>
           
           <div className="grid grid-cols-2 gap-4">
