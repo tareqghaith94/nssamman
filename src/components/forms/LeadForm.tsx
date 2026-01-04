@@ -34,8 +34,11 @@ export function LeadForm() {
   // Use roles from auth for multi-role support
   const userRoles = (roles || []) as UserRole[];
   
-  // Sales-only users can only create leads for themselves
-  const isSalesOnly = userRoles.includes('sales') && !userRoles.includes('admin');
+  // Users with admin, pricing, or ops roles can create leads for any salesperson
+  const canCreateForOthers = userRoles.some(role => 
+    ['admin', 'pricing', 'ops'].includes(role)
+  );
+  const isSalesOnly = userRoles.includes('sales') && !canCreateForOthers;
   
   const [formData, setFormData] = useState({
     salesperson: '',
