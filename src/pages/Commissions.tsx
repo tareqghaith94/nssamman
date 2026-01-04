@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
+import { useUserStore } from '@/store/userStore';
 import { PageHeader } from '@/components/ui/PageHeader';
 import {
   Table,
@@ -21,11 +22,23 @@ import { Shipment } from '@/types/shipment';
 
 export default function Commissions() {
   const shipments = useShipmentStore((s) => s.shipments);
+  const currentUser = useUserStore((s) => s.currentUser);
+  
+  // Sales users only see their own shipments (by ref prefix)
+  const isSales = currentUser.role === 'sales';
 
   const commissions = useMemo(() => {
-    const collectedShipments = shipments.filter(
+    // Filter to completed shipments with payment collected
+    let collectedShipments = shipments.filter(
       (s) => s.stage === 'completed' && s.paymentCollected && s.totalProfit
     );
+    
+    // Sales users only see their own shipments
+    if (isSales && currentUser.refPrefix) {
+      collectedShipments = collectedShipments.filter(
+        (s) => s.referenceId.startsWith(`${currentUser.refPrefix}-`)
+      );
+    }
     
     const bySalesperson = collectedShipments.reduce((acc, s) => {
       if (!acc[s.salesperson]) {
@@ -40,7 +53,7 @@ export default function Commissions() {
       shipments: ships,
       totalCommission: ships.reduce((sum, s) => sum + (s.totalProfit || 0) * 0.04, 0),
     }));
-  }, [shipments]);
+  }, [shipments, isSales, currentUser.refPrefix]);
   
   const totalCommission = commissions.reduce((sum, c) => sum + c.totalCommission, 0);
   const totalGP = commissions.reduce(
@@ -51,8 +64,11 @@ export default function Commissions() {
   return (
     <div className="animate-fade-in">
       <PageHeader
-        title="Commissions"
-        description="Sales team commissions (4% of Gross Profit on collected shipments)"
+        title={isSales ? "My Commissions" : "Commissions"}
+        description={isSales 
+          ? "Your commissions (4% of Gross Profit on collected shipments)"
+          : "Sales team commissions (4% of Gross Profit on collected shipments)"
+        }
       />
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
