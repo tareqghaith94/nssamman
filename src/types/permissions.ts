@@ -1,4 +1,4 @@
-export type UserRole = 'admin' | 'sales' | 'finance' | 'operations';
+export type UserRole = 'admin' | 'sales' | 'pricing' | 'ops' | 'collections' | 'finance';
 
 export interface User {
   id: string;
@@ -9,25 +9,43 @@ export interface User {
 // Page access permissions by role
 export const PAGE_PERMISSIONS: Record<UserRole, string[]> = {
   admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions', '/database'],
-  sales: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/database'],
-  finance: ['/', '/payables', '/collections', '/commissions', '/database'],
-  operations: ['/', '/operations', '/database'],
+  sales: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/database'], // No commissions
+  pricing: ['/', '/leads', '/pricing', '/confirmed', '/database'],
+  ops: ['/', '/operations', '/confirmed', '/database'],
+  collections: ['/', '/collections', '/confirmed', '/database'],
+  finance: ['/', '/payables', '/confirmed', '/database'],
 };
 
-// Fields that become locked after certain stages
-export const FIELD_LOCK_RULES: Record<string, string> = {
-  salesperson: 'confirmed',
-  portOfLoading: 'confirmed',
-  portOfDischarge: 'confirmed',
-  equipment: 'confirmed',
-  paymentTerms: 'confirmed',
-  incoterm: 'confirmed',
-  modeOfTransport: 'confirmed',
-  agent: 'operations',
-  sellingPricePerUnit: 'operations',
-  costPerUnit: 'operations',
-  nssBookingReference: 'completed',
-  blType: 'completed',
+// Fields that are ALWAYS read-only (global locks)
+export const GLOBAL_READONLY_FIELDS = [
+  'referenceId',
+  'grossProfit',
+  'profitPerUnit',
+  'totalSellingPrice',
+  'totalCost',
+  'commissionRate',
+  'commissionAmount',
+];
+
+// Fields hidden from specific roles
+export const HIDDEN_FIELDS: Record<UserRole, string[]> = {
+  admin: [],
+  sales: ['commissionRate', 'commissionAmount', 'commissionLogic'],
+  pricing: ['commissionRate', 'commissionAmount', 'commissionLogic'],
+  ops: ['commissionRate', 'commissionAmount', 'commissionLogic'],
+  collections: ['commissionRate', 'commissionAmount', 'commissionLogic'],
+  finance: ['commissionRate', 'commissionAmount', 'commissionLogic'],
+};
+
+// Field categories for easier management
+export const FIELD_CATEGORIES = {
+  lead: ['salesperson', 'portOfLoading', 'portOfDischarge', 'equipment', 'modeOfTransport', 'incoterm', 'paymentTerms'],
+  pricing: ['sellingPricePerUnit', 'costPerUnit', 'agent'],
+  operations: ['nssBookingReference', 'nssInvoiceNumber', 'etd', 'eta', 'blDraftReceived', 'blDraftSent', 'blFinalReceived', 'blType', 'cargoReadyDate', 'vesselName', 'voyageNumber'],
+  collections: ['collectionStatus', 'collectionFollowUp', 'collectedAmount', 'collectionDate'],
+  payables: ['paymentStatus', 'agentInvoiceAmount', 'agentInvoiceUploaded', 'paymentFollowUp'],
+  clientRemarks: ['clientRemarks'],
+  commissions: ['commissionRate', 'commissionAmount'],
 };
 
 // Valid stage transitions

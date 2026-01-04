@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { useLockStore } from '@/store/lockStore';
 import { useUserStore } from '@/store/userStore';
-import { isFieldLocked, getFieldLockReason, canEditShipment } from '@/lib/permissions';
+import { canEditField, getFieldLockReason, canEditShipment, canAdvanceStage } from '@/lib/permissions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -44,7 +44,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const updateShipment = useShipmentStore((s) => s.updateShipment);
   const moveToStage = useShipmentStore((s) => s.moveToStage);
   const currentUser = useUserStore((s) => s.currentUser);
-  const { acquireLock, releaseLock, isLocked, getLocker } = useLockStore();
+  const { acquireLock, releaseLock, getLocker } = useLockStore();
   
   const [formData, setFormData] = useState({
     agent: '',
@@ -57,11 +57,11 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const [hasLock, setHasLock] = useState(false);
   
   // Check if shipment is editable
-  const isEditable = shipment ? canEditShipment(shipment, currentUser.role) : false;
+  const isEditable = shipment ? canEditShipment(shipment, currentUser.role, currentUser.name) : false;
   
-  // Field lock states
-  const agentLocked = shipment ? isFieldLocked(shipment, 'agent') : false;
-  const pricingLocked = shipment ? isFieldLocked(shipment, 'sellingPricePerUnit') : false;
+  // Field lock states based on role and stage
+  const agentLocked = shipment ? !canEditField(shipment, 'agent', currentUser.role, currentUser.name) : true;
+  const pricingLocked = shipment ? !canEditField(shipment, 'sellingPricePerUnit', currentUser.role, currentUser.name) : true;
   
   useEffect(() => {
     if (shipment && open) {
@@ -78,7 +78,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         const acquired = acquireLock(shipment.id, currentUser.id);
         setHasLock(acquired);
         if (!acquired) {
-          const locker = getLocker(shipment.id);
           toast.warning(`This shipment is being edited by another user`);
         }
       }
@@ -100,7 +99,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!shipment || !isEditable || !hasLock) return;
+    if (!shipment || !hasLock) return;
     
     updateShipment(shipment.id, {
       ...formData,
@@ -116,7 +115,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   };
   
   const handleConfirm = () => {
-    if (!shipment || !isEditable || !hasLock) return;
+    if (!shipment || !hasLock || !canAdvanceStage(currentUser.role)) return;
     
     updateShipment(shipment.id, {
       ...formData,
@@ -156,6 +155,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   if (!shipment) return null;
   
   const isReadOnly = !isEditable || !hasLock;
+  const canConfirm = canAdvanceStage(currentUser.role);
   
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -229,7 +229,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             <>
               <LockedField 
                 isLocked={agentLocked} 
-                lockReason={getFieldLockReason('agent')}
+                lockReason={shipment ? getFieldLockReason('agent', currentUser.role, shipment) : undefined}
               >
                 <div className="space-y-2">
                   <Label htmlFor="agent">Agent Name</Label>
@@ -246,7 +246,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               <div className="grid grid-cols-2 gap-4">
                 <LockedField 
                   isLocked={pricingLocked} 
-                  lockReason={getFieldLockReason('sellingPricePerUnit')}
+                  lockReason={shipment ? getFieldLockReason('sellingPricePerUnit', currentUser.role, shipment) : undefined}
                 >
                   <div className="space-y-2">
                     <Label htmlFor="selling">Selling Price/Unit ($)</Label>
@@ -262,7 +262,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
                 </LockedField>
                 <LockedField 
                   isLocked={pricingLocked} 
-                  lockReason={getFieldLockReason('costPerUnit')}
+                  lockReason={shipment ? getFieldLockReason('costPerUnit', currentUser.role, shipment) : undefined}
                 >
                   <div className="space-y-2">
                     <Label htmlFor="cost">Cost/Unit ($)</Label>
@@ -301,7 +301,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               </div>
               
               <div className="flex justify-between pt-4">
-                {!isReadOnly && (
+                {!isReadOnly && currentUser.role === 'admin' && (
                   <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowLostForm(true)}>
                     Mark as Lost
                   </Button>
@@ -310,15 +310,15 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
                   <Button type="button" variant="outline" onClick={handleClose}>
                     {isReadOnly ? 'Close' : 'Cancel'}
                   </Button>
-                  {!isReadOnly && (
-                    <>
-                      <Button type="submit" variant="secondary" disabled={pricingLocked && agentLocked}>
-                        Save Draft
-                      </Button>
-                      <Button type="button" onClick={handleConfirm} disabled={pricingLocked}>
-                        Confirm Quote
-                      </Button>
-                    </>
+                  {!isReadOnly && !pricingLocked && (
+                    <Button type="submit" variant="secondary">
+                      Save Draft
+                    </Button>
+                  )}
+                  {!isReadOnly && canConfirm && (
+                    <Button type="button" onClick={handleConfirm}>
+                      Confirm Quote
+                    </Button>
                   )}
                 </div>
               </div>
