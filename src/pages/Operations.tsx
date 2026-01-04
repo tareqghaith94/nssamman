@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useShipmentStore } from '@/store/shipmentStore';
 import { PageHeader } from '@/components/ui/PageHeader';
-import { ShipmentTable } from '@/components/tables/ShipmentTable';
+import { OperationsTable } from '@/components/tables/OperationsTable';
 import { OperationsForm } from '@/components/forms/OperationsForm';
 import { StageFilter } from '@/components/ui/StageFilter';
 import { Shipment } from '@/types/shipment';
@@ -33,11 +33,9 @@ export default function Operations() {
         action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
       />
       
-      <ShipmentTable
+      <OperationsTable
         shipments={shipments}
         onEdit={showHistory ? undefined : handleEdit}
-        showOperations
-        showPricing
       />
       
       <OperationsForm
