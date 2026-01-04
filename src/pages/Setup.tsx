@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, Shield } from 'lucide-react';
-import nssLogo from '@/assets/nss-logo.png';
+import nssLogo from '@/assets/nss-logo.svg';
 
 export default function Setup() {
   const navigate = useNavigate();
@@ -125,7 +125,7 @@ export default function Setup() {
           <img 
             src={nssLogo} 
             alt="NSS - National Shipping Services" 
-            className="h-20 w-auto object-contain mb-4"
+            className="h-28 w-auto object-contain mb-4"
           />
           <div className="flex items-center gap-2 text-primary">
             <Shield className="w-6 h-6" />
