@@ -9,7 +9,6 @@ interface StatusBadgeProps {
 const stageConfig: Record<ShipmentStage, { label: string; className: string }> = {
   lead: { label: 'Lead', className: 'status-pending' },
   pricing: { label: 'Pricing', className: 'status-active' },
-  confirmed: { label: 'Confirmed', className: 'status-confirmed' },
   operations: { label: 'In Operations', className: 'status-active' },
   completed: { label: 'Completed', className: 'status-completed' },
 };

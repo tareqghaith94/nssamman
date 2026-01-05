@@ -49,7 +49,6 @@ const stageOptions: { value: ShipmentStage | 'all'; label: string }[] = [
   { value: 'all', label: 'All Stages' },
   { value: 'lead', label: 'Lead' },
   { value: 'pricing', label: 'Pricing' },
-  { value: 'confirmed', label: 'Confirmed' },
   { value: 'operations', label: 'Operations' },
   { value: 'completed', label: 'Completed' },
 ];

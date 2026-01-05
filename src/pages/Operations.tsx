@@ -82,7 +82,7 @@ export default function Operations() {
           onOpenChange={(open) => !open && setRevertShipment(null)}
           onConfirm={() => handleRevert(revertShipment)}
           currentStage={revertShipment.stage}
-          previousStage={getPreviousStage(revertShipment.stage) || 'confirmed'}
+          previousStage={getPreviousStage(revertShipment.stage) || 'pricing'}
           referenceId={revertShipment.referenceId}
         />
       )}

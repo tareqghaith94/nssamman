@@ -2,7 +2,7 @@ import { ShipmentStage } from '@/types/shipment';
 
 // Single source of truth for stage order
 // Master definition - array format (for iteration)
-export const STAGE_ORDER: ShipmentStage[] = ['lead', 'pricing', 'confirmed', 'operations', 'completed'];
+export const STAGE_ORDER: ShipmentStage[] = ['lead', 'pricing', 'operations', 'completed'];
 
 // Derived object format (for index lookups)
 export const STAGE_ORDER_MAP: Record<ShipmentStage, number> = STAGE_ORDER.reduce(

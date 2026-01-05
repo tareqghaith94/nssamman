@@ -27,7 +27,6 @@ export default function Dashboard() {
   
   const leads = shipments.filter((s) => s.stage === 'lead').length;
   const pricing = shipments.filter((s) => s.stage === 'pricing').length;
-  const confirmed = shipments.filter((s) => s.stage === 'confirmed').length;
   const operations = shipments.filter((s) => s.stage === 'operations').length;
   const completed = shipments.filter((s) => s.stage === 'completed').length;
   
@@ -176,8 +175,7 @@ export default function Dashboard() {
             {[
               { label: 'Leads', count: leads, color: 'bg-warning' },
               { label: 'Pricing', count: pricing, color: 'bg-info' },
-              { label: 'Confirmed', count: confirmed, color: 'bg-primary' },
-              { label: 'Operations', count: operations, color: 'bg-info' },
+              { label: 'Operations', count: operations, color: 'bg-primary' },
               { label: 'Completed', count: completed, color: 'bg-success' },
             ].map((item) => (
               <div key={item.label} className="flex items-center gap-4">
