@@ -18,14 +18,14 @@ export const SALESPERSON_REF_PREFIX: Record<string, string> = {
   'Marwan': 'MA',
 };
 
-// Page access permissions by role
+// Page access permissions by role (removed /confirmed)
 export const PAGE_PERMISSIONS: Record<UserRole, string[]> = {
-  admin: ['/', '/leads', '/pricing', '/quotations', '/confirmed', '/operations', '/payables', '/collections', '/commissions', '/database', '/activity-log', '/users'],
-  sales: ['/', '/leads', '/pricing', '/quotations', '/confirmed', '/operations', '/collections', '/commissions'],
-  pricing: ['/', '/leads', '/pricing', '/quotations', '/confirmed'],
-  ops: ['/', '/operations', '/confirmed'],
-  collections: ['/', '/collections', '/confirmed'],
-  finance: ['/', '/payables', '/confirmed'],
+  admin: ['/', '/leads', '/pricing', '/quotations', '/operations', '/payables', '/collections', '/commissions', '/database', '/activity-log', '/users'],
+  sales: ['/', '/leads', '/pricing', '/quotations', '/operations', '/collections', '/commissions'],
+  pricing: ['/', '/leads', '/pricing', '/quotations'],
+  ops: ['/', '/operations'],
+  collections: ['/', '/collections'],
+  finance: ['/', '/payables'],
 };
 
 // Fields that are ALWAYS read-only (global locks)
@@ -75,19 +75,17 @@ export const FIELD_CATEGORIES = {
   commissions: ['commissionRate', 'commissionAmount'],
 };
 
-// Valid stage transitions (includes reverse transitions for undo)
+// Valid stage transitions (removed confirmed stage)
 export const VALID_TRANSITIONS: Record<string, string[]> = {
   lead: ['pricing'],
-  pricing: ['confirmed', 'lead'],           // Can go back to lead
-  confirmed: ['operations', 'pricing'],     // Can go back to pricing
-  operations: ['completed', 'confirmed'],   // Can go back to confirmed
-  completed: ['operations'],                // Can go back to operations
+  pricing: ['operations', 'lead'],           // Pricing now goes directly to operations
+  operations: ['completed', 'pricing'],      // Reverts to pricing (skipping confirmed)
+  completed: ['operations'],                 // Can go back to operations
 };
 
-// Reverse transitions for undo functionality
+// Reverse transitions for undo functionality (removed confirmed)
 export const REVERSE_TRANSITIONS: Record<string, string> = {
   pricing: 'lead',
-  confirmed: 'pricing',
-  operations: 'confirmed',
+  operations: 'pricing',                     // Now reverts to pricing directly
   completed: 'operations',
 };

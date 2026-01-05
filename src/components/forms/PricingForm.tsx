@@ -22,9 +22,10 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Shipment, LostReason } from '@/types/shipment';
-import { XCircle, Lock, AlertTriangle } from 'lucide-react';
+import { XCircle, Lock, AlertTriangle, ArrowRight } from 'lucide-react';
 import { LockedField } from '@/components/ui/LockedField';
 import { UserRole } from '@/types/permissions';
+import { StageAdvanceDialog } from '@/components/dialogs/StageAdvanceDialog';
 
 const LOST_REASONS: { value: LostReason; label: string }[] = [
   { value: 'price', label: 'Price too high' },
@@ -63,6 +64,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const [showLostForm, setShowLostForm] = useState(false);
   const [lostReason, setLostReason] = useState<LostReason | ''>('');
   const [hasLock, setHasLock] = useState(false);
+  const [showAdvanceDialog, setShowAdvanceDialog] = useState(false);
   
   // Check if shipment is editable
   const isEditable = shipment ? canEditShipment(shipment, userRoles, refPrefix) : false;
@@ -122,7 +124,12 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     onOpenChange(false);
   };
   
-  const handleConfirm = () => {
+  const handleConfirmClick = () => {
+    // Open confirmation dialog instead of directly advancing
+    setShowAdvanceDialog(true);
+  };
+  
+  const handleConfirmAdvance = () => {
     if (!shipment || !hasLock || !canAdvanceStage(userRoles, 'pricing')) return;
     
     updateShipment(shipment.id, {
@@ -133,9 +140,10 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       totalProfit,
     });
     
-    trackMoveToStage(shipment, 'confirmed');
-    toast.success('Shipment confirmed and moved to Confirmed stage');
+    trackMoveToStage(shipment, 'operations');
+    toast.success('Shipment moved to Operations');
     releaseLock(shipment.id);
+    setShowAdvanceDialog(false);
     onOpenChange(false);
   };
   
@@ -170,174 +178,188 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const canMarkAsLost = userRoles.includes('admin') || userRoles.includes('pricing');
   
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="font-heading flex items-center gap-2">
-            Pricing for {shipment.referenceId}
-            {isReadOnly && (
-              <span className="flex items-center gap-1 text-sm font-normal text-muted-foreground">
-                <Lock className="w-4 h-4" />
-                Read Only
-              </span>
-            )}
-          </DialogTitle>
-        </DialogHeader>
-        
-        {isReadOnly && (
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm">
-            <AlertTriangle className="w-4 h-4" />
-            <span>
-              {!isEditable 
-                ? 'This shipment cannot be edited'
-                : 'This shipment is being edited by another user'
-              }
-            </span>
-          </div>
-        )}
-        
-        <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-          <div className="p-4 rounded-lg bg-muted/50 text-sm space-y-1">
-            <p><span className="text-muted-foreground">Route:</span> {shipment.portOfLoading} → {shipment.portOfDischarge}</p>
-            <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipment?.map((eq, i) => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'}</p>
-          </div>
+    <>
+      <Dialog open={open} onOpenChange={handleClose}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="font-heading flex items-center gap-2">
+              Pricing for {shipment.referenceId}
+              {isReadOnly && (
+                <span className="flex items-center gap-1 text-sm font-normal text-muted-foreground">
+                  <Lock className="w-4 h-4" />
+                  Read Only
+                </span>
+              )}
+            </DialogTitle>
+          </DialogHeader>
           
-          {showLostForm ? (
-            <div className="space-y-4 p-4 rounded-lg border border-destructive/30 bg-destructive/5">
-              <div className="flex items-center gap-2 text-destructive">
-                <XCircle className="w-5 h-5" />
-                <h4 className="font-medium">Mark as Lost</h4>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="lostReason">Reason for Loss</Label>
-                <Select value={lostReason} onValueChange={(v) => setLostReason(v as LostReason)}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a reason" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LOST_REASONS.map((reason) => (
-                      <SelectItem key={reason.value} value={reason.value}>
-                        {reason.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex justify-end gap-3">
-                <Button type="button" variant="outline" onClick={() => setShowLostForm(false)}>
-                  Back
-                </Button>
-                <Button 
-                  type="button" 
-                  variant="destructive" 
-                  onClick={handleMarkAsLost}
-                  disabled={!lostReason || isReadOnly}
-                >
-                  Confirm Lost
-                </Button>
-              </div>
+          {isReadOnly && (
+            <div className="flex items-center gap-2 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm">
+              <AlertTriangle className="w-4 h-4" />
+              <span>
+                {!isEditable 
+                  ? 'This shipment cannot be edited'
+                  : 'This shipment is being edited by another user'
+                }
+              </span>
             </div>
-          ) : (
-            <>
-              <LockedField 
-                isLocked={agentLocked} 
-                lockReason={shipment ? getFieldLockReason('agent', userRoles, shipment) : undefined}
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="agent">Agent Name</Label>
-                  <Input
-                    id="agent"
-                    value={formData.agent}
-                    onChange={(e) => setFormData({ ...formData, agent: e.target.value })}
-                    placeholder="Enter agent name"
-                    disabled={isReadOnly || agentLocked}
-                  />
-                </div>
-              </LockedField>
-              
-              <div className="grid grid-cols-2 gap-4">
-                <LockedField 
-                  isLocked={pricingLocked} 
-                  lockReason={shipment ? getFieldLockReason('sellingPricePerUnit', userRoles, shipment) : undefined}
-                >
-                  <div className="space-y-2">
-                    <Label htmlFor="selling">Selling Price/Unit ($)</Label>
-                    <Input
-                      id="selling"
-                      type="number"
-                      min={0}
-                      value={formData.sellingPricePerUnit}
-                      onChange={(e) => setFormData({ ...formData, sellingPricePerUnit: parseFloat(e.target.value) || 0 })}
-                      disabled={isReadOnly || pricingLocked}
-                    />
-                  </div>
-                </LockedField>
-                <LockedField 
-                  isLocked={pricingLocked} 
-                  lockReason={shipment ? getFieldLockReason('costPerUnit', userRoles, shipment) : undefined}
-                >
-                  <div className="space-y-2">
-                    <Label htmlFor="cost">Cost/Unit ($)</Label>
-                    <Input
-                      id="cost"
-                      type="number"
-                      min={0}
-                      value={formData.costPerUnit}
-                      onChange={(e) => setFormData({ ...formData, costPerUnit: parseFloat(e.target.value) || 0 })}
-                      disabled={isReadOnly || pricingLocked}
-                    />
-                  </div>
-                </LockedField>
-              </div>
-              
-              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                <h4 className="font-medium text-sm mb-3">Calculated Values</h4>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <p className="text-muted-foreground">Profit/Unit</p>
-                    <p className="font-semibold text-lg">${profitPerUnit.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Total Selling</p>
-                    <p className="font-semibold text-lg">${totalSellingPrice.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Total Cost</p>
-                    <p className="font-semibold text-lg">${totalCost.toFixed(2)}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Total Profit</p>
-                    <p className="font-semibold text-lg text-success">${totalProfit.toFixed(2)}</p>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="flex justify-between pt-4">
-                {!isReadOnly && canMarkAsLost && (
-                  <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowLostForm(true)}>
-                    Mark as Lost
-                  </Button>
-                )}
-                <div className="flex gap-3 ml-auto">
-                  <Button type="button" variant="outline" onClick={handleClose}>
-                    {isReadOnly ? 'Close' : 'Cancel'}
-                  </Button>
-                  {!isReadOnly && !pricingLocked && (
-                    <Button type="submit" variant="secondary">
-                      Save Draft
-                    </Button>
-                  )}
-                  {!isReadOnly && canConfirm && (
-                    <Button type="button" onClick={handleConfirm}>
-                      Confirm Quote
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </>
           )}
-        </form>
-      </DialogContent>
-    </Dialog>
+          
+          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+            <div className="p-4 rounded-lg bg-muted/50 text-sm space-y-1">
+              <p><span className="text-muted-foreground">Route:</span> {shipment.portOfLoading} → {shipment.portOfDischarge}</p>
+              <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipment?.map((eq, i) => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'}</p>
+            </div>
+            
+            {showLostForm ? (
+              <div className="space-y-4 p-4 rounded-lg border border-destructive/30 bg-destructive/5">
+                <div className="flex items-center gap-2 text-destructive">
+                  <XCircle className="w-5 h-5" />
+                  <h4 className="font-medium">Mark as Lost</h4>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="lostReason">Reason for Loss</Label>
+                  <Select value={lostReason} onValueChange={(v) => setLostReason(v as LostReason)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a reason" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {LOST_REASONS.map((reason) => (
+                        <SelectItem key={reason.value} value={reason.value}>
+                          {reason.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex justify-end gap-3">
+                  <Button type="button" variant="outline" onClick={() => setShowLostForm(false)}>
+                    Back
+                  </Button>
+                  <Button 
+                    type="button" 
+                    variant="destructive" 
+                    onClick={handleMarkAsLost}
+                    disabled={!lostReason || isReadOnly}
+                  >
+                    Confirm Lost
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <LockedField 
+                  isLocked={agentLocked} 
+                  lockReason={shipment ? getFieldLockReason('agent', userRoles, shipment) : undefined}
+                >
+                  <div className="space-y-2">
+                    <Label htmlFor="agent">Agent Name</Label>
+                    <Input
+                      id="agent"
+                      value={formData.agent}
+                      onChange={(e) => setFormData({ ...formData, agent: e.target.value })}
+                      placeholder="Enter agent name"
+                      disabled={isReadOnly || agentLocked}
+                    />
+                  </div>
+                </LockedField>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  <LockedField 
+                    isLocked={pricingLocked} 
+                    lockReason={shipment ? getFieldLockReason('sellingPricePerUnit', userRoles, shipment) : undefined}
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="selling">Selling Price/Unit ($)</Label>
+                      <Input
+                        id="selling"
+                        type="number"
+                        min={0}
+                        value={formData.sellingPricePerUnit}
+                        onChange={(e) => setFormData({ ...formData, sellingPricePerUnit: parseFloat(e.target.value) || 0 })}
+                        disabled={isReadOnly || pricingLocked}
+                      />
+                    </div>
+                  </LockedField>
+                  <LockedField 
+                    isLocked={pricingLocked} 
+                    lockReason={shipment ? getFieldLockReason('costPerUnit', userRoles, shipment) : undefined}
+                  >
+                    <div className="space-y-2">
+                      <Label htmlFor="cost">Cost/Unit ($)</Label>
+                      <Input
+                        id="cost"
+                        type="number"
+                        min={0}
+                        value={formData.costPerUnit}
+                        onChange={(e) => setFormData({ ...formData, costPerUnit: parseFloat(e.target.value) || 0 })}
+                        disabled={isReadOnly || pricingLocked}
+                      />
+                    </div>
+                  </LockedField>
+                </div>
+                
+                <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                  <h4 className="font-medium text-sm mb-3">Calculated Values</h4>
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <p className="text-muted-foreground">Profit/Unit</p>
+                      <p className="font-semibold text-lg">${profitPerUnit.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total Selling</p>
+                      <p className="font-semibold text-lg">${totalSellingPrice.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total Cost</p>
+                      <p className="font-semibold text-lg">${totalCost.toFixed(2)}</p>
+                    </div>
+                    <div>
+                      <p className="text-muted-foreground">Total Profit</p>
+                      <p className="font-semibold text-lg text-success">${totalProfit.toFixed(2)}</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex justify-between pt-4">
+                  {!isReadOnly && canMarkAsLost && (
+                    <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowLostForm(true)}>
+                      Mark as Lost
+                    </Button>
+                  )}
+                  <div className="flex gap-3 ml-auto">
+                    <Button type="button" variant="outline" onClick={handleClose}>
+                      {isReadOnly ? 'Close' : 'Cancel'}
+                    </Button>
+                    {!isReadOnly && canConfirm && (
+                      <Button type="button" variant="outline" onClick={handleConfirmClick} className="gap-2">
+                        Send to Ops
+                        <ArrowRight className="w-4 h-4" />
+                      </Button>
+                    )}
+                    {!isReadOnly && !pricingLocked && (
+                      <Button type="submit">
+                        Save
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </>
+            )}
+          </form>
+        </DialogContent>
+      </Dialog>
+      
+      {shipment && (
+        <StageAdvanceDialog
+          open={showAdvanceDialog}
+          onOpenChange={setShowAdvanceDialog}
+          onConfirm={handleConfirmAdvance}
+          currentStage="pricing"
+          targetStage="operations"
+          referenceId={shipment.referenceId}
+        />
+      )}
+    </>
   );
 }

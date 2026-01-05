@@ -184,12 +184,8 @@ function canRoleAdvanceStage(role: UserRole, currentStage: ShipmentStage): boole
       return role === 'sales';
     
     case 'pricing':
-      // Pricing → Confirmed (or Lost): Pricing team can advance
+      // Pricing → Operations: Pricing team can advance
       return role === 'pricing';
-    
-    case 'confirmed':
-      // Confirmed → Operations: Ops team can advance
-      return role === 'ops';
     
     case 'operations':
       // Operations → Completed: Ops team can advance
@@ -223,12 +219,8 @@ function canRoleRevertStage(role: UserRole, currentStage: ShipmentStage): boolea
       // Pricing → Lead: Pricing team can revert
       return role === 'pricing';
     
-    case 'confirmed':
-      // Confirmed → Pricing: Pricing team can revert
-      return role === 'pricing';
-    
     case 'operations':
-      // Operations → Confirmed: Ops team can revert
+      // Operations → Pricing: Ops team can revert
       return role === 'ops';
     
     case 'completed':
@@ -296,7 +288,7 @@ export function canEditOnPage(roles: UserRole[], page: string): boolean {
   if (roles.includes('admin')) return true;
   
   const editPermissions: Record<UserRole, string[]> = {
-    admin: ['/', '/leads', '/pricing', '/confirmed', '/operations', '/payables', '/collections', '/commissions'],
+    admin: ['/', '/leads', '/pricing', '/operations', '/payables', '/collections', '/commissions'],
     sales: ['/leads'], // Can only edit on leads page
     pricing: ['/pricing'],
     ops: ['/operations'],

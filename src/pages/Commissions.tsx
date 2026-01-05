@@ -1,8 +1,12 @@
 import { useMemo, useState } from 'react';
 import { useShipments } from '@/hooks/useShipments';
 import { useAuth } from '@/hooks/useAuth';
+import { useAppSettings } from '@/hooks/useAppSettings';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StageFilter } from '@/components/ui/StageFilter';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -17,16 +21,27 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { DollarSign, TrendingUp, User } from 'lucide-react';
+import { DollarSign, TrendingUp, User, Settings, Percent } from 'lucide-react';
 import { Shipment } from '@/types/shipment';
 import { UserRole } from '@/types/permissions';
+import { toast } from 'sonner';
 
 export default function Commissions() {
   const { shipments, isLoading } = useShipments();
   const { profile, roles } = useAuth();
+  const { getCommissionRate, getCommissionPercentage, updateCommissionRate, isUpdating, canEdit } = useAppSettings();
   const [showHistory, setShowHistory] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [newRate, setNewRate] = useState<string>('');
   
   // Use roles from auth for multi-role support
   const userRoles = (roles || []) as UserRole[];
@@ -35,6 +50,9 @@ export default function Commissions() {
   // Sales users only see their own shipments (by ref prefix)
   // Check if user has sales role but NOT admin role
   const isSalesOnly = userRoles.includes('sales') && !userRoles.includes('admin');
+  
+  const commissionRate = getCommissionRate();
+  const commissionPercentage = getCommissionPercentage();
 
   const commissions = useMemo(() => {
     // Current: Only collected shipments (completed + payment collected + has profit)
@@ -62,10 +80,10 @@ export default function Commissions() {
       salesperson,
       shipments: ships,
       // Only count commission for collected shipments
-      totalCommission: ships.reduce((sum, s) => sum + (s.paymentCollected ? (s.totalProfit || 0) * 0.04 : 0), 0),
-      pendingCommission: ships.reduce((sum, s) => sum + (!s.paymentCollected ? (s.totalProfit || 0) * 0.04 : 0), 0),
+      totalCommission: ships.reduce((sum, s) => sum + (s.paymentCollected ? (s.totalProfit || 0) * commissionRate : 0), 0),
+      pendingCommission: ships.reduce((sum, s) => sum + (!s.paymentCollected ? (s.totalProfit || 0) * commissionRate : 0), 0),
     }));
-  }, [shipments, isSalesOnly, refPrefix, showHistory]);
+  }, [shipments, isSalesOnly, refPrefix, showHistory, commissionRate]);
   
   const totalCommission = commissions.reduce((sum, c) => sum + c.totalCommission, 0);
   const totalGP = commissions.reduce(
@@ -74,6 +92,23 @@ export default function Commissions() {
   );
   
   const totalPendingCommission = commissions.reduce((sum, c) => sum + c.pendingCommission, 0);
+  
+  const handleUpdateRate = async () => {
+    const rate = parseFloat(newRate);
+    if (isNaN(rate) || rate < 0 || rate > 100) {
+      toast.error('Please enter a valid percentage between 0 and 100');
+      return;
+    }
+    
+    try {
+      await updateCommissionRate(rate);
+      toast.success(`Commission rate updated to ${rate}%`);
+      setSettingsOpen(false);
+      setNewRate('');
+    } catch (error) {
+      toast.error('Failed to update commission rate');
+    }
+  };
   
   if (isLoading) {
     return (
@@ -88,10 +123,68 @@ export default function Commissions() {
       <PageHeader
         title={isSalesOnly ? "My Commissions" : "Commissions"}
         description={isSalesOnly 
-          ? "Your commissions (4% of Gross Profit on collected shipments)"
-          : "Sales team commissions (4% of Gross Profit on collected shipments)"
+          ? `Your commissions (${commissionPercentage}% of Gross Profit on collected shipments)`
+          : `Sales team commissions (${commissionPercentage}% of Gross Profit on collected shipments)`
         }
-        action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
+        action={
+          <div className="flex items-center gap-2">
+            {canEdit && (
+              <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Settings className="w-4 h-4" />
+                    Settings
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-md">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <Percent className="w-5 h-5" />
+                      Commission Rate Settings
+                    </DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4 py-4">
+                    <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
+                      <div className="flex-1">
+                        <p className="text-sm text-muted-foreground">Current Rate</p>
+                        <p className="text-2xl font-bold text-primary">{commissionPercentage}%</p>
+                      </div>
+                      <div className="text-muted-foreground text-sm">
+                        of Gross Profit
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="newRate">New Commission Rate (%)</Label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="newRate"
+                          type="number"
+                          min={0}
+                          max={100}
+                          step={0.5}
+                          value={newRate}
+                          onChange={(e) => setNewRate(e.target.value)}
+                          placeholder={`${commissionPercentage}`}
+                        />
+                        <Button 
+                          onClick={handleUpdateRate} 
+                          disabled={isUpdating || !newRate}
+                        >
+                          {isUpdating ? 'Saving...' : 'Update'}
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        This will apply to all future commission calculations
+                      </p>
+                    </div>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            )}
+            <StageFilter showHistory={showHistory} onToggle={setShowHistory} />
+          </div>
+        }
       />
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
@@ -122,7 +215,7 @@ export default function Commissions() {
         <div className="glass-card rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Total Commission (4%)</p>
+              <p className="text-sm text-muted-foreground">Total Commission ({commissionPercentage}%)</p>
               <p className="text-2xl font-heading font-bold mt-1 text-primary">
                 ${totalCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </p>
@@ -183,7 +276,7 @@ export default function Commissions() {
                           <TableHead className="text-muted-foreground">Route</TableHead>
                           <TableHead className="text-muted-foreground">Status</TableHead>
                           <TableHead className="text-muted-foreground text-right">Gross Profit</TableHead>
-                          <TableHead className="text-muted-foreground text-right">Commission (4%)</TableHead>
+                          <TableHead className="text-muted-foreground text-right">Commission ({commissionPercentage}%)</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -211,7 +304,7 @@ export default function Commissions() {
                               "text-right font-medium",
                               shipment.paymentCollected ? "text-primary" : "text-muted-foreground"
                             )}>
-                              ${((shipment.totalProfit || 0) * 0.04).toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                              ${((shipment.totalProfit || 0) * commissionRate).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                               {!shipment.paymentCollected && " (pending)"}
                             </TableCell>
                           </TableRow>

@@ -9,7 +9,6 @@ import Index from "./pages/Index";
 import Leads from "./pages/Leads";
 import Pricing from "./pages/Pricing";
 import Quotations from "./pages/Quotations";
-import Confirmed from "./pages/Confirmed";
 import Operations from "./pages/Operations";
 import Payables from "./pages/Payables";
 import Collections from "./pages/Collections";
@@ -45,7 +44,6 @@ const App = () => (
                     <Route path="/leads" element={<Leads />} />
                     <Route path="/pricing" element={<Pricing />} />
                     <Route path="/quotations" element={<Quotations />} />
-                    <Route path="/confirmed" element={<Confirmed />} />
                     <Route path="/operations" element={<Operations />} />
                     <Route path="/payables" element={<Payables />} />
                     <Route path="/collections" element={<Collections />} />

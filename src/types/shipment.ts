@@ -1,4 +1,4 @@
-export type ShipmentStage = 'lead' | 'pricing' | 'confirmed' | 'operations' | 'completed';
+export type ShipmentStage = 'lead' | 'pricing' | 'operations' | 'completed';
 export type PaymentTerms = '0' | '30' | '60' | '90';
 export type EquipmentType = '20ft' | '40ft' | '40hc' | '45ft' | 'lcl' | 'breakbulk' | 'airfreight';
 export type ModeOfTransport = 'sea' | 'air' | 'land' | 'multimodal';
