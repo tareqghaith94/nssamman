@@ -37,10 +37,11 @@ interface LineItemRow {
   amount: number;
 }
 
-function rowToQuotation(row: QuotationRow): Quotation {
+function rowToQuotation(row: QuotationRow & { shipments?: { reference_id: string } | null }): Quotation {
   return {
     id: row.id,
     quoteNumber: row.quote_number,
+    referenceId: row.shipments?.reference_id,
     shipmentId: row.shipment_id || undefined,
     clientName: row.client_name,
     clientAddress: row.client_address || undefined,
@@ -81,11 +82,11 @@ export function useQuotations() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('quotations')
-        .select('*')
+        .select('*, shipments(reference_id)')
         .order('created_at', { ascending: false });
       
       if (error) throw error;
-      return (data as QuotationRow[]).map(rowToQuotation);
+      return (data as (QuotationRow & { shipments?: { reference_id: string } | null })[]).map(rowToQuotation);
     },
     enabled: !!user,
   });

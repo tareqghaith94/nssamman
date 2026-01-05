@@ -3,11 +3,12 @@ import { useActivityLogs } from '@/hooks/useActivityLogs';
 import { useAuth } from '@/hooks/useAuth';
 import { Shipment, ShipmentStage } from '@/types/shipment';
 import { ActivityType } from '@/types/activity';
+import { supabase } from '@/integrations/supabase/client';
 
 export function useTrackedShipmentActions() {
   const { addShipment, updateShipment, moveToStage, shipments } = useShipments();
   const { addActivity } = useActivityLogs();
-  const { profile } = useAuth();
+  const { profile, user } = useAuth();
 
   const logActivity = async (
     shipmentId: string,
@@ -32,6 +33,40 @@ export function useTrackedShipmentActions() {
       });
     } catch (error) {
       console.error('Error logging activity:', error);
+    }
+  };
+
+  // Create notification for relevant users
+  const createNotification = async (
+    shipment: Shipment,
+    type: 'stage_change' | 'assignment' | 'update' | 'payment' | 'quotation',
+    title: string,
+    message: string
+  ) => {
+    try {
+      // Find the user who created this shipment to notify them
+      // We get the creator's user_id from the shipment's created_by field
+      const { data: shipmentData } = await supabase
+        .from('shipments')
+        .select('created_by')
+        .eq('id', shipment.id)
+        .single();
+
+      if (shipmentData?.created_by && shipmentData.created_by !== user?.id) {
+        // Notify the shipment creator (if not the current user)
+        await supabase
+          .from('notifications')
+          .insert({
+            user_id: shipmentData.created_by,
+            shipment_id: shipment.id,
+            reference_id: shipment.referenceId,
+            type,
+            title,
+            message,
+          });
+      }
+    } catch (error) {
+      console.error('Error creating notification:', error);
     }
   };
 
@@ -134,6 +169,14 @@ export function useTrackedShipmentActions() {
         previousStage,
         newStage,
         'stage'
+      );
+
+      // Notify the shipment creator about stage change
+      await createNotification(
+        shipment,
+        'stage_change',
+        `${shipment.referenceId} moved to ${newStage}`,
+        `${profile?.name || 'Someone'} moved your shipment from ${previousStage} to ${newStage}`
       );
     } catch (error) {
       console.error('Error moving shipment to stage:', error);
