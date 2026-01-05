@@ -57,7 +57,7 @@ export function QuotationTable({ quotations, onView, onEdit, onGeneratePDF }: Qu
         <TableBody>
           {quotations.map((quotation) => (
             <TableRow key={quotation.id}>
-              <TableCell className="font-medium">{quotation.referenceId || quotation.quoteNumber}</TableCell>
+              <TableCell className="font-medium">{quotation.referenceId}</TableCell>
               <TableCell>{quotation.clientName}</TableCell>
               <TableCell>
                 <span className="text-sm">
