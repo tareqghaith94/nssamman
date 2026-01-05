@@ -93,22 +93,28 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
           setLineItems([{ description: 'Ocean Freight', equipmentType: '40hc', unitCost: '', quantity: '1' }]);
         });
       } else if (shipment) {
-        // Pre-fill from shipment
-        setClientName('');
+        // Pre-fill from shipment (required)
+        setClientName(shipment.clientName || '');
         setClientAddress('');
         setPol(shipment.portOfLoading);
         setPod(shipment.portOfDischarge);
         setModeOfTransport(shipment.modeOfTransport);
         setRemarks('');
-        // Create line items from shipment equipment
+        // Create line items from shipment equipment with pricing data
+        const hasMultipleEquipment = shipment.equipment.length > 1;
         setLineItems(shipment.equipment.map(eq => ({
           description: 'Ocean Freight',
           equipmentType: eq.type,
           unitCost: (shipment.sellingPricePerUnit || 0).toString(),
           quantity: eq.quantity.toString(),
         })));
+        // Add additional line items if there's cost data
+        if (shipment.totalCost && shipment.costPerUnit) {
+          // Could add additional line items like "Cost Recovery" if needed
+        }
       } else {
-        // New blank quotation
+        // No shipment provided - this shouldn't happen with new flow
+        // but keep for backward compatibility when editing
         setClientName('');
         setClientAddress('');
         setPol('');
@@ -146,6 +152,11 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
   const grandTotal = lineItems.reduce((sum, item) => sum + calculateAmount(item), 0);
 
   const handleSubmit = async (status: QuotationStatus) => {
+    if (!shipment && !quotation) {
+      toast.error('Quotations must be linked to a shipment');
+      return;
+    }
+    
     if (!clientName || !pol || !pod) {
       toast.error('Please fill in client name, POL, and POD');
       return;

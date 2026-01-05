@@ -6,10 +6,9 @@ import { StatCard } from '@/components/ui/StatCard';
 import { QuotationTable } from '@/components/quotations/QuotationTable';
 import { QuotationForm } from '@/components/forms/QuotationForm';
 import { QuotationPreview } from '@/components/quotations/QuotationPreview';
-import { Button } from '@/components/ui/button';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Plus, FileText, Send, CheckCircle, Clock } from 'lucide-react';
+import { FileText, Send, CheckCircle, Clock } from 'lucide-react';
 import { Quotation } from '@/types/quotation';
 import { UserRole } from '@/types/permissions';
 
@@ -76,15 +75,7 @@ export default function Quotations() {
     <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Quotations"
-        description="Generate and manage formal quotations for clients"
-        action={
-          canCreate && (
-            <Button onClick={() => setFormOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              New Quotation
-            </Button>
-          )
-        }
+        description="Quotations are generated from the Pricing stage for each shipment"
       />
 
       {/* Stats */}

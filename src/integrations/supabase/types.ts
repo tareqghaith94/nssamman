@@ -91,6 +91,50 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string | null
+          id: string
+          message: string
+          read: boolean | null
+          reference_id: string
+          shipment_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          message: string
+          read?: boolean | null
+          reference_id: string
+          shipment_id?: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          message?: string
+          read?: boolean | null
+          reference_id?: string
+          shipment_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           created_at: string
@@ -245,6 +289,7 @@ export type Database = {
           arrival_notice_sent: boolean | null
           bl_draft_approval: boolean | null
           bl_type: string | null
+          client_name: string | null
           completed_at: string | null
           cost_per_unit: number | null
           created_at: string
@@ -293,6 +338,7 @@ export type Database = {
           arrival_notice_sent?: boolean | null
           bl_draft_approval?: boolean | null
           bl_type?: string | null
+          client_name?: string | null
           completed_at?: string | null
           cost_per_unit?: number | null
           created_at?: string
@@ -341,6 +387,7 @@ export type Database = {
           arrival_notice_sent?: boolean | null
           bl_draft_approval?: boolean | null
           bl_type?: string | null
+          client_name?: string | null
           completed_at?: string | null
           cost_per_unit?: number | null
           created_at?: string

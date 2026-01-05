@@ -9,6 +9,7 @@ interface ShipmentRow {
   id: string;
   reference_id: string;
   salesperson: string;
+  client_name: string | null;
   port_of_loading: string;
   port_of_discharge: string;
   equipment: unknown;
@@ -68,6 +69,7 @@ function rowToShipment(row: ShipmentRow): Shipment {
     id: row.id,
     referenceId: row.reference_id,
     salesperson: row.salesperson,
+    clientName: row.client_name ?? undefined,
     portOfLoading: row.port_of_loading,
     portOfDischarge: row.port_of_discharge,
     equipment: Array.isArray(row.equipment) ? row.equipment : [],
@@ -117,6 +119,7 @@ function shipmentToRow(shipment: Partial<Shipment>): Record<string, unknown> {
   const row: Record<string, unknown> = {};
   
   if (shipment.salesperson !== undefined) row.salesperson = shipment.salesperson;
+  if (shipment.clientName !== undefined) row.client_name = shipment.clientName;
   if (shipment.portOfLoading !== undefined) row.port_of_loading = shipment.portOfLoading;
   if (shipment.portOfDischarge !== undefined) row.port_of_discharge = shipment.portOfDischarge;
   if (shipment.equipment !== undefined) row.equipment = shipment.equipment;

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import nssLogo from '@/assets/nss-logo.png';
 import { UserRole } from '@/types/permissions';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 
 const navigation = [
   {
@@ -120,14 +121,17 @@ export function Sidebar() {
       
       {/* User info and sign out */}
       <div className="p-4 border-t border-sidebar-border">
-        {profile && (
-          <div className="mb-3">
-            <p className="text-sm font-medium text-sidebar-foreground">{profile.name}</p>
-            <p className="text-xs text-muted-foreground capitalize">
-              {userRoles.length > 0 ? userRoles.join(', ') : profile.role}
-            </p>
-          </div>
-        )}
+        <div className="flex items-center justify-between mb-3">
+          {profile && (
+            <div>
+              <p className="text-sm font-medium text-sidebar-foreground">{profile.name}</p>
+              <p className="text-xs text-muted-foreground capitalize">
+                {userRoles.length > 0 ? userRoles.join(', ') : profile.role}
+              </p>
+            </div>
+          )}
+          <NotificationBell />
+        </div>
         <Button variant="outline" size="sm" className="w-full gap-2" onClick={handleSignOut}>
           <LogOut className="w-4 h-4" />
           Sign Out

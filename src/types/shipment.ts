@@ -15,6 +15,7 @@ export interface Shipment {
   id: string;
   referenceId: string;
   salesperson: string;
+  clientName?: string;
   portOfLoading: string;
   portOfDischarge: string;
   equipment: EquipmentItem[];

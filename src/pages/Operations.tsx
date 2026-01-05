@@ -5,7 +5,7 @@ import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
 import { canRevertStage, getPreviousStage } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { OperationsCombinedTable } from '@/components/tables/OperationsCombinedTable';
-import { OperationsForm } from '@/components/forms/OperationsForm';
+import { OperationsChecklist } from '@/components/operations/OperationsChecklist';
 import { RevertConfirmDialog } from '@/components/dialogs/RevertConfirmDialog';
 import { StageFilter } from '@/components/ui/StageFilter';
 import { Shipment } from '@/types/shipment';
@@ -70,7 +70,7 @@ export default function Operations() {
         onRevert={!showHistory && canRevert ? (ship) => setRevertShipment(ship) : undefined}
       />
       
-      <OperationsForm
+      <OperationsChecklist
         shipment={selectedShipment}
         open={formOpen}
         onOpenChange={setFormOpen}
