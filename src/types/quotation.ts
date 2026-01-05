@@ -14,9 +14,8 @@ export interface QuoteLineItem {
 
 export interface Quotation {
   id: string;
-  quoteNumber: string;
-  referenceId?: string; // From linked shipment
-  shipmentId?: string;
+  referenceId: string; // From linked shipment
+  shipmentId: string;
   clientName: string;
   clientAddress?: string;
   pol: string;

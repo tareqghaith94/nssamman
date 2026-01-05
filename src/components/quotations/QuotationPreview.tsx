@@ -121,11 +121,11 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
             </h2>
           </div>
 
-          {/* Quote Number and Date Row */}
+          {/* Reference and Date Row */}
           <div className="grid grid-cols-2 gap-8 mb-6">
             <div>
-              <p className="text-sm font-semibold text-gray-600 uppercase">Quote Number</p>
-              <p className="text-lg font-bold">{quotation.quoteNumber}</p>
+              <p className="text-sm font-semibold text-gray-600 uppercase">Reference</p>
+              <p className="text-lg font-bold">{quotation.referenceId}</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-semibold text-gray-600 uppercase">Quote Date</p>

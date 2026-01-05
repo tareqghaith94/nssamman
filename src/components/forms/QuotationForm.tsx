@@ -229,7 +229,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
       >
         <DialogHeader>
           <DialogTitle>
-            {quotation ? `Edit ${quotation.quoteNumber}` : shipment ? `Quote for ${shipment.referenceId}` : 'New Quotation'}
+            {quotation ? `Edit Quote - ${quotation.referenceId}` : shipment ? `Quote for ${shipment.referenceId}` : 'New Quotation'}
           </DialogTitle>
         </DialogHeader>
 

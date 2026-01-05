@@ -183,9 +183,8 @@ export type Database = {
           ocean_freight_amount: number | null
           pod: string
           pol: string
-          quote_number: string
           remarks: string | null
-          shipment_id: string | null
+          shipment_id: string
           status: string
           valid_until: string | null
         }
@@ -203,9 +202,8 @@ export type Database = {
           ocean_freight_amount?: number | null
           pod: string
           pol: string
-          quote_number: string
           remarks?: string | null
-          shipment_id?: string | null
+          shipment_id: string
           status?: string
           valid_until?: string | null
         }
@@ -223,9 +221,8 @@ export type Database = {
           ocean_freight_amount?: number | null
           pod?: string
           pol?: string
-          quote_number?: string
           remarks?: string | null
-          shipment_id?: string | null
+          shipment_id?: string
           status?: string
           valid_until?: string | null
         }
@@ -453,7 +450,6 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      generate_quote_number: { Args: never; Returns: string }
       generate_reference_id: {
         Args: { p_salesperson: string }
         Returns: string

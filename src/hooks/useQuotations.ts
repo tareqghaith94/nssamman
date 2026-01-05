@@ -8,8 +8,7 @@ import { Json } from '@/integrations/supabase/types';
 
 interface QuotationRow {
   id: string;
-  quote_number: string;
-  shipment_id: string | null;
+  shipment_id: string;
   client_name: string;
   client_address: string | null;
   pol: string;
@@ -40,9 +39,8 @@ interface LineItemRow {
 function rowToQuotation(row: QuotationRow & { shipments?: { reference_id: string } | null }): Quotation {
   return {
     id: row.id,
-    quoteNumber: row.quote_number,
-    referenceId: row.shipments?.reference_id,
-    shipmentId: row.shipment_id || undefined,
+    referenceId: row.shipments?.reference_id || '',
+    shipmentId: row.shipment_id,
     clientName: row.client_name,
     clientAddress: row.client_address || undefined,
     pol: row.pol,
@@ -92,18 +90,17 @@ export function useQuotations() {
   });
 
   const createQuotationMutation = useMutation({
-    mutationFn: async (quotation: Omit<Quotation, 'id' | 'quoteNumber' | 'createdAt'> & { lineItems?: Omit<QuoteLineItem, 'id' | 'quotationId' | 'amount'>[] }) => {
-      // Generate quote number
-      const { data: quoteNumber, error: seqError } = await supabase.rpc('generate_quote_number');
-      if (seqError) throw seqError;
+    mutationFn: async (quotation: Omit<Quotation, 'id' | 'referenceId' | 'createdAt'> & { lineItems?: Omit<QuoteLineItem, 'id' | 'quotationId' | 'amount'>[] }) => {
+      if (!quotation.shipmentId) {
+        throw new Error('Quotations must be linked to a shipment');
+      }
 
       const { lineItems, ...quotationData } = quotation;
 
       const { data, error } = await supabase
         .from('quotations')
         .insert({
-          quote_number: quoteNumber,
-          shipment_id: quotationData.shipmentId || null,
+          shipment_id: quotationData.shipmentId,
           client_name: quotationData.clientName,
           client_address: quotationData.clientAddress || null,
           pol: quotationData.pol,
@@ -119,7 +116,7 @@ export function useQuotations() {
           created_by: user?.id,
           issued_at: quotationData.issuedAt?.toISOString() || null,
         })
-        .select()
+        .select('*, shipments(reference_id)')
         .single();
 
       if (error) throw error;
