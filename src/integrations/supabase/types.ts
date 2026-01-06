@@ -383,6 +383,7 @@ export type Database = {
           payment_terms: string
           port_of_discharge: string
           port_of_loading: string
+          pricing_owner: string | null
           profit_per_unit: number | null
           reference_id: string
           salesperson: string
@@ -432,6 +433,7 @@ export type Database = {
           payment_terms?: string
           port_of_discharge: string
           port_of_loading: string
+          pricing_owner?: string | null
           profit_per_unit?: number | null
           reference_id: string
           salesperson: string
@@ -481,6 +483,7 @@ export type Database = {
           payment_terms?: string
           port_of_discharge?: string
           port_of_loading?: string
+          pricing_owner?: string | null
           profit_per_unit?: number | null
           reference_id?: string
           salesperson?: string
