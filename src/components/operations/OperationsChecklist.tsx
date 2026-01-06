@@ -92,19 +92,19 @@ export function OperationsChecklist({ shipment, open, onOpenChange }: Operations
   const [hasLock, setHasLock] = useState(false);
   const [showRevertDialog, setShowRevertDialog] = useState(false);
   const [openSections, setOpenSections] = useState({
-    booking: true,
-    bl: true,
     shipping: true,
+    bl: true,
     delivery: true,
+    booking: true,
     invoicing: true,
   });
 
   // Calculate section completion
   const sectionCompletion = useMemo(() => ({
-    booking: !!(formData.nssBookingReference && formData.nssInvoiceNumber),
-    bl: !!(formData.blType && formData.blDraftApproval && formData.finalBLIssued),
     shipping: !!(formData.terminalCutoff && formData.gateInTerminal && formData.etd && formData.eta),
+    bl: !!(formData.blType && formData.blDraftApproval && formData.finalBLIssued),
     delivery: !!(formData.arrivalNoticeSent && formData.doIssued && formData.doReleaseDate),
+    booking: !!(formData.nssBookingReference && formData.nssInvoiceNumber),
     invoicing: !!formData.totalInvoiceAmount,
   }), [formData]);
 
@@ -304,31 +304,51 @@ export function OperationsChecklist({ shipment, open, onOpenChange }: Operations
         </div>
         
         <div className="space-y-3">
-          {/* Booking Section */}
-          <Collapsible open={openSections.booking} onOpenChange={() => toggleSection('booking')}>
-            <SectionHeader title="Booking" section="booking" isComplete={sectionCompletion.booking} />
+          {/* Shipping Schedule Section - First priority: ETD/ETA */}
+          <Collapsible open={openSections.shipping} onOpenChange={() => toggleSection('shipping')}>
+            <SectionHeader title="Shipping Schedule" section="shipping" isComplete={sectionCompletion.shipping} />
             <CollapsibleContent className="pt-3 pl-9 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="nssBooking">NSS Booking Reference</Label>
-                  <Input
-                    id="nssBooking"
-                    value={formData.nssBookingReference}
-                    onChange={(e) => setFormData({ ...formData, nssBookingReference: e.target.value })}
-                    placeholder="Enter booking reference"
-                    disabled={isReadOnly}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="nssInvoice">NSS Invoice Number</Label>
-                  <Input
-                    id="nssInvoice"
-                    value={formData.nssInvoiceNumber}
-                    onChange={(e) => setFormData({ ...formData, nssInvoiceNumber: e.target.value })}
-                    placeholder="Enter invoice number"
-                    disabled={isReadOnly}
-                  />
-                </div>
+                {[
+                  { key: 'etd', label: 'ETD' },
+                  { key: 'eta', label: 'ETA' },
+                  { key: 'terminalCutoff', label: 'Terminal Cutoff' },
+                  { key: 'gateInTerminal', label: 'Gate-in Terminal' },
+                ].map(({ key, label }) => (
+                  <div key={key} className="space-y-2">
+                    <Label>{label}</Label>
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={cn(
+                            "w-full justify-start text-left font-normal",
+                            !formData[key as keyof FormData] && "text-muted-foreground"
+                          )}
+                          disabled={isReadOnly}
+                        >
+                          <CalendarIcon className="mr-2 h-4 w-4" />
+                          {formData[key as keyof FormData] 
+                            ? format(new Date(formData[key as keyof FormData] as string), "PPP") 
+                            : <span>Pick a date</span>
+                          }
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={formData[key as keyof FormData] ? new Date(formData[key as keyof FormData] as string) : undefined}
+                          onSelect={(date) => setFormData({ 
+                            ...formData, 
+                            [key]: date ? format(date, 'yyyy-MM-dd') : '' 
+                          })}
+                          initialFocus
+                          className="p-3 pointer-events-auto"
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                ))}
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -373,55 +393,6 @@ export function OperationsChecklist({ shipment, open, onOpenChange }: Operations
                   />
                   <Label htmlFor="finalBL">Final BL Issued</Label>
                 </div>
-              </div>
-            </CollapsibleContent>
-          </Collapsible>
-
-          {/* Shipping Schedule Section */}
-          <Collapsible open={openSections.shipping} onOpenChange={() => toggleSection('shipping')}>
-            <SectionHeader title="Shipping Schedule" section="shipping" isComplete={sectionCompletion.shipping} />
-            <CollapsibleContent className="pt-3 pl-9 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                {[
-                  { key: 'terminalCutoff', label: 'Terminal Cutoff' },
-                  { key: 'gateInTerminal', label: 'Gate-in Terminal' },
-                  { key: 'etd', label: 'ETD' },
-                  { key: 'eta', label: 'ETA' },
-                ].map(({ key, label }) => (
-                  <div key={key} className="space-y-2">
-                    <Label>{label}</Label>
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={cn(
-                            "w-full justify-start text-left font-normal",
-                            !formData[key as keyof FormData] && "text-muted-foreground"
-                          )}
-                          disabled={isReadOnly}
-                        >
-                          <CalendarIcon className="mr-2 h-4 w-4" />
-                          {formData[key as keyof FormData] 
-                            ? format(new Date(formData[key as keyof FormData] as string), "PPP") 
-                            : <span>Pick a date</span>
-                          }
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="start">
-                        <Calendar
-                          mode="single"
-                          selected={formData[key as keyof FormData] ? new Date(formData[key as keyof FormData] as string) : undefined}
-                          onSelect={(date) => setFormData({ 
-                            ...formData, 
-                            [key]: date ? format(date, 'yyyy-MM-dd') : '' 
-                          })}
-                          initialFocus
-                          className="p-3 pointer-events-auto"
-                        />
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                ))}
               </div>
             </CollapsibleContent>
           </Collapsible>
@@ -476,6 +447,35 @@ export function OperationsChecklist({ shipment, open, onOpenChange }: Operations
                     />
                   </PopoverContent>
                 </Popover>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+
+          {/* Booking Section - Moved above Invoicing */}
+          <Collapsible open={openSections.booking} onOpenChange={() => toggleSection('booking')}>
+            <SectionHeader title="Booking" section="booking" isComplete={sectionCompletion.booking} />
+            <CollapsibleContent className="pt-3 pl-9 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="nssBooking">NSS Booking Reference</Label>
+                  <Input
+                    id="nssBooking"
+                    value={formData.nssBookingReference}
+                    onChange={(e) => setFormData({ ...formData, nssBookingReference: e.target.value })}
+                    placeholder="Enter booking reference"
+                    disabled={isReadOnly}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="nssInvoice">NSS Invoice Number</Label>
+                  <Input
+                    id="nssInvoice"
+                    value={formData.nssInvoiceNumber}
+                    onChange={(e) => setFormData({ ...formData, nssInvoiceNumber: e.target.value })}
+                    placeholder="Enter invoice number"
+                    disabled={isReadOnly}
+                  />
+                </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
