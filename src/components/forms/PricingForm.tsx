@@ -87,6 +87,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   
   // Existing quotation for this shipment
   const [existingQuotationId, setExistingQuotationId] = useState<string | null>(null);
+  const [previousQuoteTotal, setPreviousQuoteTotal] = useState<number>(0);
   
   const [showLostForm, setShowLostForm] = useState(false);
   const [lostReason, setLostReason] = useState<LostReason | ''>('');
@@ -131,15 +132,21 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               unitCost: item.unitCost,
               quantity: item.quantity,
             })));
+            // Store previous total for revision logging
+            const prevTotal = items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
+            setPreviousQuoteTotal(prevTotal);
           } else {
             // Fallback to equipment
+            setPreviousQuoteTotal(0);
             initLineItemsFromShipment();
           }
         }).catch(() => {
+          setPreviousQuoteTotal(0);
           initLineItemsFromShipment();
         });
       } else {
         setExistingQuotationId(null);
+        setPreviousQuoteTotal(0);
         initLineItemsFromShipment();
       }
       
@@ -294,12 +301,52 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           id: existingQuotationId,
           ...quotationData,
         });
+        
+        // Log quotation revision
+        await logActivity(
+          shipment.id,
+          shipment.referenceId,
+          'quotation_revised',
+          `Quotation revised - new total: $${grandTotal.toLocaleString()}`,
+          `$${previousQuoteTotal.toLocaleString()}`,
+          `$${grandTotal.toLocaleString()}`
+        );
+        
+        // Log if issued
+        if (status === 'issued') {
+          await logActivity(
+            shipment.id,
+            shipment.referenceId,
+            'quotation_issued',
+            `Quotation issued for $${grandTotal.toLocaleString()}`
+          );
+        }
+        
         toast.success(status === 'issued' ? 'Quotation updated & issued' : 'Draft saved');
       } else {
         await createQuotation({
           shipmentId: shipment.id,
           ...quotationData,
         });
+        
+        // Log quotation creation
+        await logActivity(
+          shipment.id,
+          shipment.referenceId,
+          'quotation_created',
+          `Quotation created with total $${grandTotal.toLocaleString()}`
+        );
+        
+        // Log if issued immediately
+        if (status === 'issued') {
+          await logActivity(
+            shipment.id,
+            shipment.referenceId,
+            'quotation_issued',
+            `Quotation issued for $${grandTotal.toLocaleString()}`
+          );
+        }
+        
         toast.success(status === 'issued' ? 'Quotation issued' : 'Draft saved');
       }
       
@@ -362,9 +409,35 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         
         if (existingQuotationId) {
           await updateQuotation({ id: existingQuotationId, ...quotationData });
+          
+          // Log quotation revision when advancing to ops
+          await logActivity(
+            shipment.id,
+            shipment.referenceId,
+            'quotation_revised',
+            `Quotation revised before moving to Operations - total: $${grandTotal.toLocaleString()}`,
+            `$${previousQuoteTotal.toLocaleString()}`,
+            `$${grandTotal.toLocaleString()}`
+          );
         } else {
           await createQuotation({ shipmentId: shipment.id, ...quotationData });
+          
+          // Log quotation creation when advancing to ops
+          await logActivity(
+            shipment.id,
+            shipment.referenceId,
+            'quotation_created',
+            `Quotation created and issued - total: $${grandTotal.toLocaleString()}`
+          );
         }
+        
+        // Log quotation issued
+        await logActivity(
+          shipment.id,
+          shipment.referenceId,
+          'quotation_issued',
+          `Quotation issued for $${grandTotal.toLocaleString()}`
+        );
       }
       
       await trackMoveToStage(shipment, 'operations');

@@ -6,7 +6,10 @@ export type ActivityType =
   | 'marked_lost'
   | 'payment_collected'
   | 'agent_paid'
-  | 'invoice_uploaded';
+  | 'invoice_uploaded'
+  | 'quotation_created'
+  | 'quotation_revised'
+  | 'quotation_issued';
 
 export interface ActivityLog {
   id: string;
