@@ -125,14 +125,17 @@ export function LeadForm() {
         label: 'Move to Pricing',
         onClick: async () => {
           if (newShipment) {
-            // Need to get the full shipment object
-            const fullShipment = shipments?.find(s => s.id === newShipment.id) || newShipment;
-            await trackMoveToStage(fullShipment, 'pricing');
-            toast.success(`${newShipment.referenceId} moved to Pricing`);
+            try {
+              await trackMoveToStage(newShipment, 'pricing');
+              toast.success(`${newShipment.referenceId} moved to Pricing`);
+            } catch (error) {
+              console.error('Failed to move to pricing:', error);
+              toast.error('Failed to move to Pricing');
+            }
           }
         },
       },
-      duration: 8000, // Keep it visible for 8 seconds
+      duration: 8000,
     });
     
     setOpen(false);
