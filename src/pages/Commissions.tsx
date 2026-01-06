@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react';
 import { useShipments } from '@/hooks/useShipments';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppSettings } from '@/hooks/useAppSettings';
+import { useCommissionRules } from '@/hooks/useCommissionRules';
+import { useCommissionCalculation } from '@/hooks/useCommissionCalculation';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StageFilter } from '@/components/ui/StageFilter';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -21,42 +22,44 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from '@/components/ui/accordion';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { DollarSign, TrendingUp, User, Settings, Percent } from 'lucide-react';
+import { DollarSign, TrendingUp, User, Settings } from 'lucide-react';
 import { Shipment } from '@/types/shipment';
 import { UserRole } from '@/types/permissions';
-import { toast } from 'sonner';
+import { SalaryInputs, FORMULA_TYPE_LABELS } from '@/types/commission';
+import { CommissionSettingsDialog } from '@/components/commissions/CommissionSettingsDialog';
+import { SalaryInputCard } from '@/components/commissions/SalaryInputCard';
+import { CommissionBreakdownTooltip } from '@/components/commissions/CommissionBreakdownTooltip';
 
 export default function Commissions() {
   const { shipments, isLoading } = useShipments();
   const { profile, roles } = useAuth();
-  const { getCommissionRate, getCommissionPercentage, updateCommissionRate, isUpdating, canEdit } = useAppSettings();
+  const { getCommissionPercentage, updateCommissionRate, isUpdating, canEdit } = useAppSettings();
+  const { rules, upsertRule, deleteRule, isUpdating: isRulesUpdating } = useCommissionRules();
+  
   const [showHistory, setShowHistory] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [newRate, setNewRate] = useState<string>('');
+  const [salaryInputs, setSalaryInputs] = useState<SalaryInputs>({});
   
   // Use roles from auth for multi-role support
   const userRoles = (roles || []) as UserRole[];
   const refPrefix = profile?.ref_prefix || undefined;
   
   // Sales users only see their own shipments (by ref prefix)
-  // Check if user has sales role but NOT admin role
   const isSalesOnly = userRoles.includes('sales') && !userRoles.includes('admin');
   
-  const commissionRate = getCommissionRate();
-  const commissionPercentage = getCommissionPercentage();
+  const defaultPercentage = getCommissionPercentage();
+  
+  const { calculateForSalesperson, getRuleForSalesperson, salespeopleNeedingSalary } = 
+    useCommissionCalculation(rules, defaultPercentage, salaryInputs);
+
+  const handleSalaryChange = (salesperson: string, salary: number) => {
+    setSalaryInputs(prev => ({ ...prev, [salesperson]: salary }));
+  };
 
   const commissions = useMemo(() => {
-    // Current: Only collected shipments (completed + payment collected + has profit)
-    // History: All completed shipments with profit (collected or not)
+    // Filter shipments based on view mode
     let filteredShipments = showHistory
       ? shipments.filter((s) => s.stage === 'completed' && s.totalProfit)
       : shipments.filter((s) => s.stage === 'completed' && s.paymentCollected && s.totalProfit);
@@ -76,39 +79,33 @@ export default function Commissions() {
       return acc;
     }, {} as Record<string, Shipment[]>);
     
-    return Object.entries(bySalesperson).map(([salesperson, ships]) => ({
-      salesperson,
-      shipments: ships,
-      // Only count commission for collected shipments
-      totalCommission: ships.reduce((sum, s) => sum + (s.paymentCollected ? (s.totalProfit || 0) * commissionRate : 0), 0),
-      pendingCommission: ships.reduce((sum, s) => sum + (!s.paymentCollected ? (s.totalProfit || 0) * commissionRate : 0), 0),
-    }));
-  }, [shipments, isSalesOnly, refPrefix, showHistory, commissionRate]);
+    return Object.entries(bySalesperson).map(([salesperson, ships]) => {
+      const rule = getRuleForSalesperson(salesperson);
+      
+      // Calculate commissions for each shipment
+      const shipmentCommissions = ships.map(s => ({
+        shipment: s,
+        breakdown: calculateForSalesperson(salesperson, s.totalProfit || 0),
+      }));
+      
+      return {
+        salesperson,
+        rule,
+        shipments: ships,
+        shipmentCommissions,
+        totalCommission: shipmentCommissions
+          .filter(sc => sc.shipment.paymentCollected)
+          .reduce((sum, sc) => sum + sc.breakdown.commission, 0),
+        pendingCommission: shipmentCommissions
+          .filter(sc => !sc.shipment.paymentCollected)
+          .reduce((sum, sc) => sum + sc.breakdown.commission, 0),
+        totalGP: ships.reduce((sum, s) => sum + (s.totalProfit || 0), 0),
+      };
+    });
+  }, [shipments, isSalesOnly, refPrefix, showHistory, calculateForSalesperson, getRuleForSalesperson]);
   
   const totalCommission = commissions.reduce((sum, c) => sum + c.totalCommission, 0);
-  const totalGP = commissions.reduce(
-    (sum, c) => sum + c.shipments.reduce((s, sh) => s + (sh.totalProfit || 0), 0),
-    0
-  );
-  
-  const totalPendingCommission = commissions.reduce((sum, c) => sum + c.pendingCommission, 0);
-  
-  const handleUpdateRate = async () => {
-    const rate = parseFloat(newRate);
-    if (isNaN(rate) || rate < 0 || rate > 100) {
-      toast.error('Please enter a valid percentage between 0 and 100');
-      return;
-    }
-    
-    try {
-      await updateCommissionRate(rate);
-      toast.success(`Commission rate updated to ${rate}%`);
-      setSettingsOpen(false);
-      setNewRate('');
-    } catch (error) {
-      toast.error('Failed to update commission rate');
-    }
-  };
+  const totalGP = commissions.reduce((sum, c) => sum + c.totalGP, 0);
   
   if (isLoading) {
     return (
@@ -123,69 +120,35 @@ export default function Commissions() {
       <PageHeader
         title={isSalesOnly ? "My Commissions" : "Commissions"}
         description={isSalesOnly 
-          ? `Your commissions (${commissionPercentage}% of Gross Profit on collected shipments)`
-          : `Sales team commissions (${commissionPercentage}% of Gross Profit on collected shipments)`
+          ? "Your commissions on collected shipments"
+          : "Sales team commissions on collected shipments"
         }
         action={
           <div className="flex items-center gap-2">
             {canEdit && (
-              <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-                <DialogTrigger asChild>
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Settings className="w-4 h-4" />
-                    Settings
-                  </Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2">
-                      <Percent className="w-5 h-5" />
-                      Commission Rate Settings
-                    </DialogTitle>
-                  </DialogHeader>
-                  <div className="space-y-4 py-4">
-                    <div className="flex items-center gap-4 p-4 rounded-lg bg-muted/50">
-                      <div className="flex-1">
-                        <p className="text-sm text-muted-foreground">Current Rate</p>
-                        <p className="text-2xl font-bold text-primary">{commissionPercentage}%</p>
-                      </div>
-                      <div className="text-muted-foreground text-sm">
-                        of Gross Profit
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-2">
-                      <Label htmlFor="newRate">New Commission Rate (%)</Label>
-                      <div className="flex gap-2">
-                        <Input
-                          id="newRate"
-                          type="number"
-                          min={0}
-                          max={100}
-                          step={0.5}
-                          value={newRate}
-                          onChange={(e) => setNewRate(e.target.value)}
-                          placeholder={`${commissionPercentage}`}
-                        />
-                        <Button 
-                          onClick={handleUpdateRate} 
-                          disabled={isUpdating || !newRate}
-                        >
-                          {isUpdating ? 'Saving...' : 'Update'}
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        This will apply to all future commission calculations
-                      </p>
-                    </div>
-                  </div>
-                </DialogContent>
-              </Dialog>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+                onClick={() => setSettingsOpen(true)}
+              >
+                <Settings className="w-4 h-4" />
+                Settings
+              </Button>
             )}
             <StageFilter showHistory={showHistory} onToggle={setShowHistory} />
           </div>
         }
       />
+
+      {/* Salary Input Card */}
+      <div className="mb-6">
+        <SalaryInputCard
+          salespeopleNeedingSalary={salespeopleNeedingSalary}
+          salaryInputs={salaryInputs}
+          onSalaryChange={handleSalaryChange}
+        />
+      </div>
       
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
         <div className="glass-card rounded-xl p-6">
@@ -215,7 +178,7 @@ export default function Commissions() {
         <div className="glass-card rounded-xl p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground">Total Commission ({commissionPercentage}%)</p>
+              <p className="text-sm text-muted-foreground">Total Commission</p>
               <p className="text-2xl font-heading font-bold mt-1 text-primary">
                 ${totalCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
               </p>
@@ -245,7 +208,14 @@ export default function Commissions() {
                         {commission.salesperson.split(' ').map(n => n[0]).join('')}
                       </div>
                       <div className="text-left">
-                        <p className="font-medium">{commission.salesperson}</p>
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium">{commission.salesperson}</p>
+                          {commission.rule && (
+                            <Badge variant="secondary" className="text-xs">
+                              {FORMULA_TYPE_LABELS[commission.rule.formula_type]}
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-sm text-muted-foreground">
                           {commission.shipments.filter(s => s.paymentCollected).length} collected
                           {showHistory && commission.shipments.filter(s => !s.paymentCollected).length > 0 && 
@@ -276,11 +246,11 @@ export default function Commissions() {
                           <TableHead className="text-muted-foreground">Route</TableHead>
                           <TableHead className="text-muted-foreground">Status</TableHead>
                           <TableHead className="text-muted-foreground text-right">Gross Profit</TableHead>
-                          <TableHead className="text-muted-foreground text-right">Commission ({commissionPercentage}%)</TableHead>
+                          <TableHead className="text-muted-foreground text-right">Commission</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {commission.shipments.map((shipment) => (
+                        {commission.shipmentCommissions.map(({ shipment, breakdown }) => (
                           <TableRow key={shipment.id} className="border-border/50">
                             <TableCell className="font-mono text-primary">
                               {shipment.referenceId}
@@ -304,8 +274,11 @@ export default function Commissions() {
                               "text-right font-medium",
                               shipment.paymentCollected ? "text-primary" : "text-muted-foreground"
                             )}>
-                              ${((shipment.totalProfit || 0) * commissionRate).toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                              {!shipment.paymentCollected && " (pending)"}
+                              <span className="inline-flex items-center">
+                                ${breakdown.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                {!shipment.paymentCollected && " (pending)"}
+                                <CommissionBreakdownTooltip breakdown={breakdown} />
+                              </span>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -318,6 +291,20 @@ export default function Commissions() {
           </Accordion>
         </div>
       )}
+
+      {/* Settings Dialog */}
+      <CommissionSettingsDialog
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+        defaultRate={defaultPercentage}
+        onUpdateDefaultRate={updateCommissionRate}
+        rules={rules}
+        onSaveRule={(salesperson, formulaType, config) => {
+          upsertRule({ salesperson, formula_type: formulaType, config });
+        }}
+        onDeleteRule={(salesperson) => deleteRule(salesperson)}
+        isUpdating={isUpdating || isRulesUpdating}
+      />
     </div>
   );
 }
