@@ -3,12 +3,16 @@ import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
 import { LeadForm } from '@/components/forms/LeadForm';
+import { LeadEditForm } from '@/components/forms/LeadEditForm';
 import { StageFilter } from '@/components/ui/StageFilter';
 import { hasReachedStage } from '@/lib/stageOrder';
+import { Shipment } from '@/types/shipment';
 
 export default function Leads() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
   const [showHistory, setShowHistory] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  const [editFormOpen, setEditFormOpen] = useState(false);
 
   const shipments = useMemo(
     () => showHistory
@@ -16,6 +20,11 @@ export default function Leads() {
       : allShipments.filter((ship) => ship.stage === 'lead'),
     [allShipments, showHistory]
   );
+
+  const handleEdit = (shipment: Shipment) => {
+    setSelectedShipment(shipment);
+    setEditFormOpen(true);
+  };
   
   if (isLoading) {
     return (
@@ -38,7 +47,13 @@ export default function Leads() {
         }
       />
       
-      <ShipmentTable shipments={shipments} />
+      <ShipmentTable shipments={shipments} onEdit={handleEdit} />
+      
+      <LeadEditForm 
+        shipment={selectedShipment}
+        open={editFormOpen}
+        onOpenChange={setEditFormOpen}
+      />
     </div>
   );
 }
