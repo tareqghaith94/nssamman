@@ -1,25 +1,36 @@
 import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
+import { useAuth } from '@/hooks/useAuth';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
 import { LeadForm } from '@/components/forms/LeadForm';
 import { LeadEditForm } from '@/components/forms/LeadEditForm';
 import { StageFilter } from '@/components/ui/StageFilter';
+import { OpsOwnerFilter } from '@/components/ui/OpsOwnerFilter';
 import { hasReachedStage } from '@/lib/stageOrder';
 import { Shipment } from '@/types/shipment';
 
 export default function Leads() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
+  const { profile } = useAuth();
   const [showHistory, setShowHistory] = useState(false);
+  const [showMine, setShowMine] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [editFormOpen, setEditFormOpen] = useState(false);
 
-  const shipments = useMemo(
-    () => showHistory
+  const currentUserName = profile?.name;
+
+  const shipments = useMemo(() => {
+    let result = showHistory
       ? allShipments.filter((ship) => hasReachedStage(ship.stage, 'lead'))
-      : allShipments.filter((ship) => ship.stage === 'lead'),
-    [allShipments, showHistory]
-  );
+      : allShipments.filter((ship) => ship.stage === 'lead');
+    
+    if (showMine && currentUserName) {
+      result = result.filter((ship) => ship.salesperson === currentUserName);
+    }
+    
+    return result;
+  }, [allShipments, showHistory, showMine, currentUserName]);
 
   const handleEdit = (shipment: Shipment) => {
     setSelectedShipment(shipment);
@@ -41,6 +52,9 @@ export default function Leads() {
         description="Manage incoming shipment requests from the sales team"
         action={
           <div className="flex items-center gap-3">
+            {currentUserName && (
+              <OpsOwnerFilter showMine={showMine} onToggle={setShowMine} />
+            )}
             <StageFilter showHistory={showHistory} onToggle={setShowHistory} />
             <LeadForm />
           </div>

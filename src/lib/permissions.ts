@@ -99,6 +99,53 @@ export function canEditAsOpsOwner(
   return true;
 }
 
+// Check if user can edit a shipment in pricing stage based on pricing owner assignment
+export function canEditAsPricingOwner(
+  shipment: Shipment, 
+  roles: UserRole[], 
+  userName?: string
+): boolean {
+  // Admin can always edit
+  if (roles.includes('admin')) return true;
+  
+  // If not in pricing stage, this check doesn't apply
+  if (shipment.stage !== 'pricing') return true;
+  
+  // If user has pricing role, check if they are the assigned pricing owner
+  if (roles.includes('pricing')) {
+    // If no pricing owner assigned yet, any pricing user can edit
+    if (!shipment.pricingOwner) return true;
+    
+    // Check if current user is the assigned pricing owner
+    return shipment.pricingOwner === userName;
+  }
+  
+  // Other roles can't edit pricing fields anyway, so return true
+  return true;
+}
+
+// Check if user can edit a lead based on salesperson assignment
+export function canEditAsSalesperson(
+  shipment: Shipment, 
+  roles: UserRole[], 
+  userName?: string
+): boolean {
+  // Admin can always edit
+  if (roles.includes('admin')) return true;
+  
+  // If not in lead stage, this check doesn't apply
+  if (shipment.stage !== 'lead') return true;
+  
+  // If user has sales role, check if they are the assigned salesperson
+  if (roles.includes('sales')) {
+    // Check if current user is the assigned salesperson
+    return shipment.salesperson === userName;
+  }
+  
+  // Other roles can't edit lead fields anyway, so return true
+  return true;
+}
+
 // Check if a specific field can be edited based on roles and shipment stage
 export function canEditField(
   shipment: Shipment,
@@ -128,9 +175,23 @@ export function canEditField(
     }
   }
   
+  // For pricing fields, check pricing owner permission
+  if (FIELD_CATEGORIES.pricing.includes(fieldName)) {
+    if (!canEditAsPricingOwner(shipment, roles, userName)) {
+      return false;
+    }
+  }
+  
+  // For lead fields, check salesperson permission
+  if (FIELD_CATEGORIES.lead.includes(fieldName)) {
+    if (!canEditAsSalesperson(shipment, roles, userName)) {
+      return false;
+    }
+  }
+  
   // Check each role - if ANY role can edit the field, return true
   for (const role of roles) {
-    if (canRoleEditField(shipment, fieldName, role, refPrefix)) {
+    if (canRoleEditField(shipment, fieldName, role, userName)) {
       return true;
     }
   }
@@ -143,12 +204,12 @@ function canRoleEditField(
   shipment: Shipment,
   fieldName: string,
   role: UserRole,
-  refPrefix?: string
+  userName?: string
 ): boolean {
   // Sales: can only edit lead info and client remarks on their own shipments
   if (role === 'sales') {
-    // Check ownership by ref prefix
-    if (!refPrefix || !shipment.referenceId.startsWith(`${refPrefix}-`)) return false;
+    // Check ownership by salesperson name match
+    if (!userName || shipment.salesperson !== userName) return false;
     // Can only edit during lead stage for lead fields
     if (FIELD_CATEGORIES.lead.includes(fieldName)) {
       return shipment.stage === 'lead';
@@ -163,7 +224,12 @@ function canRoleEditField(
   // Pricing: can only edit pricing fields during pricing stage
   if (role === 'pricing') {
     if (FIELD_CATEGORIES.pricing.includes(fieldName)) {
+      // Ownership check is done in canEditField via canEditAsPricingOwner
       return shipment.stage === 'pricing';
+    }
+    // Pricing can also set pricingOwner during lead stage
+    if (fieldName === 'pricingOwner' && shipment.stage === 'lead') {
+      return true;
     }
     return false;
   }
