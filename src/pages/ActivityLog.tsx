@@ -34,13 +34,25 @@ const activityTypeLabels: Record<ActivityType, { label: string; icon: React.Reac
   payment_collected: { label: 'Payment Collected', icon: <DollarSign className="w-3 h-3" />, variant: 'default' },
   agent_paid: { label: 'Agent Paid', icon: <DollarSign className="w-3 h-3" />, variant: 'default' },
   invoice_uploaded: { label: 'Invoice Uploaded', icon: <Upload className="w-3 h-3" />, variant: 'outline' },
+  quotation_created: { label: 'Quote Created', icon: <FileText className="w-3 h-3" />, variant: 'default' },
+  quotation_revised: { label: 'Quote Revised', icon: <Edit className="w-3 h-3" />, variant: 'secondary' },
+  quotation_issued: { label: 'Quote Issued', icon: <FileText className="w-3 h-3" />, variant: 'default' },
 };
 
 export default function ActivityLog() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, loading: authLoading } = useAuth();
   const { activities, clearActivities, isLoading } = useActivityLogs();
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
+
+  // Wait for auth to load before checking permissions
+  if (authLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   // Only admin can access this page
   if (!isAdmin) {
