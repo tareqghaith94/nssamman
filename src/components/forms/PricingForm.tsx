@@ -186,8 +186,13 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   
   // Calculate totals from line items
   const grandTotal = lineItems.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
-  const totalQuantity = lineItems.reduce((sum, item) => sum + item.quantity, 0);
-  const totalCost = formData.costPerUnit * totalQuantity;
+  
+  // Only count equipment quantities for cost calculation (exclude Per BL and similar flat fees)
+  const equipmentQuantity = lineItems
+    .filter(item => item.equipmentType !== 'per_bl')
+    .reduce((sum, item) => sum + item.quantity, 0);
+  
+  const totalCost = formData.costPerUnit * equipmentQuantity;
   const totalProfit = grandTotal - totalCost;
   const profitMargin = grandTotal > 0 ? (totalProfit / grandTotal * 100) : 0;
   
