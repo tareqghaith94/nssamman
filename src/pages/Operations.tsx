@@ -9,6 +9,7 @@ import { OperationsCombinedTable } from '@/components/tables/OperationsCombinedT
 import { OperationsChecklist } from '@/components/operations/OperationsChecklist';
 import { RevertConfirmDialog } from '@/components/dialogs/RevertConfirmDialog';
 import { StageFilter } from '@/components/ui/StageFilter';
+import { OpsOwnerFilter } from '@/components/ui/OpsOwnerFilter';
 import { Shipment } from '@/types/shipment';
 import { hasReachedStage } from '@/lib/stageOrder';
 import { UserRole } from '@/types/permissions';
@@ -22,6 +23,7 @@ export default function Operations() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showMine, setShowMine] = useState(false);
   const [revertShipment, setRevertShipment] = useState<Shipment | null>(null);
   
   const userRoles = (roles || []) as UserRole[];
@@ -41,7 +43,16 @@ export default function Operations() {
     [allShipments]
   );
 
-  const shipments = showHistory ? historyShipments : currentShipments;
+  // Apply history and ownership filters
+  const shipments = useMemo(() => {
+    let result = showHistory ? historyShipments : currentShipments;
+    
+    if (showMine && currentUserName) {
+      result = result.filter((ship) => ship.opsOwner === currentUserName);
+    }
+    
+    return result;
+  }, [showHistory, showMine, currentShipments, historyShipments, currentUserName]);
 
   // Mark current shipments as seen when they change
   useEffect(() => {
@@ -84,7 +95,14 @@ export default function Operations() {
       <PageHeader
         title="Operations"
         description="Track shipments through the logistics process"
-        action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
+        action={
+          <div className="flex items-center gap-3">
+            {currentUserName && (
+              <OpsOwnerFilter showMine={showMine} onToggle={setShowMine} />
+            )}
+            <StageFilter showHistory={showHistory} onToggle={setShowHistory} />
+          </div>
+        }
       />
       
       <OperationsCombinedTable
