@@ -129,7 +129,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     setShowAdvanceDialog(true);
   };
   
-  const handleConfirmAdvance = () => {
+  const handleConfirmAdvance = (opsOwner?: string) => {
     if (!shipment || !hasLock || !canAdvanceStage(userRoles, 'pricing')) return;
     
     updateShipment(shipment.id, {
@@ -138,6 +138,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       totalSellingPrice,
       totalCost,
       totalProfit,
+      opsOwner: opsOwner as 'Uma' | 'Rania' | 'Mozayan' | undefined,
     });
     
     trackMoveToStage(shipment, 'operations');

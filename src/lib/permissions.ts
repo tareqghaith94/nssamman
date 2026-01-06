@@ -73,12 +73,39 @@ export function canEditShipment(shipment: Shipment, roles: UserRole[], refPrefix
   return false;
 }
 
+// Check if user can edit a shipment in operations stage based on ops owner assignment
+export function canEditAsOpsOwner(
+  shipment: Shipment, 
+  roles: UserRole[], 
+  userName?: string
+): boolean {
+  // Admin can always edit
+  if (roles.includes('admin')) return true;
+  
+  // If not in operations stage, this check doesn't apply
+  if (shipment.stage !== 'operations') return true;
+  
+  // If user has ops role, check if they are the assigned ops owner
+  if (roles.includes('ops')) {
+    // If no ops owner assigned yet, any ops user can edit
+    if (!shipment.opsOwner) return true;
+    
+    // Check if current user is the assigned ops owner
+    return shipment.opsOwner === userName;
+  }
+  
+  // Other roles can't edit ops fields anyway, so return true
+  // (field-level permissions will handle the rest)
+  return true;
+}
+
 // Check if a specific field can be edited based on roles and shipment stage
 export function canEditField(
   shipment: Shipment,
   fieldName: string,
   roles: UserRole[],
-  refPrefix?: string
+  refPrefix?: string,
+  userName?: string
 ): boolean {
   // Global readonly fields are never editable
   if (isGloballyReadOnly(fieldName)) return false;
@@ -93,6 +120,13 @@ export function canEditField(
   
   // Admin can edit everything
   if (roles.includes('admin')) return true;
+  
+  // For operations fields, check ops owner permission
+  if (FIELD_CATEGORIES.operations.includes(fieldName)) {
+    if (!canEditAsOpsOwner(shipment, roles, userName)) {
+      return false;
+    }
+  }
   
   // Check each role - if ANY role can edit the field, return true
   for (const role of roles) {

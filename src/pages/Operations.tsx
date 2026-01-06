@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
+import { useLastSeenShipments } from '@/hooks/useLastSeenShipments';
 import { canRevertStage, getPreviousStage } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { OperationsCombinedTable } from '@/components/tables/OperationsCombinedTable';
@@ -15,21 +16,43 @@ import { toast } from 'sonner';
 
 export default function Operations() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
-  const { roles } = useAuth();
+  const { roles, profile } = useAuth();
   const { trackRevertStage } = useTrackedShipmentActions();
+  const { isNewShipment, markAsSeen } = useLastSeenShipments('operations');
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [revertShipment, setRevertShipment] = useState<Shipment | null>(null);
   
   const userRoles = (roles || []) as UserRole[];
+  
+  // Get current user's name for ops owner matching
+  const currentUserName = profile?.name;
 
-  const shipments = useMemo(
-    () => showHistory
-      ? allShipments.filter((ship) => hasReachedStage(ship.stage, 'operations'))
-      : allShipments.filter((ship) => ship.stage === 'operations'),
-    [allShipments, showHistory]
+  // Current stage shipments
+  const currentShipments = useMemo(
+    () => allShipments.filter((ship) => ship.stage === 'operations'),
+    [allShipments]
   );
+
+  // For history view, show all that reached operations stage
+  const historyShipments = useMemo(
+    () => allShipments.filter((ship) => hasReachedStage(ship.stage, 'operations')),
+    [allShipments]
+  );
+
+  const shipments = showHistory ? historyShipments : currentShipments;
+
+  // Mark current shipments as seen when they change
+  useEffect(() => {
+    if (!showHistory && currentShipments.length > 0 && !isLoading) {
+      // Delay slightly to allow user to see "new" badges
+      const timer = setTimeout(() => {
+        markAsSeen(currentShipments.map(s => s.id));
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentShipments, showHistory, markAsSeen, isLoading]);
   
   const handleEdit = (shipment: Shipment) => {
     setSelectedShipment(shipment);
@@ -68,6 +91,8 @@ export default function Operations() {
         shipments={shipments}
         onEdit={showHistory ? undefined : handleEdit}
         onRevert={!showHistory && canRevert ? (ship) => setRevertShipment(ship) : undefined}
+        isNew={showHistory ? undefined : (ship) => isNewShipment(ship.id)}
+        currentUserOpsOwner={currentUserName}
       />
       
       <OperationsChecklist

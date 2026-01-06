@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useQuotations } from '@/hooks/useQuotations';
 import { Shipment, ModeOfTransport } from '@/types/shipment';
 import { Quotation, QuotationStatus } from '@/types/quotation';
-import { WORLD_PORTS } from '@/lib/ports';
+import { getLocationOptions } from '@/lib/ports';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { toast } from 'sonner';
 import { Plus, Trash2 } from 'lucide-react';
 
@@ -58,6 +59,9 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
   const [remarks, setRemarks] = useState('');
   const [validDays, setValidDays] = useState('30');
 
+  // Get location options based on mode
+  const locationOptions = getLocationOptions(modeOfTransport);
+
   // Reset form when dialog opens with new data
   useEffect(() => {
     if (open) {
@@ -101,17 +105,12 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
         setModeOfTransport(shipment.modeOfTransport);
         setRemarks('');
         // Create line items from shipment equipment with pricing data
-        const hasMultipleEquipment = shipment.equipment.length > 1;
         setLineItems(shipment.equipment.map(eq => ({
-          description: 'Ocean Freight',
+          description: modeOfTransport === 'air' ? 'Air Freight' : 'Ocean Freight',
           equipmentType: eq.type,
           unitCost: (shipment.sellingPricePerUnit || 0).toString(),
           quantity: eq.quantity.toString(),
         })));
-        // Add additional line items if there's cost data
-        if (shipment.totalCost && shipment.costPerUnit) {
-          // Could add additional line items like "Cost Recovery" if needed
-        }
       } else {
         // No shipment provided - this shouldn't happen with new flow
         // but keep for backward compatibility when editing
@@ -258,52 +257,48 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
             />
           </div>
 
-          {/* Route - Dropdowns */}
-          <div className="grid grid-cols-3 gap-4">
+          {/* Mode of Transport */}
+          <div>
+            <Label>Mode of Transport</Label>
+            <Select value={modeOfTransport} onValueChange={(v) => setModeOfTransport(v as ModeOfTransport)}>
+              <SelectTrigger className="mt-1">
+                <SelectValue placeholder="Select mode" />
+              </SelectTrigger>
+              <SelectContent className="bg-background z-50">
+                {MODE_OPTIONS.map((mode) => (
+                  <SelectItem key={mode.value} value={mode.value}>
+                    {mode.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Route - Searchable Selects */}
+          <div className="grid grid-cols-2 gap-4">
             <div>
-              <Label>POL *</Label>
-              <Select value={pol} onValueChange={setPol}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select port" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px] bg-background z-50">
-                  {WORLD_PORTS.map((port) => (
-                    <SelectItem key={port} value={port}>
-                      {port}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>{modeOfTransport === 'air' ? 'Origin Airport *' : 'Port of Loading *'}</Label>
+              <div className="mt-1">
+                <SearchableSelect
+                  value={pol}
+                  onValueChange={setPol}
+                  options={locationOptions}
+                  placeholder={modeOfTransport === 'air' ? 'Select airport' : 'Select port'}
+                  searchPlaceholder="Search..."
+                />
+              </div>
             </div>
             <div>
-              <Label>POD *</Label>
-              <Select value={pod} onValueChange={setPod}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select port" />
-                </SelectTrigger>
-                <SelectContent className="max-h-[300px] bg-background z-50">
-                  {WORLD_PORTS.map((port) => (
-                    <SelectItem key={port} value={port}>
-                      {port}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label>Mode</Label>
-              <Select value={modeOfTransport} onValueChange={(v) => setModeOfTransport(v as ModeOfTransport)}>
-                <SelectTrigger className="mt-1">
-                  <SelectValue placeholder="Select mode" />
-                </SelectTrigger>
-                <SelectContent className="bg-background z-50">
-                  {MODE_OPTIONS.map((mode) => (
-                    <SelectItem key={mode.value} value={mode.value}>
-                      {mode.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label>{modeOfTransport === 'air' ? 'Destination Airport *' : 'Port of Discharge *'}</Label>
+              <div className="mt-1">
+                <SearchableSelect
+                  value={pod}
+                  onValueChange={setPod}
+                  options={locationOptions}
+                  placeholder={modeOfTransport === 'air' ? 'Select airport' : 'Select port'}
+                  searchPlaceholder="Search..."
+                />
+              </div>
             </div>
           </div>
 
@@ -335,7 +330,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
                   <Input
                     value={item.description}
                     onChange={(e) => updateLineItem(idx, 'description', e.target.value)}
-                    placeholder="Ocean Freight"
+                    placeholder={modeOfTransport === 'air' ? 'Air Freight' : 'Ocean Freight'}
                     className="border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
                   />
                   <Select 

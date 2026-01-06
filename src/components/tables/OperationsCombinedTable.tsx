@@ -1,5 +1,6 @@
 import { Shipment } from '@/types/shipment';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import {
   Table,
   TableBody,
@@ -15,8 +16,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
-import { Edit2, Check, X, ArrowLeft } from 'lucide-react';
+import { Edit2, Check, X, MoreHorizontal, Undo2 } from 'lucide-react';
 import { useShipments } from '@/hooks/useShipments';
 
 const OPS_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
@@ -25,6 +32,8 @@ interface OperationsCombinedTableProps {
   shipments: Shipment[];
   onEdit?: (shipment: Shipment) => void;
   onRevert?: (shipment: Shipment) => void;
+  isNew?: (shipment: Shipment) => boolean;
+  currentUserOpsOwner?: string;
 }
 
 function CheckIcon({ value }: { value: boolean | undefined }) {
@@ -50,7 +59,13 @@ function TextCell({ value }: { value: string | undefined }) {
   return <span className={value ? 'text-xs' : 'text-muted-foreground text-xs'}>{value || '-'}</span>;
 }
 
-export function OperationsCombinedTable({ shipments, onEdit, onRevert }: OperationsCombinedTableProps) {
+export function OperationsCombinedTable({ 
+  shipments, 
+  onEdit, 
+  onRevert,
+  isNew,
+  currentUserOpsOwner,
+}: OperationsCombinedTableProps) {
   const { updateShipment } = useShipments();
 
   const handleOpsOwnerChange = async (shipmentId: string, value: string) => {
@@ -101,103 +116,127 @@ export function OperationsCombinedTable({ shipments, onEdit, onRevert }: Operati
         <TableBody>
           {shipments.length === 0 ? (
             <TableRow>
-              <TableCell colSpan={14} className="text-center py-8 text-muted-foreground">
+              <TableCell colSpan={15} className="text-center py-8 text-muted-foreground">
                 No shipments found
               </TableCell>
             </TableRow>
           ) : (
-            shipments.map((shipment) => (
-              <TableRow key={shipment.id} className="border-border/50">
-                <TableCell className="font-mono font-medium text-primary text-sm">
-                  {shipment.referenceId}
-                </TableCell>
-                <TableCell className="text-sm">{shipment.salesperson}</TableCell>
-                <TableCell className="text-xs">
-                  {shipment.portOfLoading} → {shipment.portOfDischarge}
-                </TableCell>
-                <TableCell>
-                  <Select
-                    value={shipment.opsOwner || ''}
-                    onValueChange={(value) => handleOpsOwnerChange(shipment.id, value)}
-                  >
-                    <SelectTrigger className="h-8 w-[100px] text-xs">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {OPS_OWNERS.map((owner) => (
-                        <SelectItem key={owner} value={owner} className="text-xs">
-                          {owner}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell className="text-xs">
-                  {(shipment.equipment || []).map(e => `${e.quantity}x${e.type}`).join(', ') || '-'}
-                </TableCell>
-                <TableCell>
-                  <TextCell value={shipment.nssBookingReference} />
-                </TableCell>
-                <TableCell>
-                  <TextCell value={shipment.nssInvoiceNumber} />
-                </TableCell>
-                <TableCell>
-                  <TextCell value={shipment.blType?.toUpperCase()} />
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-center gap-1">
-                    <CheckIcon value={shipment.blDraftApproval} />
-                    <CheckIcon value={shipment.finalBLIssued} />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <DateCell date={shipment.terminalCutoff} />
-                </TableCell>
-                <TableCell>
-                  <DateCell date={shipment.gateInTerminal} />
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-col items-center text-xs">
-                    <DateCell date={shipment.etd} />
-                    <DateCell date={shipment.eta} />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center justify-center gap-1">
-                    <CheckIcon value={shipment.arrivalNoticeSent} />
-                    <CheckIcon value={shipment.doIssued} />
-                  </div>
-                </TableCell>
-                <TableCell>
-                  <DateCell date={shipment.doReleaseDate} />
-                </TableCell>
-                <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1">
-                    {onRevert && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onRevert(shipment)}
-                        className="h-8 gap-1 text-muted-foreground hover:text-foreground text-xs"
-                      >
-                        <ArrowLeft className="w-3 h-3" />
-                        Revert
-                      </Button>
-                    )}
-                    {onEdit && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onEdit(shipment)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Edit2 className="w-4 h-4" />
-                      </Button>
-                    )}
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))
+            shipments.map((shipment) => {
+              const isNewShipment = isNew?.(shipment);
+              const isMyShipment = currentUserOpsOwner && shipment.opsOwner === currentUserOpsOwner;
+              
+              return (
+                <TableRow 
+                  key={shipment.id} 
+                  className={`border-border/50 ${isNewShipment ? 'bg-primary/5 border-l-2 border-l-primary' : ''} ${isMyShipment ? 'bg-accent/30' : ''}`}
+                >
+                  <TableCell className="font-mono font-medium text-primary text-sm">
+                    <div className="flex items-center gap-2">
+                      {shipment.referenceId}
+                      {isNewShipment && (
+                        <Badge variant="outline" className="text-xs bg-primary/10 text-primary border-primary/30">
+                          New
+                        </Badge>
+                      )}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm">{shipment.salesperson}</TableCell>
+                  <TableCell className="text-xs">
+                    {shipment.portOfLoading} → {shipment.portOfDischarge}
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={shipment.opsOwner || ''}
+                      onValueChange={(value) => handleOpsOwnerChange(shipment.id, value)}
+                    >
+                      <SelectTrigger className="h-8 w-[100px] text-xs">
+                        <SelectValue placeholder="Select" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {OPS_OWNERS.map((owner) => (
+                          <SelectItem key={owner} value={owner} className="text-xs">
+                            {owner}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="text-xs">
+                    {(shipment.equipment || []).map(e => `${e.quantity}x${e.type}`).join(', ') || '-'}
+                  </TableCell>
+                  <TableCell>
+                    <TextCell value={shipment.nssBookingReference} />
+                  </TableCell>
+                  <TableCell>
+                    <TextCell value={shipment.nssInvoiceNumber} />
+                  </TableCell>
+                  <TableCell>
+                    <TextCell value={shipment.blType?.toUpperCase()} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-1">
+                      <CheckIcon value={shipment.blDraftApproval} />
+                      <CheckIcon value={shipment.finalBLIssued} />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <DateCell date={shipment.terminalCutoff} />
+                  </TableCell>
+                  <TableCell>
+                    <DateCell date={shipment.gateInTerminal} />
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex flex-col items-center text-xs">
+                      <DateCell date={shipment.etd} />
+                      <DateCell date={shipment.eta} />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center justify-center gap-1">
+                      <CheckIcon value={shipment.arrivalNoticeSent} />
+                      <CheckIcon value={shipment.doIssued} />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <DateCell date={shipment.doReleaseDate} />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      {onEdit && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onEdit(shipment)}
+                          className="h-8 w-8 p-0"
+                          title="Edit"
+                        >
+                          <Edit2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                      {onRevert && (
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-8 w-8 p-0"
+                            >
+                              <MoreHorizontal className="w-4 h-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => onRevert(shipment)}>
+                              <Undo2 className="w-4 h-4 mr-2" />
+                              Undo to Pricing
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      )}
+                    </div>
+                  </TableCell>
+                </TableRow>
+              );
+            })
           )}
         </TableBody>
       </Table>
