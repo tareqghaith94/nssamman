@@ -1,4 +1,4 @@
-import { Shipment, ShipmentStage, LostReason } from '@/types/shipment';
+import { Shipment, LostReason } from '@/types/shipment';
 import { StatusBadge } from '@/components/ui/StatusBadge';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,10 +14,11 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
-import { MoreHorizontal, Edit2, Undo2 } from 'lucide-react';
+import { MoreHorizontal, Edit2, Undo2, CheckCircle, XCircle } from 'lucide-react';
 
 const LOST_REASON_LABELS: Record<LostReason, string> = {
   price: 'Price too high',
@@ -33,20 +34,46 @@ interface ShipmentTableProps {
   shipments: Shipment[];
   onEdit?: (shipment: Shipment) => void;
   onRevert?: (shipment: Shipment) => void;
+  onConfirm?: (shipment: Shipment) => void;
+  onMarkLost?: (shipment: Shipment) => void;
   showPricing?: boolean;
   showOperations?: boolean;
+  showQuotationStatus?: boolean;
   isNew?: (shipment: Shipment) => boolean;
+  getQuotationStatus?: (shipmentId: string) => string | null;
 }
 
 export function ShipmentTable({
   shipments,
   onEdit,
   onRevert,
+  onConfirm,
+  onMarkLost,
   showPricing,
   showOperations,
+  showQuotationStatus,
   isNew,
+  getQuotationStatus,
 }: ShipmentTableProps) {
-  const hasActions = onEdit || onRevert;
+  const hasActions = onEdit || onRevert || onConfirm || onMarkLost;
+
+  const getQuoteStatusBadge = (shipmentId: string) => {
+    const status = getQuotationStatus?.(shipmentId);
+    if (!status) return <Badge variant="outline" className="text-xs">No Quote</Badge>;
+    
+    switch (status) {
+      case 'draft':
+        return <Badge variant="secondary" className="text-xs">Draft</Badge>;
+      case 'issued':
+        return <Badge variant="default" className="text-xs bg-blue-500">Issued</Badge>;
+      case 'accepted':
+        return <Badge variant="default" className="text-xs bg-green-500">Accepted</Badge>;
+      case 'expired':
+        return <Badge variant="outline" className="text-xs text-muted-foreground">Expired</Badge>;
+      default:
+        return <Badge variant="outline" className="text-xs">{status}</Badge>;
+    }
+  };
 
   return (
     <div className="glass-card rounded-xl overflow-hidden">
@@ -59,6 +86,9 @@ export function ShipmentTable({
             <TableHead className="text-muted-foreground">Route</TableHead>
             <TableHead className="text-muted-foreground">Equipment</TableHead>
             <TableHead className="text-muted-foreground">Stage</TableHead>
+            {showQuotationStatus && (
+              <TableHead className="text-muted-foreground">Quote</TableHead>
+            )}
             {showPricing && (
               <>
                 <TableHead className="text-muted-foreground">Agent</TableHead>
@@ -86,6 +116,9 @@ export function ShipmentTable({
           ) : (
             shipments.map((shipment) => {
               const isNewShipment = isNew?.(shipment);
+              const canConfirmThisShipment = onConfirm && !shipment.isLost;
+              const canMarkLostThisShipment = onMarkLost && !shipment.isLost;
+              
               return (
                 <TableRow 
                   key={shipment.id} 
@@ -127,6 +160,11 @@ export function ShipmentTable({
                       <StatusBadge stage={shipment.stage} />
                     )}
                   </TableCell>
+                  {showQuotationStatus && (
+                    <TableCell>
+                      {getQuoteStatusBadge(shipment.id)}
+                    </TableCell>
+                  )}
                   {showPricing && (
                     <>
                       <TableCell>{shipment.agent || '-'}</TableCell>
@@ -159,7 +197,7 @@ export function ShipmentTable({
                             <Edit2 className="w-4 h-4" />
                           </Button>
                         )}
-                        {onRevert && (
+                        {(onRevert || canConfirmThisShipment || canMarkLostThisShipment) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -170,11 +208,28 @@ export function ShipmentTable({
                                 <MoreHorizontal className="w-4 h-4" />
                               </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                              <DropdownMenuItem onClick={() => onRevert(shipment)}>
-                                <Undo2 className="w-4 h-4 mr-2" />
-                                Undo to Previous Stage
-                              </DropdownMenuItem>
+                            <DropdownMenuContent align="end" className="bg-background">
+                              {canConfirmThisShipment && (
+                                <DropdownMenuItem onClick={() => onConfirm(shipment)}>
+                                  <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
+                                  Confirm → Ops
+                                </DropdownMenuItem>
+                              )}
+                              {canMarkLostThisShipment && (
+                                <DropdownMenuItem onClick={() => onMarkLost(shipment)} className="text-destructive">
+                                  <XCircle className="w-4 h-4 mr-2" />
+                                  Mark Lost
+                                </DropdownMenuItem>
+                              )}
+                              {(canConfirmThisShipment || canMarkLostThisShipment) && onRevert && (
+                                <DropdownMenuSeparator />
+                              )}
+                              {onRevert && (
+                                <DropdownMenuItem onClick={() => onRevert(shipment)}>
+                                  <Undo2 className="w-4 h-4 mr-2" />
+                                  Undo to Previous Stage
+                                </DropdownMenuItem>
+                              )}
                             </DropdownMenuContent>
                           </DropdownMenu>
                         )}

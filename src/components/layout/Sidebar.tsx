@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Calculator, Truck, CreditCard, Banknote, Percent, ScrollText, Database, UserCog, LogOut, FileText } from 'lucide-react';
+import { LayoutDashboard, Users, Calculator, Truck, CreditCard, Banknote, Percent, ScrollText, Database, UserCog, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { canAccessPage } from '@/lib/permissions';
@@ -24,11 +24,6 @@ const navigation = [
     name: 'Pricing',
     href: '/pricing',
     icon: Calculator
-  },
-  {
-    name: 'Quotations',
-    href: '/quotations',
-    icon: FileText
   },
   {
     name: 'Operations',

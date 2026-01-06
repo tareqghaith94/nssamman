@@ -1,19 +1,25 @@
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useCallback } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
+import { useShipments } from '@/hooks/useShipments';
+import { useQuotations } from '@/hooks/useQuotations';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
 import { useLastSeenShipments } from '@/hooks/useLastSeenShipments';
-import { canRevertStage, getPreviousStage } from '@/lib/permissions';
+import { canRevertStage, getPreviousStage, canAdvanceStage } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
+import { StatCard } from '@/components/ui/StatCard';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
 import { PricingForm } from '@/components/forms/PricingForm';
 import { RevertConfirmDialog } from '@/components/dialogs/RevertConfirmDialog';
+import { ConfirmToOpsDialog } from '@/components/dialogs/ConfirmToOpsDialog';
+import { MarkLostDialog } from '@/components/dialogs/MarkLostDialog';
 import { StageFilter } from '@/components/ui/StageFilter';
-import { Shipment } from '@/types/shipment';
+import { Shipment, LostReason } from '@/types/shipment';
 import { hasReachedStage } from '@/lib/stageOrder';
 import { UserRole } from '@/types/permissions';
 import { toast } from 'sonner';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FileText, Send, CheckCircle, Clock } from 'lucide-react';
 
 function TableSkeleton() {
   return (
@@ -36,13 +42,19 @@ function TableSkeleton() {
 
 export default function Pricing() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
+  const { updateShipment } = useShipments();
+  const { quotations } = useQuotations();
   const { roles } = useAuth();
-  const { trackRevertStage } = useTrackedShipmentActions();
+  const { trackRevertStage, trackMoveToStage, logActivity } = useTrackedShipmentActions();
   const { isNewShipment, markAsSeen } = useLastSeenShipments('pricing');
+  
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [revertShipment, setRevertShipment] = useState<Shipment | null>(null);
+  const [confirmShipment, setConfirmShipment] = useState<Shipment | null>(null);
+  const [lostShipment, setLostShipment] = useState<Shipment | null>(null);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   const userRoles = (roles || []) as UserRole[];
 
@@ -59,6 +71,24 @@ export default function Pricing() {
   );
 
   const shipments = showHistory ? historyShipments : currentShipments;
+
+  // Quotation stats
+  const quoteStats = useMemo(() => {
+    const pricingShipmentIds = currentShipments.map(s => s.id);
+    const relevantQuotes = quotations.filter(q => pricingShipmentIds.includes(q.shipmentId));
+    return {
+      draft: relevantQuotes.filter(q => q.status === 'draft').length,
+      issued: relevantQuotes.filter(q => q.status === 'issued').length,
+      accepted: relevantQuotes.filter(q => q.status === 'accepted').length,
+      noQuote: currentShipments.length - relevantQuotes.length,
+    };
+  }, [currentShipments, quotations]);
+
+  // Get quotation status for a shipment
+  const getQuotationStatus = useCallback((shipmentId: string) => {
+    const quote = quotations.find(q => q.shipmentId === shipmentId);
+    return quote?.status || null;
+  }, [quotations]);
 
   // Mark current shipments as seen when they change
   useEffect(() => {
@@ -83,16 +113,84 @@ export default function Pricing() {
     toast.success(`${shipment.referenceId} reverted to ${previousStage}`);
     setRevertShipment(null);
   };
+
+  const handleConfirmToOps = async (opsOwner: string) => {
+    if (!confirmShipment) return;
+    
+    setIsProcessing(true);
+    try {
+      await updateShipment(confirmShipment.id, {
+        opsOwner: opsOwner as 'Uma' | 'Rania' | 'Mozayan',
+      });
+      
+      await trackMoveToStage(confirmShipment, 'operations');
+      toast.success(`${confirmShipment.referenceId} moved to Operations`);
+      setConfirmShipment(null);
+    } catch (error) {
+      toast.error('Failed to move to Operations');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleMarkLost = async (reason: LostReason) => {
+    if (!lostShipment) return;
+    
+    setIsProcessing(true);
+    try {
+      await updateShipment(lostShipment.id, {
+        isLost: true,
+        lostReason: reason,
+        lostAt: new Date(),
+      });
+      
+      await logActivity(lostShipment.id, lostShipment.referenceId, 'marked_lost', `Marked as lost: ${reason}`);
+      toast.success(`${lostShipment.referenceId} marked as lost`);
+      setLostShipment(null);
+    } catch (error) {
+      toast.error('Failed to mark as lost');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
   
   const canRevert = canRevertStage(userRoles, 'pricing');
+  const canConfirm = canAdvanceStage(userRoles, 'pricing');
+  const canMarkAsLost = userRoles.includes('admin') || userRoles.includes('pricing');
 
   return (
-    <div className="animate-fade-in">
+    <div className="animate-fade-in space-y-6">
       <PageHeader
         title="Pricing"
-        description="Process quotation requests and assign agents"
+        description="Process quotation requests, assign agents, and manage quote status"
         action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
       />
+
+      {/* Stats - only show for current view */}
+      {!showHistory && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <StatCard
+            title="No Quote"
+            value={quoteStats.noQuote}
+            icon={<FileText className="h-4 w-4" />}
+          />
+          <StatCard
+            title="Drafts"
+            value={quoteStats.draft}
+            icon={<Clock className="h-4 w-4" />}
+          />
+          <StatCard
+            title="Issued"
+            value={quoteStats.issued}
+            icon={<Send className="h-4 w-4" />}
+          />
+          <StatCard
+            title="Accepted"
+            value={quoteStats.accepted}
+            icon={<CheckCircle className="h-4 w-4" />}
+          />
+        </div>
+      )}
       
       {isLoading ? (
         <TableSkeleton />
@@ -101,8 +199,12 @@ export default function Pricing() {
           shipments={shipments}
           onEdit={showHistory ? undefined : handleEdit}
           onRevert={!showHistory && canRevert ? (ship) => setRevertShipment(ship) : undefined}
+          onConfirm={!showHistory && canConfirm ? (ship) => setConfirmShipment(ship) : undefined}
+          onMarkLost={!showHistory && canMarkAsLost ? (ship) => setLostShipment(ship) : undefined}
           showPricing
+          showQuotationStatus={!showHistory}
           isNew={showHistory ? undefined : (ship) => isNewShipment(ship.id)}
+          getQuotationStatus={getQuotationStatus}
         />
       )}
       
@@ -120,6 +222,26 @@ export default function Pricing() {
           currentStage={revertShipment.stage}
           previousStage={getPreviousStage(revertShipment.stage) || 'lead'}
           referenceId={revertShipment.referenceId}
+        />
+      )}
+
+      {confirmShipment && (
+        <ConfirmToOpsDialog
+          open={!!confirmShipment}
+          onOpenChange={(open) => !open && setConfirmShipment(null)}
+          onConfirm={handleConfirmToOps}
+          referenceId={confirmShipment.referenceId}
+          isLoading={isProcessing}
+        />
+      )}
+
+      {lostShipment && (
+        <MarkLostDialog
+          open={!!lostShipment}
+          onOpenChange={(open) => !open && setLostShipment(null)}
+          onConfirm={handleMarkLost}
+          referenceId={lostShipment.referenceId}
+          isLoading={isProcessing}
         />
       )}
     </div>
