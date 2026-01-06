@@ -97,3 +97,13 @@ export interface Commission {
   commissionAmount: number;
   collectedDate: Date;
 }
+
+export interface CostLineItem {
+  id: string;
+  shipmentId: string;
+  description: string;
+  equipmentType?: string;
+  unitCost: number;
+  quantity: number;
+  amount: number;
+}

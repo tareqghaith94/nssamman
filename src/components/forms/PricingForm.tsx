@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useShipments } from '@/hooks/useShipments';
 import { useQuotations } from '@/hooks/useQuotations';
+import { useCostLineItems } from '@/hooks/useCostLineItems';
 import { useLockStore } from '@/store/lockStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
@@ -52,9 +53,17 @@ interface LineItemInput {
   quantity: number;
 }
 
+interface CostLineItemInput {
+  description: string;
+  equipmentType: string;
+  unitCost: number;
+  quantity: number;
+}
+
 export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) {
   const { updateShipment } = useShipments();
   const { quotations, createQuotation, updateQuotation, fetchLineItems, isCreating, isUpdating } = useQuotations();
+  const { fetchCostLineItems, saveCostLineItems } = useCostLineItems();
   const { profile, roles } = useAuth();
   const { logActivity } = useTrackedShipmentActions();
   const { acquireLock, releaseLock } = useLockStore();
@@ -63,13 +72,13 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const userId = profile?.user_id || '';
   const refPrefix = profile?.ref_prefix || undefined;
   
-  // Internal pricing state
-  const [formData, setFormData] = useState({
-    agent: '',
-    costPerUnit: 0,
-  });
+  // Agent name state
+  const [agent, setAgent] = useState('');
   
-  // Line items state for quotation
+  // Cost line items for internal pricing
+  const [costLineItems, setCostLineItems] = useState<CostLineItemInput[]>([]);
+  
+  // Line items state for client quotation
   const [lineItems, setLineItems] = useState<LineItemInput[]>([]);
   const [remarks, setRemarks] = useState('');
   const [validDays, setValidDays] = useState('30');
@@ -88,17 +97,76 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const agentLocked = shipment ? !canEditField(shipment, 'agent', userRoles, refPrefix) : true;
   const pricingLocked = shipment ? !canEditField(shipment, 'costPerUnit', userRoles, refPrefix) : true;
   
-  // Load shipment data and existing quotation
+  // Initialize cost line items from shipment equipment
+  const initCostLineItemsFromShipment = () => {
+    if (!shipment) return;
+    
+    const defaultDescription = shipment.modeOfTransport === 'air' ? 'Air Freight' : 'Ocean Freight';
+    const items = shipment.equipment.map(eq => ({
+      description: defaultDescription,
+      equipmentType: eq.type,
+      unitCost: shipment.costPerUnit || 0,
+      quantity: eq.quantity,
+    }));
+    
+    if (items.length === 0) {
+      items.push({
+        description: defaultDescription,
+        equipmentType: '40hc',
+        unitCost: 0,
+        quantity: 1,
+      });
+    }
+    
+    setCostLineItems(items);
+  };
+  
+  // Initialize selling line items from shipment equipment
+  const initLineItemsFromShipment = () => {
+    if (!shipment) return;
+    
+    const defaultDescription = shipment.modeOfTransport === 'air' ? 'Air Freight' : 'Ocean Freight';
+    const items = shipment.equipment.map(eq => ({
+      description: defaultDescription,
+      equipmentType: eq.type,
+      unitCost: shipment.sellingPricePerUnit || 0,
+      quantity: eq.quantity,
+    }));
+    
+    if (items.length === 0) {
+      items.push({
+        description: defaultDescription,
+        equipmentType: '40hc',
+        unitCost: 0,
+        quantity: 1,
+      });
+    }
+    
+    setLineItems(items);
+  };
+  
+  // Load shipment data and existing data
   useEffect(() => {
     if (shipment && open) {
-      // Reset form data from shipment
-      setFormData({
-        agent: shipment.agent || '',
-        costPerUnit: shipment.costPerUnit || 0,
-      });
-      
+      setAgent(shipment.agent || '');
       setRemarks('');
       setValidDays('30');
+      
+      // Load cost line items
+      fetchCostLineItems(shipment.id).then((items) => {
+        if (items.length > 0) {
+          setCostLineItems(items.map(item => ({
+            description: item.description,
+            equipmentType: item.equipmentType || '',
+            unitCost: item.unitCost,
+            quantity: item.quantity,
+          })));
+        } else {
+          initCostLineItemsFromShipment();
+        }
+      }).catch(() => {
+        initCostLineItemsFromShipment();
+      });
       
       // Check for existing quotation
       const existingQuote = quotations.find(q => q.shipmentId === shipment.id);
@@ -116,11 +184,9 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               unitCost: item.unitCost,
               quantity: item.quantity,
             })));
-            // Store previous total for revision logging
             const prevTotal = items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
             setPreviousQuoteTotal(prevTotal);
           } else {
-            // Fallback to equipment
             setPreviousQuoteTotal(0);
             initLineItemsFromShipment();
           }
@@ -151,43 +217,34 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     };
   }, [shipment?.id, open, quotations]);
   
-  const initLineItemsFromShipment = () => {
-    if (!shipment) return;
-    
-    const defaultDescription = shipment.modeOfTransport === 'air' ? 'Air Freight' : 'Ocean Freight';
-    const items = shipment.equipment.map(eq => ({
-      description: defaultDescription,
-      equipmentType: eq.type,
-      unitCost: shipment.sellingPricePerUnit || 0,
-      quantity: eq.quantity,
-    }));
-    
-    // Add a documentation fee line by default if no items
-    if (items.length === 0) {
-      items.push({
-        description: defaultDescription,
-        equipmentType: '40hc',
-        unitCost: 0,
-        quantity: 1,
-      });
-    }
-    
-    setLineItems(items);
-  };
-  
-  // Calculate totals from line items
+  // Calculate totals
   const grandTotal = lineItems.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
-  
-  // Only count equipment quantities for cost calculation (exclude Per BL and similar flat fees)
-  const equipmentQuantity = lineItems
-    .filter(item => item.equipmentType !== 'per_bl')
-    .reduce((sum, item) => sum + item.quantity, 0);
-  
-  const totalCost = formData.costPerUnit * equipmentQuantity;
+  const totalCost = costLineItems.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
   const totalProfit = grandTotal - totalCost;
   const profitMargin = grandTotal > 0 ? (totalProfit / grandTotal * 100) : 0;
   
-  // Line item handlers
+  // Cost line item handlers
+  const addCostLineItem = () => {
+    setCostLineItems([...costLineItems, { description: '', equipmentType: '', unitCost: 0, quantity: 1 }]);
+  };
+  
+  const removeCostLineItem = (index: number) => {
+    if (costLineItems.length > 1) {
+      setCostLineItems(costLineItems.filter((_, i) => i !== index));
+    }
+  };
+  
+  const updateCostLineItem = (index: number, field: keyof CostLineItemInput, value: string | number) => {
+    const updated = [...costLineItems];
+    if (field === 'unitCost' || field === 'quantity') {
+      updated[index][field] = typeof value === 'string' ? parseFloat(value) || 0 : value;
+    } else {
+      updated[index][field] = value as string;
+    }
+    setCostLineItems(updated);
+  };
+  
+  // Selling line item handlers
   const addLineItem = () => {
     setLineItems([...lineItems, { description: '', equipmentType: '', unitCost: 0, quantity: 1 }]);
   };
@@ -213,18 +270,34 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     if (!shipment || !hasLock) return;
     
     if (lineItems.every(item => !item.description)) {
-      toast.error('Please add at least one line item');
+      toast.error('Please add at least one quotation line item');
+      return;
+    }
+    
+    if (costLineItems.every(item => !item.description)) {
+      toast.error('Please add at least one cost line item');
       return;
     }
     
     setIsSaving(true);
     try {
-      // Save pricing to shipment
+      // Save cost line items
+      await saveCostLineItems(
+        shipment.id,
+        costLineItems.filter(item => item.description).map(item => ({
+          description: item.description,
+          equipmentType: item.equipmentType || undefined,
+          unitCost: item.unitCost,
+          quantity: item.quantity,
+        }))
+      );
+      
+      // Save pricing summary to shipment
       await updateShipment(shipment.id, {
-        agent: formData.agent,
-        costPerUnit: formData.costPerUnit,
+        agent,
+        costPerUnit: costLineItems[0]?.unitCost || 0,
         sellingPricePerUnit: lineItems[0]?.unitCost || 0,
-        profitPerUnit: (lineItems[0]?.unitCost || 0) - formData.costPerUnit,
+        profitPerUnit: (lineItems[0]?.unitCost || 0) - (costLineItems[0]?.unitCost || 0),
         totalSellingPrice: grandTotal,
         totalCost,
         totalProfit,
@@ -262,7 +335,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           ...quotationData,
         });
         
-        // Log quotation revision
         await logActivity(
           shipment.id,
           shipment.referenceId,
@@ -272,7 +344,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           `$${grandTotal.toLocaleString()}`
         );
         
-        // Log if issued
         if (status === 'issued') {
           await logActivity(
             shipment.id,
@@ -289,7 +360,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           ...quotationData,
         });
         
-        // Log quotation creation
         await logActivity(
           shipment.id,
           shipment.referenceId,
@@ -297,7 +367,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           `Quotation created with total $${grandTotal.toLocaleString()}`
         );
         
-        // Log if issued immediately
         if (status === 'issued') {
           await logActivity(
             shipment.id,
@@ -330,6 +399,87 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   
   const isReadOnly = !isEditable || !hasLock;
   const isLoading = isCreating || isUpdating || isSaving;
+  
+  // Render line items table (shared between cost and selling)
+  const renderLineItemsTable = (
+    items: (LineItemInput | CostLineItemInput)[],
+    onUpdate: (index: number, field: keyof LineItemInput, value: string | number) => void,
+    onRemove: (index: number) => void,
+    isCost: boolean = false
+  ) => (
+    <div className="border rounded-md overflow-hidden">
+      <div className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] bg-muted/50 text-xs font-medium">
+        <div className="p-2 border-r border-border">Description</div>
+        <div className="p-2 border-r border-border">Type</div>
+        <div className="p-2 border-r border-border text-right">{isCost ? 'Cost ($)' : 'Rate ($)'}</div>
+        <div className="p-2 border-r border-border text-center">Qty</div>
+        <div className="p-2 border-r border-border text-right">Amount</div>
+        <div className="p-2"></div>
+      </div>
+      {items.map((item, idx) => (
+        <div key={idx} className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] border-t border-border">
+          <Input
+            value={item.description}
+            onChange={(e) => onUpdate(idx, 'description', e.target.value)}
+            placeholder={isCost ? "Agent Freight" : "Ocean Freight"}
+            className="border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
+            disabled={isReadOnly || (isCost && pricingLocked)}
+          />
+          <Select 
+            value={item.equipmentType} 
+            onValueChange={(v) => onUpdate(idx, 'equipmentType', v)}
+            disabled={isReadOnly || (isCost && pricingLocked)}
+          >
+            <SelectTrigger className="border-0 border-l border-border rounded-none h-9 focus:ring-0 focus:ring-offset-0 text-sm">
+              <SelectValue placeholder="Select" />
+            </SelectTrigger>
+            <SelectContent className="bg-background z-50">
+              {EQUIPMENT_OPTIONS.map((eq) => (
+                <SelectItem key={eq.value} value={eq.value}>
+                  {eq.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            type="number"
+            value={item.unitCost || ''}
+            onChange={(e) => onUpdate(idx, 'unitCost', e.target.value)}
+            placeholder="0"
+            className="border-0 border-l border-border rounded-none text-right focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
+            disabled={isReadOnly || (isCost && pricingLocked)}
+          />
+          <Input
+            type="number"
+            value={item.quantity || ''}
+            onChange={(e) => onUpdate(idx, 'quantity', e.target.value)}
+            className="border-0 border-l border-border rounded-none text-center focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
+            min={1}
+            disabled={isReadOnly || (isCost && pricingLocked)}
+          />
+          <div className="flex items-center justify-end border-l border-border px-2 text-sm font-medium bg-muted/30">
+            ${(item.unitCost * item.quantity).toLocaleString()}
+          </div>
+          <button
+            type="button"
+            onClick={() => onRemove(idx)}
+            className="flex items-center justify-center text-muted-foreground hover:text-destructive border-l border-border h-9"
+            disabled={items.length === 1 || isReadOnly || (isCost && pricingLocked)}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+      ))}
+      {/* Total Row */}
+      <div className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] border-t-2 border-border bg-muted/50">
+        <div className="col-span-4 p-2 text-right font-semibold text-sm">TOTAL</div>
+        <div className="p-2 text-right font-bold border-l border-border">
+          ${items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0).toLocaleString()}
+        </div>
+        <div className="border-l border-border"></div>
+      </div>
+    </div>
+  );
   
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -372,42 +522,47 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             <p><span className="text-muted-foreground">Salesperson:</span> {shipment.salesperson}</p>
           </div>
           
-          {/* Internal Pricing Section */}
+          {/* Agent */}
           <div className="space-y-4">
             <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Internal Pricing</h4>
-            <div className="grid grid-cols-2 gap-4">
-              <LockedField 
-                isLocked={agentLocked} 
-                lockReason={getFieldLockReason('agent', userRoles, shipment)}
+            <LockedField 
+              isLocked={agentLocked} 
+              lockReason={getFieldLockReason('agent', userRoles, shipment)}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="agent">Agent Name</Label>
+                <Input
+                  id="agent"
+                  value={agent}
+                  onChange={(e) => setAgent(e.target.value)}
+                  placeholder="Enter agent name"
+                  disabled={isReadOnly || agentLocked}
+                  className="max-w-sm"
+                />
+              </div>
+            </LockedField>
+          </div>
+          
+          {/* Cost Breakdown Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Cost Breakdown</h4>
+              <button
+                type="button"
+                onClick={addCostLineItem}
+                className="text-sm text-primary hover:underline flex items-center gap-1"
+                disabled={isReadOnly || pricingLocked}
               >
-                <div className="space-y-2">
-                  <Label htmlFor="agent">Agent Name</Label>
-                  <Input
-                    id="agent"
-                    value={formData.agent}
-                    onChange={(e) => setFormData({ ...formData, agent: e.target.value })}
-                    placeholder="Enter agent name"
-                    disabled={isReadOnly || agentLocked}
-                  />
-                </div>
-              </LockedField>
-              <LockedField 
-                isLocked={pricingLocked} 
-                lockReason={getFieldLockReason('costPerUnit', userRoles, shipment)}
-              >
-                <div className="space-y-2">
-                  <Label htmlFor="cost">Cost/Unit ($)</Label>
-                  <Input
-                    id="cost"
-                    type="number"
-                    min={0}
-                    value={formData.costPerUnit}
-                    onChange={(e) => setFormData({ ...formData, costPerUnit: parseFloat(e.target.value) || 0 })}
-                    disabled={isReadOnly || pricingLocked}
-                  />
-                </div>
-              </LockedField>
+                <Plus className="h-3 w-3" /> Add cost
+              </button>
             </div>
+            
+            <LockedField 
+              isLocked={pricingLocked} 
+              lockReason={getFieldLockReason('costPerUnit', userRoles, shipment)}
+            >
+              {renderLineItemsTable(costLineItems, updateCostLineItem, removeCostLineItem, true)}
+            </LockedField>
           </div>
           
           {/* Client Quotation Section */}
@@ -424,79 +579,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               </button>
             </div>
             
-            {/* Line Items Table */}
-            <div className="border rounded-md overflow-hidden">
-              <div className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] bg-muted/50 text-xs font-medium">
-                <div className="p-2 border-r border-border">Description</div>
-                <div className="p-2 border-r border-border">Type</div>
-                <div className="p-2 border-r border-border text-right">Rate ($)</div>
-                <div className="p-2 border-r border-border text-center">Qty</div>
-                <div className="p-2 border-r border-border text-right">Amount</div>
-                <div className="p-2"></div>
-              </div>
-              {lineItems.map((item, idx) => (
-                <div key={idx} className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] border-t border-border">
-                  <Input
-                    value={item.description}
-                    onChange={(e) => updateLineItem(idx, 'description', e.target.value)}
-                    placeholder="Ocean Freight"
-                    className="border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
-                    disabled={isReadOnly}
-                  />
-                  <Select 
-                    value={item.equipmentType} 
-                    onValueChange={(v) => updateLineItem(idx, 'equipmentType', v)}
-                    disabled={isReadOnly}
-                  >
-                    <SelectTrigger className="border-0 border-l border-border rounded-none h-9 focus:ring-0 focus:ring-offset-0 text-sm">
-                      <SelectValue placeholder="Select" />
-                    </SelectTrigger>
-                    <SelectContent className="bg-background z-50">
-                      {EQUIPMENT_OPTIONS.map((eq) => (
-                        <SelectItem key={eq.value} value={eq.value}>
-                          {eq.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <Input
-                    type="number"
-                    value={item.unitCost || ''}
-                    onChange={(e) => updateLineItem(idx, 'unitCost', e.target.value)}
-                    placeholder="0"
-                    className="border-0 border-l border-border rounded-none text-right focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
-                    disabled={isReadOnly}
-                  />
-                  <Input
-                    type="number"
-                    value={item.quantity || ''}
-                    onChange={(e) => updateLineItem(idx, 'quantity', e.target.value)}
-                    className="border-0 border-l border-border rounded-none text-center focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
-                    min={1}
-                    disabled={isReadOnly}
-                  />
-                  <div className="flex items-center justify-end border-l border-border px-2 text-sm font-medium bg-muted/30">
-                    ${(item.unitCost * item.quantity).toLocaleString()}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => removeLineItem(idx)}
-                    className="flex items-center justify-center text-muted-foreground hover:text-destructive border-l border-border h-9"
-                    disabled={lineItems.length === 1 || isReadOnly}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              ))}
-              {/* Total Row */}
-              <div className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] border-t-2 border-border bg-muted/50">
-                <div className="col-span-4 p-2 text-right font-semibold text-sm">TOTAL</div>
-                <div className="p-2 text-right font-bold border-l border-border">
-                  ${grandTotal.toLocaleString()}
-                </div>
-                <div className="border-l border-border"></div>
-              </div>
-            </div>
+            {renderLineItemsTable(lineItems, updateLineItem, removeLineItem, false)}
             
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -545,7 +628,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             </div>
           </div>
           
-          {/* Actions - Simplified: only Save Draft and Save & Issue */}
+          {/* Actions */}
           <div className="flex justify-end gap-2 pt-4 border-t">
             <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>
               {isReadOnly ? 'Close' : 'Cancel'}

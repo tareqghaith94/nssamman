@@ -91,6 +91,47 @@ export type Database = {
         }
         Relationships: []
       }
+      cost_line_items: {
+        Row: {
+          amount: number | null
+          created_at: string
+          description: string
+          equipment_type: string | null
+          id: string
+          quantity: number
+          shipment_id: string
+          unit_cost: number
+        }
+        Insert: {
+          amount?: number | null
+          created_at?: string
+          description: string
+          equipment_type?: string | null
+          id?: string
+          quantity?: number
+          shipment_id: string
+          unit_cost?: number
+        }
+        Update: {
+          amount?: number | null
+          created_at?: string
+          description?: string
+          equipment_type?: string | null
+          id?: string
+          quantity?: number
+          shipment_id?: string
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cost_line_items_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           created_at: string | null
