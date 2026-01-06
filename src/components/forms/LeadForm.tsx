@@ -21,14 +21,15 @@ import {
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, EquipmentItem } from '@/types/shipment';
-import { WORLD_PORTS, INCOTERMS } from '@/lib/ports';
+import { INCOTERMS, getLocationOptions } from '@/lib/ports';
 import { SALESPERSON_REF_PREFIX, UserRole } from '@/types/permissions';
+import { SearchableSelect } from '@/components/ui/SearchableSelect';
 
 const SALESPEOPLE = Object.keys(SALESPERSON_REF_PREFIX) as readonly string[];
 
 export function LeadForm() {
   const [open, setOpen] = useState(false);
-  const { createShipment } = useTrackedShipmentActions();
+  const { createShipment, trackMoveToStage, shipments } = useTrackedShipmentActions();
   const { profile, roles } = useAuth();
   
   // Use roles from auth for multi-role support
@@ -45,10 +46,14 @@ export function LeadForm() {
     portOfLoading: '',
     portOfDischarge: '',
     equipment: [{ type: '' as EquipmentType, quantity: 1 }] as EquipmentItem[],
-    modeOfTransport: '' as ModeOfTransport,
+    modeOfTransport: 'sea' as ModeOfTransport,
     paymentTerms: '' as PaymentTerms,
     incoterm: '' as Incoterm,
+    clientName: '',
   });
+  
+  // Get location options based on mode
+  const locationOptions = getLocationOptions(formData.modeOfTransport);
   
   // Auto-set salesperson for sales-only role when dialog opens
   // Use ref_prefix to find the matching salesperson name from SALESPERSON_REF_PREFIX
@@ -63,6 +68,22 @@ export function LeadForm() {
       }
     }
   }, [open, isSalesOnly, profile?.ref_prefix]);
+  
+  // Reset ports when mode changes
+  useEffect(() => {
+    // Only reset if current ports don't match the new mode options
+    const options = getLocationOptions(formData.modeOfTransport);
+    const polValid = options.includes(formData.portOfLoading as typeof options[number]);
+    const podValid = options.includes(formData.portOfDischarge as typeof options[number]);
+    
+    if (!polValid || !podValid) {
+      setFormData(prev => ({
+        ...prev,
+        portOfLoading: polValid ? prev.portOfLoading : '',
+        portOfDischarge: podValid ? prev.portOfDischarge : '',
+      }));
+    }
+  }, [formData.modeOfTransport]);
   
   const addEquipment = () => {
     if (formData.equipment.length < 3) {
@@ -88,7 +109,7 @@ export function LeadForm() {
     setFormData({ ...formData, equipment: updated });
   };
   
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.salesperson || !formData.portOfLoading || !formData.portOfDischarge) {
@@ -96,17 +117,34 @@ export function LeadForm() {
       return;
     }
     
-    createShipment(formData);
-    toast.success('Lead created successfully');
+    const newShipment = await createShipment(formData);
+    
+    // Show toast with action to move to pricing
+    toast.success('Lead created successfully', {
+      action: {
+        label: 'Move to Pricing',
+        onClick: async () => {
+          if (newShipment) {
+            // Need to get the full shipment object
+            const fullShipment = shipments?.find(s => s.id === newShipment.id) || newShipment;
+            await trackMoveToStage(fullShipment, 'pricing');
+            toast.success(`${newShipment.referenceId} moved to Pricing`);
+          }
+        },
+      },
+      duration: 8000, // Keep it visible for 8 seconds
+    });
+    
     setOpen(false);
     setFormData({
       salesperson: '',
       portOfLoading: '',
       portOfDischarge: '',
       equipment: [{ type: '' as EquipmentType, quantity: 1 }],
-      modeOfTransport: '' as ModeOfTransport,
+      modeOfTransport: 'sea' as ModeOfTransport,
       paymentTerms: '' as PaymentTerms,
       incoterm: '' as Incoterm,
+      clientName: '',
     });
   };
   
@@ -123,59 +161,75 @@ export function LeadForm() {
           <DialogTitle className="font-heading">Create New Lead</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 mt-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Salesperson *</Label>
+              <Select
+                value={formData.salesperson}
+                onValueChange={(v) => setFormData({ ...formData, salesperson: v })}
+                disabled={isSalesOnly}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select salesperson" />
+                </SelectTrigger>
+                <SelectContent>
+                  {SALESPEOPLE.map((name) => (
+                    <SelectItem key={name} value={name}>{name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {isSalesOnly && (
+                <p className="text-xs text-muted-foreground">You can only create leads for yourself</p>
+              )}
+            </div>
+            <div className="space-y-2">
+              <Label>Client Name</Label>
+              <Input
+                value={formData.clientName}
+                onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
+                placeholder="Enter client name"
+              />
+            </div>
+          </div>
+          
           <div className="space-y-2">
-            <Label>Salesperson *</Label>
+            <Label>Mode of Transport</Label>
             <Select
-              value={formData.salesperson}
-              onValueChange={(v) => setFormData({ ...formData, salesperson: v })}
-              disabled={isSalesOnly}
+              value={formData.modeOfTransport}
+              onValueChange={(v) => setFormData({ ...formData, modeOfTransport: v as ModeOfTransport })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select salesperson" />
+                <SelectValue placeholder="Select mode" />
               </SelectTrigger>
               <SelectContent>
-                {SALESPEOPLE.map((name) => (
-                  <SelectItem key={name} value={name}>{name}</SelectItem>
-                ))}
+                <SelectItem value="sea">Sea Freight</SelectItem>
+                <SelectItem value="air">Air Freight</SelectItem>
+                <SelectItem value="land">Land Transport</SelectItem>
+                <SelectItem value="multimodal">Multimodal</SelectItem>
               </SelectContent>
             </Select>
-            {isSalesOnly && (
-              <p className="text-xs text-muted-foreground">You can only create leads for yourself</p>
-            )}
           </div>
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Port of Loading *</Label>
-              <Select
+              <Label>{formData.modeOfTransport === 'air' ? 'Airport of Origin *' : 'Port of Loading *'}</Label>
+              <SearchableSelect
                 value={formData.portOfLoading}
                 onValueChange={(v) => setFormData({ ...formData, portOfLoading: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select port" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {WORLD_PORTS.map((port) => (
-                    <SelectItem key={port} value={port}>{port}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={locationOptions}
+                placeholder={formData.modeOfTransport === 'air' ? 'Select airport' : 'Select port'}
+                searchPlaceholder="Search..."
+              />
             </div>
             <div className="space-y-2">
-              <Label>Port of Discharge *</Label>
-              <Select
+              <Label>{formData.modeOfTransport === 'air' ? 'Airport of Destination *' : 'Port of Discharge *'}</Label>
+              <SearchableSelect
                 value={formData.portOfDischarge}
                 onValueChange={(v) => setFormData({ ...formData, portOfDischarge: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select port" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {WORLD_PORTS.map((port) => (
-                    <SelectItem key={port} value={port}>{port}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+                options={locationOptions}
+                placeholder={formData.modeOfTransport === 'air' ? 'Select airport' : 'Select port'}
+                searchPlaceholder="Search..."
+              />
             </div>
           </div>
           
@@ -225,23 +279,6 @@ export function LeadForm() {
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Mode of Transport</Label>
-              <Select
-                value={formData.modeOfTransport}
-                onValueChange={(v) => setFormData({ ...formData, modeOfTransport: v as ModeOfTransport })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select mode" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="sea">Sea Freight</SelectItem>
-                  <SelectItem value="air">Air Freight</SelectItem>
-                  <SelectItem value="land">Land Transport</SelectItem>
-                  <SelectItem value="multimodal">Multimodal</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
               <Label>Incoterm</Label>
               <Select
                 value={formData.incoterm}
@@ -257,24 +294,23 @@ export function LeadForm() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          
-          <div className="space-y-2">
-            <Label>Payment Terms</Label>
-            <Select
-              value={formData.paymentTerms}
-              onValueChange={(v) => setFormData({ ...formData, paymentTerms: v as PaymentTerms })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Select terms" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="0">0 Days (Cash)</SelectItem>
-                <SelectItem value="30">30 Days</SelectItem>
-                <SelectItem value="60">60 Days</SelectItem>
-                <SelectItem value="90">90 Days</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <Label>Payment Terms</Label>
+              <Select
+                value={formData.paymentTerms}
+                onValueChange={(v) => setFormData({ ...formData, paymentTerms: v as PaymentTerms })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select terms" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">0 Days (Cash)</SelectItem>
+                  <SelectItem value="30">30 Days</SelectItem>
+                  <SelectItem value="60">60 Days</SelectItem>
+                  <SelectItem value="90">90 Days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           
           <div className="flex justify-end gap-3 pt-4">

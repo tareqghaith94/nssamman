@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
+import { useLastSeenShipments } from '@/hooks/useLastSeenShipments';
 import { canRevertStage, getPreviousStage } from '@/lib/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
@@ -38,6 +39,7 @@ export default function Pricing() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
   const { roles } = useAuth();
   const { trackRevertStage } = useTrackedShipmentActions();
+  const { isNewShipment, markAsSeen } = useLastSeenShipments('pricing');
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -47,12 +49,30 @@ export default function Pricing() {
   
   const userRoles = (roles || []) as UserRole[];
 
-  const shipments = useMemo(
-    () => showHistory
-      ? allShipments.filter((ship) => hasReachedStage(ship.stage, 'pricing'))
-      : allShipments.filter((ship) => ship.stage === 'pricing' && !ship.isLost),
-    [allShipments, showHistory]
+  // Current stage shipments
+  const currentShipments = useMemo(
+    () => allShipments.filter((ship) => ship.stage === 'pricing' && !ship.isLost),
+    [allShipments]
   );
+
+  // For history view, show all that reached pricing stage
+  const historyShipments = useMemo(
+    () => allShipments.filter((ship) => hasReachedStage(ship.stage, 'pricing')),
+    [allShipments]
+  );
+
+  const shipments = showHistory ? historyShipments : currentShipments;
+
+  // Mark current shipments as seen when they change
+  useEffect(() => {
+    if (!showHistory && currentShipments.length > 0 && !isLoading) {
+      // Delay slightly to allow user to see "new" badges
+      const timer = setTimeout(() => {
+        markAsSeen(currentShipments.map(s => s.id));
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentShipments, showHistory, markAsSeen, isLoading]);
   
   const handleEdit = (shipment: Shipment) => {
     setSelectedShipment(shipment);
@@ -75,6 +95,7 @@ export default function Pricing() {
   
   const canRevert = canRevertStage(userRoles, 'pricing');
   const canQuote = userRoles.includes('admin') || userRoles.includes('pricing');
+
   return (
     <div className="animate-fade-in">
       <PageHeader
@@ -92,6 +113,7 @@ export default function Pricing() {
           onRevert={!showHistory && canRevert ? (ship) => setRevertShipment(ship) : undefined}
           onGenerateQuote={!showHistory && canQuote ? handleGenerateQuote : undefined}
           showPricing
+          isNew={showHistory ? undefined : (ship) => isNewShipment(ship.id)}
         />
       )}
       
