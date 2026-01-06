@@ -34,11 +34,14 @@ export default function Payables() {
   const [showHistory, setShowHistory] = useState(false);
 
   const payables = useMemo(() => {
-    // Current: Only pending payables (operations/completed + has agent + has cost + not paid)
-    // History: All shipments with an agent that reached operations or completed
+    // Shipments appear in payables once ETD or ETA is set (not waiting for ops completion)
+    // Current: Only pending payables (has agent + has ETD or ETA + not paid)
+    // History: All shipments with an agent that have ETD or ETA set
+    const hasScheduleDates = (s: Shipment) => s.etd || s.eta;
+    
     const filtered = showHistory
-      ? allShipments.filter((s) => (s.stage === 'operations' || s.stage === 'completed') && s.agent && s.totalCost)
-      : allShipments.filter((s) => (s.stage === 'operations' || s.stage === 'completed') && s.agent && s.totalCost && !s.agentPaid);
+      ? allShipments.filter((s) => s.agent && s.totalCost && hasScheduleDates(s))
+      : allShipments.filter((s) => s.agent && s.totalCost && hasScheduleDates(s) && !s.agentPaid);
     
     return filtered.map((s) => {
       const isExport = s.portOfLoading.toLowerCase().includes('aqaba');
