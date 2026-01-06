@@ -267,21 +267,53 @@ export function useShipments() {
   });
 
   // Delete all shipments mutation (admin only)
+  // Must delete in correct order due to foreign key constraints
   const clearAllShipmentsMutation = useMutation({
     mutationFn: async () => {
-      const { error } = await supabase
+      // 1. Delete all quote_line_items (depends on quotations)
+      const { error: lineItemsError } = await supabase
+        .from('quote_line_items')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      if (lineItemsError) throw lineItemsError;
+
+      // 2. Delete all quotations (depends on shipments)
+      const { error: quotationsError } = await supabase
+        .from('quotations')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      if (quotationsError) throw quotationsError;
+
+      // 3. Delete all activity_logs (depends on shipments)
+      const { error: activitiesError } = await supabase
+        .from('activity_logs')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      if (activitiesError) throw activitiesError;
+
+      // 4. Delete all notifications (depends on shipments)
+      const { error: notificationsError } = await supabase
+        .from('notifications')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      if (notificationsError) throw notificationsError;
+
+      // 5. Finally delete all shipments
+      const { error: shipmentsError } = await supabase
         .from('shipments')
         .delete()
-        .neq('id', '00000000-0000-0000-0000-000000000000'); // Delete all
-      
-      if (error) throw error;
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      if (shipmentsError) throw shipmentsError;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shipments'] });
+      queryClient.invalidateQueries({ queryKey: ['activity_logs'] });
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
     onError: (error) => {
-      console.error('Error clearing shipments:', error);
-      toast.error('Failed to clear shipments');
+      console.error('Error clearing all data:', error);
+      toast.error('Failed to clear all data');
     },
   });
 
