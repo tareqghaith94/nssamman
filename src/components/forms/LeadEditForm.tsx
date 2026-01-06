@@ -23,6 +23,7 @@ import { Shipment, EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, Equip
 import { INCOTERMS, getLocationOptions } from '@/lib/ports';
 import { SALESPERSON_REF_PREFIX, UserRole } from '@/types/permissions';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
+import { ClientNameCombobox } from '@/components/ui/ClientNameCombobox';
 
 const SALESPEOPLE = Object.keys(SALESPERSON_REF_PREFIX) as readonly string[];
 
@@ -234,10 +235,10 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
             </div>
             <div className="space-y-2">
               <Label>Client Name</Label>
-              <Input
+              <ClientNameCombobox
                 value={formData.clientName}
-                onChange={(e) => setFormData({ ...formData, clientName: e.target.value })}
-                placeholder="Enter client name"
+                onValueChange={(v) => setFormData({ ...formData, clientName: v })}
+                placeholder="Select or enter client"
               />
             </div>
           </div>
