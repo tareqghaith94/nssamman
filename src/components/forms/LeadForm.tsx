@@ -337,7 +337,7 @@ export function LeadForm() {
               onValueChange={(v) => setFormData({ ...formData, pricingOwner: v })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select pricing owner (optional)" />
+                <SelectValue placeholder="Select pricing owner" />
               </SelectTrigger>
               <SelectContent>
                 {PRICING_OWNERS.map((owner) => (

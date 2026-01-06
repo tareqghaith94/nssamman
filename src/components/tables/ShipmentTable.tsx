@@ -233,7 +233,7 @@ export function ShipmentTable({
                               {canConfirmThisShipment && (
                                 <DropdownMenuItem onClick={() => onConfirm(shipment)}>
                                   <CheckCircle className="w-4 h-4 mr-2 text-green-500" />
-                                  Confirm → Ops
+                                  {shipment.stage === 'lead' ? 'Move to Pricing' : 'Confirm → Ops'}
                                 </DropdownMenuItem>
                               )}
                               {canMarkLostThisShipment && (
