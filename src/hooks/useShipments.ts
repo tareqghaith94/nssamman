@@ -53,6 +53,7 @@ interface ShipmentRow {
   is_lost: boolean | null;
   lost_reason: string | null;
   lost_at: string | null;
+  pricing_owner: string | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -100,6 +101,7 @@ function rowToShipment(row: ShipmentRow): Shipment {
     totalInvoiceAmount: row.total_invoice_amount ?? undefined,
     completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
     opsOwner: row.ops_owner as Shipment['opsOwner'] ?? undefined,
+    pricingOwner: row.pricing_owner as Shipment['pricingOwner'] ?? undefined,
     paymentCollected: row.payment_collected ?? undefined,
     paymentCollectedDate: row.payment_collected_date ? new Date(row.payment_collected_date) : undefined,
     agentPaid: row.agent_paid ?? undefined,
@@ -149,6 +151,7 @@ function shipmentToRow(shipment: Partial<Shipment>): Record<string, unknown> {
   if (shipment.totalInvoiceAmount !== undefined) row.total_invoice_amount = shipment.totalInvoiceAmount;
   if (shipment.completedAt !== undefined) row.completed_at = shipment.completedAt?.toISOString();
   if (shipment.opsOwner !== undefined) row.ops_owner = shipment.opsOwner;
+  if (shipment.pricingOwner !== undefined) row.pricing_owner = shipment.pricingOwner;
   if (shipment.paymentCollected !== undefined) row.payment_collected = shipment.paymentCollected;
   if (shipment.paymentCollectedDate !== undefined) row.payment_collected_date = shipment.paymentCollectedDate?.toISOString();
   if (shipment.agentPaid !== undefined) row.agent_paid = shipment.agentPaid;
