@@ -74,7 +74,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   
   // Agent name state
   const [agent, setAgent] = useState('');
-  
+  const [pricingOwner, setPricingOwner] = useState<string>('');
   // Cost line items for internal pricing
   const [costLineItems, setCostLineItems] = useState<CostLineItemInput[]>([]);
   
@@ -149,6 +149,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   useEffect(() => {
     if (shipment && open) {
       setAgent(shipment.agent || '');
+      setPricingOwner((shipment as any).pricingOwner || '');
       setRemarks('');
       setValidDays('30');
       
@@ -295,6 +296,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       // Save pricing summary to shipment
       await updateShipment(shipment.id, {
         agent,
+        pricingOwner: (pricingOwner as 'Uma' | 'Rania' | 'Mozayan') || undefined,
         costPerUnit: costLineItems[0]?.unitCost || 0,
         sellingPricePerUnit: lineItems[0]?.unitCost || 0,
         profitPerUnit: (lineItems[0]?.unitCost || 0) - (costLineItems[0]?.unitCost || 0),
@@ -541,8 +543,31 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
                 />
               </div>
             </LockedField>
+            
+            {/* Pricing Owner */}
+            <LockedField 
+              isLocked={pricingLocked} 
+              lockReason={getFieldLockReason('pricingOwner', userRoles, shipment)}
+            >
+              <div className="space-y-2">
+                <Label htmlFor="pricingOwner">Pricing Owner</Label>
+                <Select
+                  value={pricingOwner}
+                  onValueChange={setPricingOwner}
+                  disabled={isReadOnly || pricingLocked}
+                >
+                  <SelectTrigger className="max-w-sm">
+                    <SelectValue placeholder="Select pricing owner" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    <SelectItem value="Uma">Uma</SelectItem>
+                    <SelectItem value="Rania">Rania</SelectItem>
+                    <SelectItem value="Mozayan">Mozayan</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </LockedField>
           </div>
-          
           {/* Cost Breakdown Section */}
           <div className="space-y-4">
             <div className="flex items-center justify-between">

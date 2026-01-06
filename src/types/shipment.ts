@@ -27,6 +27,7 @@ export interface Shipment {
   
   // Pricing stage fields
   agent?: string;
+  pricingOwner?: 'Uma' | 'Rania' | 'Mozayan';
   sellingPricePerUnit?: number;
   costPerUnit?: number;
   profitPerUnit?: number;
