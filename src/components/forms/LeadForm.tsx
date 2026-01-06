@@ -27,6 +27,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ClientNameCombobox } from '@/components/ui/ClientNameCombobox';
 
 const SALESPEOPLE = Object.keys(SALESPERSON_REF_PREFIX) as readonly string[];
+const PRICING_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
 
 export function LeadForm() {
   const [open, setOpen] = useState(false);
@@ -51,6 +52,7 @@ export function LeadForm() {
     paymentTerms: '' as PaymentTerms,
     incoterm: '' as Incoterm,
     clientName: '',
+    pricingOwner: '',
   });
   
   // Get location options based on mode
@@ -118,26 +120,36 @@ export function LeadForm() {
       return;
     }
     
-    const newShipment = await createShipment(formData);
+    // Build shipment data, only include pricingOwner if set
+    const shipmentData = {
+      ...formData,
+      pricingOwner: formData.pricingOwner ? formData.pricingOwner as 'Uma' | 'Rania' | 'Mozayan' : undefined,
+    };
     
-    // Show toast with action to move to pricing
-    toast.success('Lead created successfully', {
-      action: {
-        label: 'Move to Pricing',
-        onClick: async () => {
-          if (newShipment) {
-            try {
-              await trackMoveToStage(newShipment, 'pricing');
-              toast.success(`${newShipment.referenceId} moved to Pricing`);
-            } catch (error) {
-              console.error('Failed to move to pricing:', error);
-              toast.error('Failed to move to Pricing');
+    const newShipment = await createShipment(shipmentData);
+    
+    // Only show "Move to Pricing" action if pricing owner is already set
+    if (formData.pricingOwner) {
+      toast.success('Lead created successfully', {
+        action: {
+          label: 'Move to Pricing',
+          onClick: async () => {
+            if (newShipment) {
+              try {
+                await trackMoveToStage(newShipment, 'pricing');
+                toast.success(`${newShipment.referenceId} moved to Pricing`);
+              } catch (error) {
+                console.error('Failed to move to pricing:', error);
+                toast.error('Failed to move to Pricing');
+              }
             }
-          }
+          },
         },
-      },
-      duration: 8000,
-    });
+        duration: 8000,
+      });
+    } else {
+      toast.success('Lead created successfully. Assign a Pricing Owner to move to Pricing stage.');
+    }
     
     setOpen(false);
     setFormData({
@@ -149,6 +161,7 @@ export function LeadForm() {
       paymentTerms: '' as PaymentTerms,
       incoterm: '' as Incoterm,
       clientName: '',
+      pricingOwner: '',
     });
   };
   
@@ -315,6 +328,26 @@ export function LeadForm() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Pricing Owner</Label>
+            <Select
+              value={formData.pricingOwner}
+              onValueChange={(v) => setFormData({ ...formData, pricingOwner: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select pricing owner (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {PRICING_OWNERS.map((owner) => (
+                  <SelectItem key={owner} value={owner}>{owner}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Required before moving to pricing stage
+            </p>
           </div>
           
           <div className="flex justify-end gap-3 pt-4">

@@ -21,14 +21,16 @@ import { ShipmentStage } from '@/types/shipment';
 import { ArrowRight } from 'lucide-react';
 
 const OPS_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
+const PRICING_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
 
 interface StageAdvanceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onConfirm: (opsOwner?: string) => void;
+  onConfirm: (assignment?: { opsOwner?: string; pricingOwner?: string }) => void;
   currentStage: ShipmentStage;
   targetStage: ShipmentStage;
   referenceId: string;
+  currentPricingOwner?: string;
 }
 
 const stageLabels: Record<ShipmentStage, string> = {
@@ -45,21 +47,37 @@ export function StageAdvanceDialog({
   currentStage,
   targetStage,
   referenceId,
+  currentPricingOwner,
 }: StageAdvanceDialogProps) {
   const [selectedOpsOwner, setSelectedOpsOwner] = useState<string>('');
+  const [selectedPricingOwner, setSelectedPricingOwner] = useState<string>('');
   
   // Require ops owner when moving to operations stage
   const requiresOpsOwner = targetStage === 'operations';
-  const canConfirm = !requiresOpsOwner || selectedOpsOwner;
+  // Require pricing owner when moving from lead to pricing (if not already set)
+  const requiresPricingOwner = currentStage === 'lead' && targetStage === 'pricing' && !currentPricingOwner;
+  
+  const canConfirm = 
+    (!requiresOpsOwner || selectedOpsOwner) && 
+    (!requiresPricingOwner || selectedPricingOwner);
 
   const handleConfirm = () => {
-    onConfirm(requiresOpsOwner ? selectedOpsOwner : undefined);
-    setSelectedOpsOwner(''); // Reset for next use
+    const assignment: { opsOwner?: string; pricingOwner?: string } = {};
+    if (requiresOpsOwner && selectedOpsOwner) {
+      assignment.opsOwner = selectedOpsOwner;
+    }
+    if (requiresPricingOwner && selectedPricingOwner) {
+      assignment.pricingOwner = selectedPricingOwner;
+    }
+    onConfirm(Object.keys(assignment).length > 0 ? assignment : undefined);
+    setSelectedOpsOwner('');
+    setSelectedPricingOwner('');
   };
 
   const handleOpenChange = (newOpen: boolean) => {
     if (!newOpen) {
-      setSelectedOpsOwner(''); // Reset on close
+      setSelectedOpsOwner('');
+      setSelectedPricingOwner('');
     }
     onOpenChange(newOpen);
   };
@@ -79,6 +97,29 @@ export function StageAdvanceDialog({
                 <ArrowRight className="w-5 h-5 text-primary" />
                 <span className="font-medium text-primary">{stageLabels[targetStage]}</span>
               </div>
+              
+              {requiresPricingOwner && (
+                <div className="space-y-2 pt-2">
+                  <Label htmlFor="pricingOwner" className="text-foreground">
+                    Assign Pricing Owner *
+                  </Label>
+                  <Select value={selectedPricingOwner} onValueChange={setSelectedPricingOwner}>
+                    <SelectTrigger id="pricingOwner">
+                      <SelectValue placeholder="Select pricing owner" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {PRICING_OWNERS.map((owner) => (
+                        <SelectItem key={owner} value={owner}>
+                          {owner}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-muted-foreground">
+                    The assigned owner will be responsible for pricing this shipment.
+                  </p>
+                </div>
+              )}
               
               {requiresOpsOwner && (
                 <div className="space-y-2 pt-2">

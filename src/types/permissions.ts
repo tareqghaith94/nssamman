@@ -51,8 +51,8 @@ export const HIDDEN_FIELDS: Record<UserRole, string[]> = {
 
 // Field categories for easier management - must match Shipment type fields
 export const FIELD_CATEGORIES = {
-  lead: ['salesperson', 'portOfLoading', 'portOfDischarge', 'equipment', 'modeOfTransport', 'incoterm', 'paymentTerms'],
-  pricing: ['sellingPricePerUnit', 'costPerUnit', 'agent', 'pricingOwner'],
+  lead: ['salesperson', 'portOfLoading', 'portOfDischarge', 'equipment', 'modeOfTransport', 'incoterm', 'paymentTerms', 'pricingOwner'],
+  pricing: ['sellingPricePerUnit', 'costPerUnit', 'agent'],
   operations: [
     'nssBookingReference', 
     'nssInvoiceNumber', 

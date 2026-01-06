@@ -15,6 +15,7 @@ import { RevertConfirmDialog } from '@/components/dialogs/RevertConfirmDialog';
 import { ConfirmToOpsDialog } from '@/components/dialogs/ConfirmToOpsDialog';
 import { MarkLostDialog } from '@/components/dialogs/MarkLostDialog';
 import { StageFilter } from '@/components/ui/StageFilter';
+import { OpsOwnerFilter } from '@/components/ui/OpsOwnerFilter';
 import { Shipment, LostReason } from '@/types/shipment';
 import { Quotation } from '@/types/quotation';
 import { hasReachedStage } from '@/lib/stageOrder';
@@ -46,13 +47,14 @@ export default function Pricing() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
   const { updateShipment } = useShipments();
   const { quotations } = useQuotations();
-  const { roles } = useAuth();
+  const { roles, profile } = useAuth();
   const { trackRevertStage, trackMoveToStage, logActivity } = useTrackedShipmentActions();
   const { isNewShipment, markAsSeen } = useLastSeenShipments('pricing');
   
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [showMine, setShowMine] = useState(false);
   const [revertShipment, setRevertShipment] = useState<Shipment | null>(null);
   const [confirmShipment, setConfirmShipment] = useState<Shipment | null>(null);
   const [lostShipment, setLostShipment] = useState<Shipment | null>(null);
@@ -61,6 +63,7 @@ export default function Pricing() {
   const [previewOpen, setPreviewOpen] = useState(false);
   
   const userRoles = (roles || []) as UserRole[];
+  const currentUserName = profile?.name;
 
   // Current stage shipments
   const currentShipments = useMemo(
@@ -74,7 +77,15 @@ export default function Pricing() {
     [allShipments]
   );
 
-  const shipments = showHistory ? historyShipments : currentShipments;
+  const shipments = useMemo(() => {
+    let result = showHistory ? historyShipments : currentShipments;
+    
+    if (showMine && currentUserName) {
+      result = result.filter((ship) => ship.pricingOwner === currentUserName);
+    }
+    
+    return result;
+  }, [showHistory, showMine, currentShipments, historyShipments, currentUserName]);
 
   // Quotation stats
   const quoteStats = useMemo(() => {
@@ -176,7 +187,14 @@ export default function Pricing() {
       <PageHeader
         title="Pricing"
         description="Process quotation requests, assign agents, and manage quote status"
-        action={<StageFilter showHistory={showHistory} onToggle={setShowHistory} />}
+        action={
+          <div className="flex items-center gap-3">
+            {currentUserName && (
+              <OpsOwnerFilter showMine={showMine} onToggle={setShowMine} />
+            )}
+            <StageFilter showHistory={showHistory} onToggle={setShowHistory} />
+          </div>
+        }
       />
 
       {/* Stats - only show for current view */}

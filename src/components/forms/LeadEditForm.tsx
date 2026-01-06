@@ -26,6 +26,7 @@ import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ClientNameCombobox } from '@/components/ui/ClientNameCombobox';
 
 const SALESPEOPLE = Object.keys(SALESPERSON_REF_PREFIX) as readonly string[];
+const PRICING_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
 
 interface LeadEditFormProps {
   shipment: Shipment | null;
@@ -42,6 +43,7 @@ interface FormData {
   modeOfTransport: ModeOfTransport;
   paymentTerms: PaymentTerms;
   incoterm: Incoterm;
+  pricingOwner: string;
 }
 
 function shipmentToFormData(shipment: Shipment): FormData {
@@ -56,6 +58,7 @@ function shipmentToFormData(shipment: Shipment): FormData {
     modeOfTransport: shipment.modeOfTransport,
     paymentTerms: shipment.paymentTerms,
     incoterm: shipment.incoterm,
+    pricingOwner: shipment.pricingOwner || '',
   };
 }
 
@@ -75,6 +78,7 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
     modeOfTransport: 'sea',
     paymentTerms: '' as PaymentTerms,
     incoterm: '' as Incoterm,
+    pricingOwner: '',
   });
   
   const [originalData, setOriginalData] = useState<FormData | null>(null);
@@ -184,6 +188,9 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
           newValue: formData.equipment.map(e => `${e.type}×${e.quantity}`).join(', ')
         });
       }
+      if (formData.pricingOwner !== originalData.pricingOwner) {
+        changedFields.push({ field: 'pricingOwner', oldValue: originalData.pricingOwner || 'None', newValue: formData.pricingOwner || 'None' });
+      }
     }
     
     try {
@@ -196,6 +203,7 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
         modeOfTransport: formData.modeOfTransport,
         paymentTerms: formData.paymentTerms,
         incoterm: formData.incoterm,
+        pricingOwner: formData.pricingOwner ? formData.pricingOwner as 'Uma' | 'Rania' | 'Mozayan' : undefined,
       }, changedFields);
       
       toast.success('Lead updated successfully');
@@ -362,6 +370,23 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
                 </SelectContent>
               </Select>
             </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Pricing Owner</Label>
+            <Select
+              value={formData.pricingOwner}
+              onValueChange={(v) => setFormData({ ...formData, pricingOwner: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select pricing owner (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {PRICING_OWNERS.map((owner) => (
+                  <SelectItem key={owner} value={owner}>{owner}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="flex justify-between pt-4">
