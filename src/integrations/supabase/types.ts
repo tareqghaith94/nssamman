@@ -274,6 +274,36 @@ export type Database = {
           },
         ]
       }
+      salesperson_commission_rules: {
+        Row: {
+          config: Json
+          created_at: string
+          formula_type: string
+          id: string
+          salesperson: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          config?: Json
+          created_at?: string
+          formula_type?: string
+          id?: string
+          salesperson: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          config?: Json
+          created_at?: string
+          formula_type?: string
+          id?: string
+          salesperson?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       shipments: {
         Row: {
           agent: string | null
