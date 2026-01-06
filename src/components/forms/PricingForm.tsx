@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useShipments } from '@/hooks/useShipments';
+import { useQuotations } from '@/hooks/useQuotations';
 import { useLockStore } from '@/store/lockStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
@@ -7,6 +8,7 @@ import { canEditField, getFieldLockReason, canEditShipment, canAdvanceStage } fr
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
@@ -22,7 +24,7 @@ import {
 } from '@/components/ui/select';
 import { toast } from 'sonner';
 import { Shipment, LostReason } from '@/types/shipment';
-import { XCircle, Lock, AlertTriangle, ArrowRight } from 'lucide-react';
+import { XCircle, Lock, AlertTriangle, ArrowRight, Plus, Trash2 } from 'lucide-react';
 import { LockedField } from '@/components/ui/LockedField';
 import { UserRole } from '@/types/permissions';
 import { StageAdvanceDialog } from '@/components/dialogs/StageAdvanceDialog';
@@ -37,51 +39,109 @@ const LOST_REASONS: { value: LostReason; label: string }[] = [
   { value: 'other', label: 'Other' },
 ];
 
+const EQUIPMENT_OPTIONS = [
+  { value: '20ft', label: "20' Standard" },
+  { value: '40ft', label: "40' Standard" },
+  { value: '40hc', label: "40' HC" },
+  { value: '45ft', label: "45' HC" },
+  { value: 'lcl', label: 'LCL' },
+  { value: 'breakbulk', label: 'Breakbulk' },
+  { value: 'airfreight', label: 'Air Freight' },
+  { value: 'per_bl', label: 'Per BL' },
+];
+
 interface PricingFormProps {
   shipment: Shipment | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
+interface LineItemInput {
+  description: string;
+  equipmentType: string;
+  unitCost: number;
+  quantity: number;
+}
+
 export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) {
   const { updateShipment } = useShipments();
-  const { moveToStage } = useShipments();
+  const { quotations, createQuotation, updateQuotation, fetchLineItems, isCreating, isUpdating } = useQuotations();
   const { profile, roles } = useAuth();
   const { trackMoveToStage, logActivity } = useTrackedShipmentActions();
-  const { acquireLock, releaseLock, getLocker } = useLockStore();
+  const { acquireLock, releaseLock } = useLockStore();
   
-  // Use roles from auth for multi-role support
   const userRoles = (roles || []) as UserRole[];
   const userId = profile?.user_id || '';
   const refPrefix = profile?.ref_prefix || undefined;
   
+  // Internal pricing state
   const [formData, setFormData] = useState({
     agent: '',
-    sellingPricePerUnit: 0,
     costPerUnit: 0,
   });
+  
+  // Line items state for quotation
+  const [lineItems, setLineItems] = useState<LineItemInput[]>([]);
+  const [remarks, setRemarks] = useState('');
+  const [validDays, setValidDays] = useState('30');
+  
+  // Existing quotation for this shipment
+  const [existingQuotationId, setExistingQuotationId] = useState<string | null>(null);
   
   const [showLostForm, setShowLostForm] = useState(false);
   const [lostReason, setLostReason] = useState<LostReason | ''>('');
   const [hasLock, setHasLock] = useState(false);
   const [showAdvanceDialog, setShowAdvanceDialog] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   
   // Check if shipment is editable
   const isEditable = shipment ? canEditShipment(shipment, userRoles, refPrefix) : false;
   
   // Field lock states based on role and stage
   const agentLocked = shipment ? !canEditField(shipment, 'agent', userRoles, refPrefix) : true;
-  const pricingLocked = shipment ? !canEditField(shipment, 'sellingPricePerUnit', userRoles, refPrefix) : true;
+  const pricingLocked = shipment ? !canEditField(shipment, 'costPerUnit', userRoles, refPrefix) : true;
   
+  // Load shipment data and existing quotation
   useEffect(() => {
     if (shipment && open) {
+      // Reset form data from shipment
       setFormData({
         agent: shipment.agent || '',
-        sellingPricePerUnit: shipment.sellingPricePerUnit || 0,
         costPerUnit: shipment.costPerUnit || 0,
       });
+      
       setShowLostForm(false);
       setLostReason('');
+      setRemarks('');
+      setValidDays('30');
+      
+      // Check for existing quotation
+      const existingQuote = quotations.find(q => q.shipmentId === shipment.id);
+      
+      if (existingQuote) {
+        setExistingQuotationId(existingQuote.id);
+        setRemarks(existingQuote.remarks || '');
+        
+        // Load line items from existing quotation
+        fetchLineItems(existingQuote.id).then((items) => {
+          if (items.length > 0) {
+            setLineItems(items.map(item => ({
+              description: item.description,
+              equipmentType: item.equipmentType || '',
+              unitCost: item.unitCost,
+              quantity: item.quantity,
+            })));
+          } else {
+            // Fallback to equipment
+            initLineItemsFromShipment();
+          }
+        }).catch(() => {
+          initLineItemsFromShipment();
+        });
+      } else {
+        setExistingQuotationId(null);
+        initLineItemsFromShipment();
+      }
       
       // Try to acquire lock
       if (isEditable && userId) {
@@ -98,60 +158,226 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         releaseLock(shipment.id);
       }
     };
-  }, [shipment, open]);
+  }, [shipment?.id, open, quotations]);
   
-  const profitPerUnit = formData.sellingPricePerUnit - formData.costPerUnit;
-  const totalQuantity = shipment?.equipment?.reduce((sum, eq) => sum + eq.quantity, 0) || 1;
-  const totalSellingPrice = formData.sellingPricePerUnit * totalQuantity;
-  const totalCost = formData.costPerUnit * totalQuantity;
-  const totalProfit = profitPerUnit * totalQuantity;
-  
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const initLineItemsFromShipment = () => {
+    if (!shipment) return;
     
+    const defaultDescription = shipment.modeOfTransport === 'air' ? 'Air Freight' : 'Ocean Freight';
+    const items = shipment.equipment.map(eq => ({
+      description: defaultDescription,
+      equipmentType: eq.type,
+      unitCost: shipment.sellingPricePerUnit || 0,
+      quantity: eq.quantity,
+    }));
+    
+    // Add a documentation fee line by default if no items
+    if (items.length === 0) {
+      items.push({
+        description: defaultDescription,
+        equipmentType: '40hc',
+        unitCost: 0,
+        quantity: 1,
+      });
+    }
+    
+    setLineItems(items);
+  };
+  
+  // Calculate totals from line items
+  const grandTotal = lineItems.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
+  const totalQuantity = lineItems.reduce((sum, item) => sum + item.quantity, 0);
+  const totalCost = formData.costPerUnit * totalQuantity;
+  const totalProfit = grandTotal - totalCost;
+  const profitMargin = grandTotal > 0 ? (totalProfit / grandTotal * 100) : 0;
+  
+  // Line item handlers
+  const addLineItem = () => {
+    setLineItems([...lineItems, { description: '', equipmentType: '', unitCost: 0, quantity: 1 }]);
+  };
+  
+  const removeLineItem = (index: number) => {
+    if (lineItems.length > 1) {
+      setLineItems(lineItems.filter((_, i) => i !== index));
+    }
+  };
+  
+  const updateLineItem = (index: number, field: keyof LineItemInput, value: string | number) => {
+    const updated = [...lineItems];
+    if (field === 'unitCost' || field === 'quantity') {
+      updated[index][field] = typeof value === 'string' ? parseFloat(value) || 0 : value;
+    } else {
+      updated[index][field] = value as string;
+    }
+    setLineItems(updated);
+  };
+  
+  // Save pricing only (no quotation)
+  const handleSave = async () => {
     if (!shipment || !hasLock) return;
     
-    updateShipment(shipment.id, {
-      ...formData,
-      profitPerUnit,
-      totalSellingPrice,
-      totalCost,
-      totalProfit,
-    });
+    setIsSaving(true);
+    try {
+      await updateShipment(shipment.id, {
+        agent: formData.agent,
+        costPerUnit: formData.costPerUnit,
+        sellingPricePerUnit: lineItems[0]?.unitCost || 0, // Use first line item as selling price
+        profitPerUnit: (lineItems[0]?.unitCost || 0) - formData.costPerUnit,
+        totalSellingPrice: grandTotal,
+        totalCost,
+        totalProfit,
+      });
+      
+      toast.success('Pricing saved');
+      releaseLock(shipment.id);
+      onOpenChange(false);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  
+  // Save pricing and create/update quotation
+  const handleSaveAndIssue = async (status: 'draft' | 'issued') => {
+    if (!shipment || !hasLock) return;
     
-    toast.success('Pricing updated successfully');
-    releaseLock(shipment.id);
-    onOpenChange(false);
+    if (lineItems.every(item => !item.description)) {
+      toast.error('Please add at least one line item');
+      return;
+    }
+    
+    setIsSaving(true);
+    try {
+      // Save pricing to shipment
+      await updateShipment(shipment.id, {
+        agent: formData.agent,
+        costPerUnit: formData.costPerUnit,
+        sellingPricePerUnit: lineItems[0]?.unitCost || 0,
+        profitPerUnit: (lineItems[0]?.unitCost || 0) - formData.costPerUnit,
+        totalSellingPrice: grandTotal,
+        totalCost,
+        totalProfit,
+      });
+      
+      const validUntil = new Date();
+      validUntil.setDate(validUntil.getDate() + parseInt(validDays));
+      
+      const lineItemsData = lineItems
+        .filter(item => item.description)
+        .map(item => ({
+          description: item.description,
+          equipmentType: item.equipmentType || undefined,
+          unitCost: item.unitCost,
+          quantity: item.quantity,
+        }));
+      
+      const quotationData = {
+        clientName: shipment.clientName || '',
+        clientAddress: undefined,
+        pol: shipment.portOfLoading,
+        pod: shipment.portOfDischarge,
+        modeOfTransport: shipment.modeOfTransport,
+        equipment: [],
+        remarks: remarks || undefined,
+        status,
+        validUntil,
+        issuedAt: status === 'issued' ? new Date() : undefined,
+        lineItems: lineItemsData,
+      };
+      
+      if (existingQuotationId) {
+        await updateQuotation({
+          id: existingQuotationId,
+          ...quotationData,
+        });
+        toast.success(status === 'issued' ? 'Quotation updated & issued' : 'Draft saved');
+      } else {
+        await createQuotation({
+          shipmentId: shipment.id,
+          ...quotationData,
+        });
+        toast.success(status === 'issued' ? 'Quotation issued' : 'Draft saved');
+      }
+      
+      releaseLock(shipment.id);
+      onOpenChange(false);
+    } catch (error) {
+      toast.error('Failed to save quotation');
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   const handleConfirmClick = () => {
-    // Open confirmation dialog instead of directly advancing
     setShowAdvanceDialog(true);
   };
   
-  const handleConfirmAdvance = (opsOwner?: string) => {
+  const handleConfirmAdvance = async (opsOwner?: string) => {
     if (!shipment || !hasLock || !canAdvanceStage(userRoles, 'pricing')) return;
     
-    updateShipment(shipment.id, {
-      ...formData,
-      profitPerUnit,
-      totalSellingPrice,
-      totalCost,
-      totalProfit,
-      opsOwner: opsOwner as 'Uma' | 'Rania' | 'Mozayan' | undefined,
-    });
-    
-    trackMoveToStage(shipment, 'operations');
-    toast.success('Shipment moved to Operations');
-    releaseLock(shipment.id);
-    setShowAdvanceDialog(false);
-    onOpenChange(false);
+    setIsSaving(true);
+    try {
+      // Save pricing
+      await updateShipment(shipment.id, {
+        agent: formData.agent,
+        costPerUnit: formData.costPerUnit,
+        sellingPricePerUnit: lineItems[0]?.unitCost || 0,
+        profitPerUnit: (lineItems[0]?.unitCost || 0) - formData.costPerUnit,
+        totalSellingPrice: grandTotal,
+        totalCost,
+        totalProfit,
+        opsOwner: opsOwner as 'Uma' | 'Rania' | 'Mozayan' | undefined,
+      });
+      
+      // Issue quotation if there are line items
+      if (lineItems.some(item => item.description)) {
+        const validUntil = new Date();
+        validUntil.setDate(validUntil.getDate() + parseInt(validDays));
+        
+        const lineItemsData = lineItems
+          .filter(item => item.description)
+          .map(item => ({
+            description: item.description,
+            equipmentType: item.equipmentType || undefined,
+            unitCost: item.unitCost,
+            quantity: item.quantity,
+          }));
+        
+        const quotationData = {
+          clientName: shipment.clientName || '',
+          pol: shipment.portOfLoading,
+          pod: shipment.portOfDischarge,
+          modeOfTransport: shipment.modeOfTransport,
+          equipment: [],
+          remarks: remarks || undefined,
+          status: 'issued' as const,
+          validUntil,
+          issuedAt: new Date(),
+          lineItems: lineItemsData,
+        };
+        
+        if (existingQuotationId) {
+          await updateQuotation({ id: existingQuotationId, ...quotationData });
+        } else {
+          await createQuotation({ shipmentId: shipment.id, ...quotationData });
+        }
+      }
+      
+      await trackMoveToStage(shipment, 'operations');
+      toast.success('Shipment moved to Operations');
+      releaseLock(shipment.id);
+      setShowAdvanceDialog(false);
+      onOpenChange(false);
+    } catch (error) {
+      toast.error('Failed to advance stage');
+    } finally {
+      setIsSaving(false);
+    }
   };
   
-  const handleMarkAsLost = () => {
+  const handleMarkAsLost = async () => {
     if (!shipment || !lostReason || !hasLock) return;
     
-    updateShipment(shipment.id, {
+    await updateShipment(shipment.id, {
       isLost: true,
       lostReason: lostReason as LostReason,
       lostAt: new Date(),
@@ -174,17 +400,21 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   
   const isReadOnly = !isEditable || !hasLock;
   const canConfirm = canAdvanceStage(userRoles, 'pricing');
-  
-  // Check if user has admin or pricing role for mark as lost
   const canMarkAsLost = userRoles.includes('admin') || userRoles.includes('pricing');
+  const isLoading = isCreating || isUpdating || isSaving;
   
   return (
     <>
       <Dialog open={open} onOpenChange={handleClose}>
-        <DialogContent className="sm:max-w-lg">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="font-heading flex items-center gap-2">
-              Pricing for {shipment.referenceId}
+              Pricing & Quote for {shipment.referenceId}
+              {existingQuotationId && (
+                <span className="text-xs font-normal text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                  Quote exists
+                </span>
+              )}
               {isReadOnly && (
                 <span className="flex items-center gap-1 text-sm font-normal text-muted-foreground">
                   <Lock className="w-4 h-4" />
@@ -206,85 +436,73 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             </div>
           )}
           
-          <form onSubmit={handleSubmit} className="space-y-4 mt-4">
-            <div className="p-4 rounded-lg bg-muted/50 text-sm space-y-1">
-              <p><span className="text-muted-foreground">Route:</span> {shipment.portOfLoading} → {shipment.portOfDischarge}</p>
-              <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipment?.map((eq, i) => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'}</p>
-            </div>
-            
-            {showLostForm ? (
-              <div className="space-y-4 p-4 rounded-lg border border-destructive/30 bg-destructive/5">
-                <div className="flex items-center gap-2 text-destructive">
-                  <XCircle className="w-5 h-5" />
-                  <h4 className="font-medium">Mark as Lost</h4>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="lostReason">Reason for Loss</Label>
-                  <Select value={lostReason} onValueChange={(v) => setLostReason(v as LostReason)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a reason" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {LOST_REASONS.map((reason) => (
-                        <SelectItem key={reason.value} value={reason.value}>
-                          {reason.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex justify-end gap-3">
-                  <Button type="button" variant="outline" onClick={() => setShowLostForm(false)}>
-                    Back
-                  </Button>
-                  <Button 
-                    type="button" 
-                    variant="destructive" 
-                    onClick={handleMarkAsLost}
-                    disabled={!lostReason || isReadOnly}
-                  >
-                    Confirm Lost
-                  </Button>
-                </div>
+          {showLostForm ? (
+            <div className="space-y-4 p-4 rounded-lg border border-destructive/30 bg-destructive/5">
+              <div className="flex items-center gap-2 text-destructive">
+                <XCircle className="w-5 h-5" />
+                <h4 className="font-medium">Mark as Lost</h4>
               </div>
-            ) : (
-              <>
-                <LockedField 
-                  isLocked={agentLocked} 
-                  lockReason={shipment ? getFieldLockReason('agent', userRoles, shipment) : undefined}
+              <div className="space-y-2">
+                <Label htmlFor="lostReason">Reason for Loss</Label>
+                <Select value={lostReason} onValueChange={(v) => setLostReason(v as LostReason)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a reason" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {LOST_REASONS.map((reason) => (
+                      <SelectItem key={reason.value} value={reason.value}>
+                        {reason.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex justify-end gap-3">
+                <Button type="button" variant="outline" onClick={() => setShowLostForm(false)}>
+                  Back
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="destructive" 
+                  onClick={handleMarkAsLost}
+                  disabled={!lostReason || isReadOnly}
                 >
-                  <div className="space-y-2">
-                    <Label htmlFor="agent">Agent Name</Label>
-                    <Input
-                      id="agent"
-                      value={formData.agent}
-                      onChange={(e) => setFormData({ ...formData, agent: e.target.value })}
-                      placeholder="Enter agent name"
-                      disabled={isReadOnly || agentLocked}
-                    />
-                  </div>
-                </LockedField>
-                
+                  Confirm Lost
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {/* Shipment Info Header */}
+              <div className="p-4 rounded-lg bg-muted/50 text-sm grid grid-cols-2 gap-2">
+                <p><span className="text-muted-foreground">Route:</span> {shipment.portOfLoading} → {shipment.portOfDischarge}</p>
+                <p><span className="text-muted-foreground">Client:</span> {shipment.clientName || '-'}</p>
+                <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipment?.map((eq) => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'}</p>
+                <p><span className="text-muted-foreground">Salesperson:</span> {shipment.salesperson}</p>
+              </div>
+              
+              {/* Internal Pricing Section */}
+              <div className="space-y-4">
+                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Internal Pricing</h4>
                 <div className="grid grid-cols-2 gap-4">
                   <LockedField 
-                    isLocked={pricingLocked} 
-                    lockReason={shipment ? getFieldLockReason('sellingPricePerUnit', userRoles, shipment) : undefined}
+                    isLocked={agentLocked} 
+                    lockReason={getFieldLockReason('agent', userRoles, shipment)}
                   >
                     <div className="space-y-2">
-                      <Label htmlFor="selling">Selling Price/Unit ($)</Label>
+                      <Label htmlFor="agent">Agent Name</Label>
                       <Input
-                        id="selling"
-                        type="number"
-                        min={0}
-                        value={formData.sellingPricePerUnit}
-                        onChange={(e) => setFormData({ ...formData, sellingPricePerUnit: parseFloat(e.target.value) || 0 })}
-                        disabled={isReadOnly || pricingLocked}
+                        id="agent"
+                        value={formData.agent}
+                        onChange={(e) => setFormData({ ...formData, agent: e.target.value })}
+                        placeholder="Enter agent name"
+                        disabled={isReadOnly || agentLocked}
                       />
                     </div>
                   </LockedField>
                   <LockedField 
                     isLocked={pricingLocked} 
-                    lockReason={shipment ? getFieldLockReason('costPerUnit', userRoles, shipment) : undefined}
+                    lockReason={getFieldLockReason('costPerUnit', userRoles, shipment)}
                   >
                     <div className="space-y-2">
                       <Label htmlFor="cost">Cost/Unit ($)</Label>
@@ -299,55 +517,184 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
                     </div>
                   </LockedField>
                 </div>
+              </div>
+              
+              {/* Client Quotation Section */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Client Quotation</h4>
+                  <button
+                    type="button"
+                    onClick={addLineItem}
+                    className="text-sm text-primary hover:underline flex items-center gap-1"
+                    disabled={isReadOnly}
+                  >
+                    <Plus className="h-3 w-3" /> Add line
+                  </button>
+                </div>
                 
-                <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-                  <h4 className="font-medium text-sm mb-3">Calculated Values</h4>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-muted-foreground">Profit/Unit</p>
-                      <p className="font-semibold text-lg">${profitPerUnit.toFixed(2)}</p>
+                {/* Line Items Table */}
+                <div className="border rounded-md overflow-hidden">
+                  <div className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] bg-muted/50 text-xs font-medium">
+                    <div className="p-2 border-r border-border">Description</div>
+                    <div className="p-2 border-r border-border">Type</div>
+                    <div className="p-2 border-r border-border text-right">Rate ($)</div>
+                    <div className="p-2 border-r border-border text-center">Qty</div>
+                    <div className="p-2 border-r border-border text-right">Amount</div>
+                    <div className="p-2"></div>
+                  </div>
+                  {lineItems.map((item, idx) => (
+                    <div key={idx} className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] border-t border-border">
+                      <Input
+                        value={item.description}
+                        onChange={(e) => updateLineItem(idx, 'description', e.target.value)}
+                        placeholder="Ocean Freight"
+                        className="border-0 rounded-none focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
+                        disabled={isReadOnly}
+                      />
+                      <Select 
+                        value={item.equipmentType} 
+                        onValueChange={(v) => updateLineItem(idx, 'equipmentType', v)}
+                        disabled={isReadOnly}
+                      >
+                        <SelectTrigger className="border-0 border-l border-border rounded-none h-9 focus:ring-0 focus:ring-offset-0 text-sm">
+                          <SelectValue placeholder="Select" />
+                        </SelectTrigger>
+                        <SelectContent className="bg-background z-50">
+                          {EQUIPMENT_OPTIONS.map((eq) => (
+                            <SelectItem key={eq.value} value={eq.value}>
+                              {eq.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        value={item.unitCost || ''}
+                        onChange={(e) => updateLineItem(idx, 'unitCost', e.target.value)}
+                        placeholder="0"
+                        className="border-0 border-l border-border rounded-none text-right focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
+                        disabled={isReadOnly}
+                      />
+                      <Input
+                        type="number"
+                        value={item.quantity || ''}
+                        onChange={(e) => updateLineItem(idx, 'quantity', e.target.value)}
+                        className="border-0 border-l border-border rounded-none text-center focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
+                        min={1}
+                        disabled={isReadOnly}
+                      />
+                      <div className="flex items-center justify-end border-l border-border px-2 text-sm font-medium bg-muted/30">
+                        ${(item.unitCost * item.quantity).toLocaleString()}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => removeLineItem(idx)}
+                        className="flex items-center justify-center text-muted-foreground hover:text-destructive border-l border-border h-9"
+                        disabled={lineItems.length === 1 || isReadOnly}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Total Selling</p>
-                      <p className="font-semibold text-lg">${totalSellingPrice.toFixed(2)}</p>
+                  ))}
+                  {/* Total Row */}
+                  <div className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] border-t-2 border-border bg-muted/50">
+                    <div className="col-span-4 p-2 text-right font-semibold text-sm">TOTAL</div>
+                    <div className="p-2 text-right font-bold border-l border-border">
+                      ${grandTotal.toLocaleString()}
                     </div>
-                    <div>
-                      <p className="text-muted-foreground">Total Cost</p>
-                      <p className="font-semibold text-lg">${totalCost.toFixed(2)}</p>
-                    </div>
-                    <div>
-                      <p className="text-muted-foreground">Total Profit</p>
-                      <p className="font-semibold text-lg text-success">${totalProfit.toFixed(2)}</p>
-                    </div>
+                    <div className="border-l border-border"></div>
                   </div>
                 </div>
                 
-                <div className="flex justify-between pt-4">
-                  {!isReadOnly && canMarkAsLost && (
-                    <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowLostForm(true)}>
-                      Mark as Lost
-                    </Button>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="validDays">Valid for (days)</Label>
+                    <Input
+                      id="validDays"
+                      type="number"
+                      value={validDays}
+                      onChange={(e) => setValidDays(e.target.value)}
+                      className="w-24"
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="remarks">Remarks</Label>
+                    <Textarea
+                      id="remarks"
+                      value={remarks}
+                      onChange={(e) => setRemarks(e.target.value)}
+                      placeholder="Special notes..."
+                      rows={2}
+                      disabled={isReadOnly}
+                    />
+                  </div>
+                </div>
+              </div>
+              
+              {/* Profit Summary */}
+              <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+                <h4 className="font-medium text-sm mb-3">Profit Summary</h4>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <p className="text-muted-foreground">Total Selling</p>
+                    <p className="font-semibold text-lg">${grandTotal.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Cost</p>
+                    <p className="font-semibold text-lg">${totalCost.toLocaleString()}</p>
+                  </div>
+                  <div>
+                    <p className="text-muted-foreground">Total Profit</p>
+                    <p className={`font-semibold text-lg ${totalProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
+                      ${totalProfit.toLocaleString()} ({profitMargin.toFixed(1)}%)
+                    </p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Actions */}
+              <div className="flex justify-between pt-4 border-t">
+                {!isReadOnly && canMarkAsLost && (
+                  <Button type="button" variant="outline" className="text-destructive hover:text-destructive" onClick={() => setShowLostForm(true)}>
+                    Mark as Lost
+                  </Button>
+                )}
+                <div className="flex gap-2 ml-auto">
+                  <Button type="button" variant="outline" onClick={handleClose} disabled={isLoading}>
+                    {isReadOnly ? 'Close' : 'Cancel'}
+                  </Button>
+                  {!isReadOnly && (
+                    <>
+                      <Button 
+                        type="button" 
+                        variant="secondary" 
+                        onClick={() => handleSaveAndIssue('draft')} 
+                        disabled={isLoading}
+                      >
+                        Save Draft
+                      </Button>
+                      <Button 
+                        type="button" 
+                        variant="outline" 
+                        onClick={() => handleSaveAndIssue('issued')} 
+                        disabled={isLoading}
+                      >
+                        {existingQuotationId ? 'Update & Issue' : 'Save & Issue'}
+                      </Button>
+                      {canConfirm && (
+                        <Button type="button" onClick={handleConfirmClick} disabled={isLoading} className="gap-2">
+                          Send to Ops
+                          <ArrowRight className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </>
                   )}
-                  <div className="flex gap-3 ml-auto">
-                    <Button type="button" variant="outline" onClick={handleClose}>
-                      {isReadOnly ? 'Close' : 'Cancel'}
-                    </Button>
-                    {!isReadOnly && canConfirm && (
-                      <Button type="button" variant="outline" onClick={handleConfirmClick} className="gap-2">
-                        Send to Ops
-                        <ArrowRight className="w-4 h-4" />
-                      </Button>
-                    )}
-                    {!isReadOnly && !pricingLocked && (
-                      <Button type="submit">
-                        Save
-                      </Button>
-                    )}
-                  </div>
                 </div>
-              </>
-            )}
-          </form>
+              </div>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       

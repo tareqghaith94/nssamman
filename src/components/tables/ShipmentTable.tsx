@@ -17,7 +17,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
-import { MoreHorizontal, Edit2, FileText, Undo2 } from 'lucide-react';
+import { MoreHorizontal, Edit2, Undo2 } from 'lucide-react';
 
 const LOST_REASON_LABELS: Record<LostReason, string> = {
   price: 'Price too high',
@@ -33,7 +33,6 @@ interface ShipmentTableProps {
   shipments: Shipment[];
   onEdit?: (shipment: Shipment) => void;
   onRevert?: (shipment: Shipment) => void;
-  onGenerateQuote?: (shipment: Shipment) => void;
   showPricing?: boolean;
   showOperations?: boolean;
   isNew?: (shipment: Shipment) => boolean;
@@ -43,12 +42,11 @@ export function ShipmentTable({
   shipments,
   onEdit,
   onRevert,
-  onGenerateQuote,
   showPricing,
   showOperations,
   isNew,
 }: ShipmentTableProps) {
-  const hasActions = onEdit || onRevert || onGenerateQuote;
+  const hasActions = onEdit || onRevert;
 
   return (
     <div className="glass-card rounded-xl overflow-hidden">
@@ -150,17 +148,6 @@ export function ShipmentTable({
                   {hasActions && (
                     <TableCell className="text-right">
                       <div className="flex items-center justify-end gap-1">
-                        {onGenerateQuote && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => onGenerateQuote(shipment)}
-                            className="h-8 w-8 p-0 text-muted-foreground hover:text-primary"
-                            title="Generate Quotation"
-                          >
-                            <FileText className="w-4 h-4" />
-                          </Button>
-                        )}
                         {onEdit && (
                           <Button
                             variant="ghost"

@@ -85,7 +85,7 @@ export function QuotationTable({ quotations, onView, onEdit, onGeneratePDF }: Qu
                   <Button variant="ghost" size="icon" onClick={() => onView(quotation)}>
                     <Eye className="h-4 w-4" />
                   </Button>
-                  {onEdit && quotation.status === 'draft' && (
+                  {onEdit && (quotation.status === 'draft' || quotation.status === 'issued') && (
                     <Button variant="ghost" size="icon" onClick={() => onEdit(quotation)}>
                       <Pencil className="h-4 w-4" />
                     </Button>
