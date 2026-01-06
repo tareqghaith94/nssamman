@@ -38,7 +38,14 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { format } from 'date-fns';
-import { Search, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, Trash2, Download } from 'lucide-react';
+import { exportShipmentsToCSV, generateExportFilename } from '@/lib/exportUtils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { toast } from '@/hooks/use-toast';
 import { Navigate } from 'react-router-dom';
 import { Shipment, ShipmentStage } from '@/types/shipment';
@@ -170,6 +177,34 @@ export default function Database() {
               </>
             )}
           </Button>
+
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" size="sm" disabled={shipments.length === 0}>
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() => {
+                  exportShipmentsToCSV(filteredShipments, generateExportFilename('shipments-filtered'));
+                  toast({ title: `Exported ${filteredShipments.length} shipments` });
+                }}
+                disabled={filteredShipments.length === 0}
+              >
+                Export Current View ({filteredShipments.length})
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={() => {
+                  exportShipmentsToCSV(shipments, generateExportFilename('shipments-all'));
+                  toast({ title: `Exported ${shipments.length} shipments` });
+                }}
+              >
+                Export All Data ({shipments.length})
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
