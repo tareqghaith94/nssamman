@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
-import { MoreHorizontal, Edit2, Undo2, CheckCircle, XCircle } from 'lucide-react';
+import { MoreHorizontal, Edit2, Undo2, CheckCircle, XCircle, Eye } from 'lucide-react';
 
 const LOST_REASON_LABELS: Record<LostReason, string> = {
   price: 'Price too high',
@@ -36,6 +36,7 @@ interface ShipmentTableProps {
   onRevert?: (shipment: Shipment) => void;
   onConfirm?: (shipment: Shipment) => void;
   onMarkLost?: (shipment: Shipment) => void;
+  onViewQuote?: (shipment: Shipment) => void;
   showPricing?: boolean;
   showOperations?: boolean;
   showQuotationStatus?: boolean;
@@ -49,6 +50,7 @@ export function ShipmentTable({
   onRevert,
   onConfirm,
   onMarkLost,
+  onViewQuote,
   showPricing,
   showOperations,
   showQuotationStatus,
@@ -57,22 +59,41 @@ export function ShipmentTable({
 }: ShipmentTableProps) {
   const hasActions = onEdit || onRevert || onConfirm || onMarkLost;
 
-  const getQuoteStatusBadge = (shipmentId: string) => {
-    const status = getQuotationStatus?.(shipmentId);
+  const getQuoteStatusBadge = (shipment: Shipment) => {
+    const status = getQuotationStatus?.(shipment.id);
     if (!status) return <Badge variant="outline" className="text-xs">No Quote</Badge>;
     
-    switch (status) {
-      case 'draft':
-        return <Badge variant="secondary" className="text-xs">Draft</Badge>;
-      case 'issued':
-        return <Badge variant="default" className="text-xs bg-blue-500">Issued</Badge>;
-      case 'accepted':
-        return <Badge variant="default" className="text-xs bg-green-500">Accepted</Badge>;
-      case 'expired':
-        return <Badge variant="outline" className="text-xs text-muted-foreground">Expired</Badge>;
-      default:
-        return <Badge variant="outline" className="text-xs">{status}</Badge>;
+    const canView = onViewQuote && (status === 'draft' || status === 'issued' || status === 'accepted');
+    
+    const badge = (() => {
+      switch (status) {
+        case 'draft':
+          return <Badge variant="secondary" className="text-xs">Draft</Badge>;
+        case 'issued':
+          return <Badge variant="default" className="text-xs bg-blue-500">Issued</Badge>;
+        case 'accepted':
+          return <Badge variant="default" className="text-xs bg-green-500">Accepted</Badge>;
+        case 'expired':
+          return <Badge variant="outline" className="text-xs text-muted-foreground">Expired</Badge>;
+        default:
+          return <Badge variant="outline" className="text-xs">{status}</Badge>;
+      }
+    })();
+
+    if (canView) {
+      return (
+        <button
+          onClick={() => onViewQuote(shipment)}
+          className="flex items-center gap-1 hover:opacity-80 transition-opacity"
+          title="View quotation"
+        >
+          {badge}
+          <Eye className="h-3 w-3 text-muted-foreground" />
+        </button>
+      );
     }
+
+    return badge;
   };
 
   return (
@@ -162,7 +183,7 @@ export function ShipmentTable({
                   </TableCell>
                   {showQuotationStatus && (
                     <TableCell>
-                      {getQuoteStatusBadge(shipment.id)}
+                      {getQuoteStatusBadge(shipment)}
                     </TableCell>
                   )}
                   {showPricing && (

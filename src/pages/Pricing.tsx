@@ -10,11 +10,13 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { StatCard } from '@/components/ui/StatCard';
 import { ShipmentTable } from '@/components/tables/ShipmentTable';
 import { PricingForm } from '@/components/forms/PricingForm';
+import { QuotationPreview } from '@/components/quotations/QuotationPreview';
 import { RevertConfirmDialog } from '@/components/dialogs/RevertConfirmDialog';
 import { ConfirmToOpsDialog } from '@/components/dialogs/ConfirmToOpsDialog';
 import { MarkLostDialog } from '@/components/dialogs/MarkLostDialog';
 import { StageFilter } from '@/components/ui/StageFilter';
 import { Shipment, LostReason } from '@/types/shipment';
+import { Quotation } from '@/types/quotation';
 import { hasReachedStage } from '@/lib/stageOrder';
 import { UserRole } from '@/types/permissions';
 import { toast } from 'sonner';
@@ -55,6 +57,8 @@ export default function Pricing() {
   const [confirmShipment, setConfirmShipment] = useState<Shipment | null>(null);
   const [lostShipment, setLostShipment] = useState<Shipment | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [previewQuotation, setPreviewQuotation] = useState<Quotation | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
   
   const userRoles = (roles || []) as UserRole[];
 
@@ -88,6 +92,15 @@ export default function Pricing() {
   const getQuotationStatus = useCallback((shipmentId: string) => {
     const quote = quotations.find(q => q.shipmentId === shipmentId);
     return quote?.status || null;
+  }, [quotations]);
+
+  // Handle viewing a quotation
+  const handleViewQuote = useCallback((shipment: Shipment) => {
+    const quote = quotations.find(q => q.shipmentId === shipment.id);
+    if (quote) {
+      setPreviewQuotation(quote);
+      setPreviewOpen(true);
+    }
   }, [quotations]);
 
   // Mark current shipments as seen when they change
@@ -201,6 +214,7 @@ export default function Pricing() {
           onRevert={!showHistory && canRevert ? (ship) => setRevertShipment(ship) : undefined}
           onConfirm={!showHistory && canConfirm ? (ship) => setConfirmShipment(ship) : undefined}
           onMarkLost={!showHistory && canMarkAsLost ? (ship) => setLostShipment(ship) : undefined}
+          onViewQuote={handleViewQuote}
           showPricing
           showQuotationStatus={!showHistory}
           isNew={showHistory ? undefined : (ship) => isNewShipment(ship.id)}
@@ -244,6 +258,12 @@ export default function Pricing() {
           isLoading={isProcessing}
         />
       )}
+
+      <QuotationPreview
+        quotation={previewQuotation}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+      />
     </div>
   );
 }
