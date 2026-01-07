@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Calculator, Truck, CreditCard, Banknote, Percent, ScrollText, Database, UserCog, LogOut, Settings } from 'lucide-react';
+import { LayoutDashboard, Users, Calculator, Truck, CreditCard, Banknote, Percent, ScrollText, Database, UserCog, LogOut, Settings, CalendarDays } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { canAccessPage } from '@/lib/permissions';
@@ -54,6 +54,11 @@ const navigation = [
     name: 'Activity Log',
     href: '/activity-log',
     icon: ScrollText
+  },
+  {
+    name: 'Leave',
+    href: '/leave-tracker',
+    icon: CalendarDays
   },
   {
     name: 'Users',

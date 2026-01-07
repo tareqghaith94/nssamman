@@ -16,6 +16,7 @@ import Database from "./pages/Database";
 import ActivityLog from "./pages/ActivityLog";
 import UserManagement from "./pages/UserManagement";
 import Settings from "./pages/Settings";
+import LeaveTracker from "./pages/LeaveTracker";
 import Auth from "./pages/Auth";
 import Setup from "./pages/Setup";
 import NotFound from "./pages/NotFound";
@@ -49,6 +50,7 @@ const App = () => (
                     <Route path="/commissions" element={<Commissions />} />
                     <Route path="/database" element={<Database />} />
                     <Route path="/activity-log" element={<ActivityLog />} />
+                    <Route path="/leave-tracker" element={<LeaveTracker />} />
                     <Route path="/users" element={<UserManagement />} />
                     <Route path="/settings" element={<Settings />} />
                     <Route path="*" element={<NotFound />} />
