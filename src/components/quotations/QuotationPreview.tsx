@@ -7,6 +7,7 @@ import { Download, Send, X } from 'lucide-react';
 import { useQuotations } from '@/hooks/useQuotations';
 import { toast } from 'sonner';
 import nssLogo from '@/assets/nss-logo.png';
+import { getCurrencySymbol } from '@/lib/currency';
 
 interface QuotationPreviewProps {
   quotation: Quotation | null;

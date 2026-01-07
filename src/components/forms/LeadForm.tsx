@@ -20,11 +20,12 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
-import { EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, EquipmentItem } from '@/types/shipment';
+import { EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, EquipmentItem, Currency } from '@/types/shipment';
 import { INCOTERMS, getLocationOptions } from '@/lib/ports';
 import { SALESPERSON_REF_PREFIX, UserRole } from '@/types/permissions';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ClientNameCombobox } from '@/components/ui/ClientNameCombobox';
+import { CURRENCIES, CURRENCY_LABELS } from '@/lib/currency';
 
 const SALESPEOPLE = Object.keys(SALESPERSON_REF_PREFIX) as readonly string[];
 const PRICING_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
@@ -53,6 +54,7 @@ export function LeadForm() {
     incoterm: '' as Incoterm,
     clientName: '',
     pricingOwner: '',
+    currency: 'USD' as Currency,
   });
   
   // Get location options based on mode
@@ -124,6 +126,7 @@ export function LeadForm() {
     const shipmentData = {
       ...formData,
       pricingOwner: formData.pricingOwner ? formData.pricingOwner as 'Uma' | 'Rania' | 'Mozayan' : undefined,
+      currency: formData.currency,
     };
     
     const newShipment = await createShipment(shipmentData);
@@ -162,6 +165,7 @@ export function LeadForm() {
       incoterm: '' as Incoterm,
       clientName: '',
       pricingOwner: '',
+      currency: 'USD' as Currency,
     });
   };
   
@@ -325,6 +329,22 @@ export function LeadForm() {
                   <SelectItem value="30">30 Days</SelectItem>
                   <SelectItem value="60">60 Days</SelectItem>
                   <SelectItem value="90">90 Days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Currency</Label>
+              <Select
+                value={formData.currency}
+                onValueChange={(v) => setFormData({ ...formData, currency: v as Currency })}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select currency" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CURRENCIES.map((curr) => (
+                    <SelectItem key={curr} value={curr}>{CURRENCY_LABELS[curr]}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>

@@ -4,6 +4,7 @@ export type EquipmentType = '20ft' | '40ft' | '40hc' | '45ft' | 'lcl' | 'breakbu
 export type ModeOfTransport = 'sea' | 'air' | 'land' | 'multimodal';
 export type Incoterm = 'EXW' | 'FCA' | 'CPT' | 'CIP' | 'DAP' | 'DPU' | 'DDP' | 'FAS' | 'FOB' | 'CFR' | 'CIF';
 export type LostReason = 'price' | 'competitor' | 'cancelled' | 'timing' | 'requirements' | 'no_response' | 'other';
+export type Currency = 'USD' | 'EUR' | 'JOD';
 
 export interface EquipmentItem {
   type: EquipmentType;
@@ -23,6 +24,7 @@ export interface Shipment {
   paymentTerms: PaymentTerms;
   incoterm: Incoterm;
   stage: ShipmentStage;
+  currency: Currency;
   createdAt: Date;
   
   // Pricing stage fields

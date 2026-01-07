@@ -362,6 +362,7 @@ export type Database = {
           cost_per_unit: number | null
           created_at: string
           created_by: string | null
+          currency: string
           do_issued: boolean | null
           do_release_date: string | null
           equipment: Json
@@ -412,6 +413,7 @@ export type Database = {
           cost_per_unit?: number | null
           created_at?: string
           created_by?: string | null
+          currency?: string
           do_issued?: boolean | null
           do_release_date?: string | null
           equipment?: Json
@@ -462,6 +464,7 @@ export type Database = {
           cost_per_unit?: number | null
           created_at?: string
           created_by?: string | null
+          currency?: string
           do_issued?: boolean | null
           do_release_date?: string | null
           equipment?: Json
