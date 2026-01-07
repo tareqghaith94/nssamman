@@ -19,12 +19,11 @@ import {
 } from '@/components/ui/dialog';
 import { Plus, Trash2, RotateCcw } from 'lucide-react';
 import { toast } from 'sonner';
-import { Shipment, EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, EquipmentItem, Currency } from '@/types/shipment';
+import { Shipment, EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, EquipmentItem } from '@/types/shipment';
 import { INCOTERMS, getLocationOptions } from '@/lib/ports';
 import { SALESPERSON_REF_PREFIX, UserRole } from '@/types/permissions';
 import { SearchableSelect } from '@/components/ui/SearchableSelect';
 import { ClientNameCombobox } from '@/components/ui/ClientNameCombobox';
-import { CURRENCIES, CURRENCY_LABELS } from '@/lib/currency';
 
 const SALESPEOPLE = Object.keys(SALESPERSON_REF_PREFIX) as readonly string[];
 const PRICING_OWNERS = ['Uma', 'Rania', 'Mozayan'] as const;
@@ -45,7 +44,6 @@ interface FormData {
   paymentTerms: PaymentTerms;
   incoterm: Incoterm;
   pricingOwner: string;
-  currency: Currency;
 }
 
 function shipmentToFormData(shipment: Shipment): FormData {
@@ -61,7 +59,6 @@ function shipmentToFormData(shipment: Shipment): FormData {
     paymentTerms: shipment.paymentTerms,
     incoterm: shipment.incoterm,
     pricingOwner: shipment.pricingOwner || '',
-    currency: shipment.currency || 'USD',
   };
 }
 
@@ -82,7 +79,6 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
     paymentTerms: '' as PaymentTerms,
     incoterm: '' as Incoterm,
     pricingOwner: '',
-    currency: 'USD',
   });
   
   const [originalData, setOriginalData] = useState<FormData | null>(null);
@@ -195,9 +191,6 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
       if (formData.pricingOwner !== originalData.pricingOwner) {
         changedFields.push({ field: 'pricingOwner', oldValue: originalData.pricingOwner || 'None', newValue: formData.pricingOwner || 'None' });
       }
-      if (formData.currency !== originalData.currency) {
-        changedFields.push({ field: 'currency', oldValue: originalData.currency, newValue: formData.currency });
-      }
     }
     
     try {
@@ -211,7 +204,6 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
         paymentTerms: formData.paymentTerms,
         incoterm: formData.incoterm,
         pricingOwner: formData.pricingOwner ? formData.pricingOwner as 'Uma' | 'Rania' | 'Mozayan' : undefined,
-        currency: formData.currency,
       }, changedFields);
       
       toast.success('Lead updated successfully');
@@ -380,39 +372,21 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
             </div>
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>Pricing Owner</Label>
-              <Select
-                value={formData.pricingOwner}
-                onValueChange={(v) => setFormData({ ...formData, pricingOwner: v })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select pricing owner (optional)" />
-                </SelectTrigger>
-                <SelectContent>
-                  {PRICING_OWNERS.map((owner) => (
-                    <SelectItem key={owner} value={owner}>{owner}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label>Currency</Label>
-              <Select
-                value={formData.currency}
-                onValueChange={(v) => setFormData({ ...formData, currency: v as Currency })}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select currency" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CURRENCIES.map((curr) => (
-                    <SelectItem key={curr} value={curr}>{CURRENCY_LABELS[curr]}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="space-y-2">
+            <Label>Pricing Owner</Label>
+            <Select
+              value={formData.pricingOwner}
+              onValueChange={(v) => setFormData({ ...formData, pricingOwner: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select pricing owner (optional)" />
+              </SelectTrigger>
+              <SelectContent>
+                {PRICING_OWNERS.map((owner) => (
+                  <SelectItem key={owner} value={owner}>{owner}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           <div className="flex justify-between pt-4">
