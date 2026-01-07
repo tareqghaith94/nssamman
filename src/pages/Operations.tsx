@@ -98,9 +98,7 @@ export default function Operations() {
         description="Track shipments through the logistics process"
         action={
           <div className="flex items-center gap-3">
-            {currentUserName && (
-              <OpsOwnerFilter showMine={showMine} onToggle={setShowMine} />
-            )}
+            <OpsOwnerFilter showMine={showMine} onToggle={setShowMine} />
             <StageFilter showHistory={showHistory} onToggle={setShowHistory} />
           </div>
         }

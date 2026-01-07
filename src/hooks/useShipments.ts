@@ -152,7 +152,7 @@ function shipmentToRow(shipment: Partial<Shipment>): Record<string, unknown> {
   if (shipment.doIssued !== undefined) row.do_issued = shipment.doIssued;
   if (shipment.doReleaseDate !== undefined) row.do_release_date = shipment.doReleaseDate?.toISOString();
   if (shipment.totalInvoiceAmount !== undefined) row.total_invoice_amount = shipment.totalInvoiceAmount;
-  if (shipment.completedAt !== undefined) row.completed_at = shipment.completedAt?.toISOString();
+  if (shipment.completedAt !== undefined) row.completed_at = shipment.completedAt?.toISOString() ?? null;
   if (shipment.opsOwner !== undefined) row.ops_owner = shipment.opsOwner;
   if (shipment.pricingOwner !== undefined) row.pricing_owner = shipment.pricingOwner;
   if (shipment.paymentCollected !== undefined) row.payment_collected = shipment.paymentCollected;

@@ -188,9 +188,10 @@ export function useTrackedShipmentActions() {
     const currentStage = shipment.stage;
     
     try {
-      // If reverting from completed, clear the completedAt field
+      // If reverting from completed, clear the completedAt field alongside the stage change
+      const updates: Partial<Shipment> = {};
       if (currentStage === 'completed') {
-        await updateShipment(shipment.id, { completedAt: undefined });
+        updates.completedAt = undefined; // Will be converted to null in shipmentToRow
       }
       
       await moveToStage(shipment.id, previousStage);
