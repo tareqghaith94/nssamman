@@ -119,9 +119,10 @@ export default function Database() {
     return format(new Date(date), 'MMM d, yyyy');
   };
 
-  const formatCurrency = (amount: number | undefined) => {
+  const formatCurrencyValue = (amount: number | undefined, currency?: 'USD' | 'EUR' | 'JOD') => {
     if (amount === undefined || amount === null) return '-';
-    return `$${amount.toLocaleString()}`;
+    const symbol = currency === 'EUR' ? '€' : currency === 'JOD' ? 'JOD ' : '$';
+    return `${symbol}${amount.toLocaleString()}`;
   };
 
   const allExpanded = expandedRows.length === filteredShipments.length && filteredShipments.length > 0;
@@ -296,13 +297,13 @@ export default function Database() {
                           </TableCell>
                           <TableCell className="text-sm">{shipment.agent || '-'}</TableCell>
                           <TableCell className="text-right text-sm">
-                            {formatCurrency(shipment.totalSellingPrice)}
+                            {formatCurrencyValue(shipment.totalSellingPrice, shipment.currency)}
                           </TableCell>
                           <TableCell className="text-right text-sm">
-                            {formatCurrency(shipment.totalCost)}
+                            {formatCurrencyValue(shipment.totalCost, shipment.currency)}
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium text-success">
-                            {formatCurrency(shipment.totalProfit)}
+                            {formatCurrencyValue(shipment.totalProfit, shipment.currency)}
                           </TableCell>
                           <TableCell className="text-sm text-muted-foreground">
                             {formatDate(shipment.createdAt)}
@@ -316,7 +317,7 @@ export default function Database() {
                               shipment={shipment} 
                               activities={shipmentActivities}
                               formatDate={formatDate}
-                              formatCurrency={formatCurrency}
+                              formatCurrencyValue={formatCurrencyValue}
                             />
                           </TableCell>
                         </TableRow>
@@ -341,12 +342,12 @@ function ExpandedShipmentDetails({
   shipment, 
   activities,
   formatDate, 
-  formatCurrency 
+  formatCurrencyValue 
 }: { 
   shipment: Shipment; 
   activities: ActivityLog[];
   formatDate: (date: Date | undefined) => string;
-  formatCurrency: (amount: number | undefined) => string;
+  formatCurrencyValue: (amount: number | undefined, currency?: 'USD' | 'EUR' | 'JOD') => string;
 }) {
   return (
     <div className="p-4 space-y-4">
@@ -367,11 +368,11 @@ function ExpandedShipmentDetails({
       <div className="border-t pt-4">
         <h4 className="text-sm font-medium mb-3 text-muted-foreground">Pricing</h4>
         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-          <DetailItem label="Sell/Unit" value={formatCurrency(shipment.sellingPricePerUnit)} />
-          <DetailItem label="Cost/Unit" value={formatCurrency(shipment.costPerUnit)} />
-          <DetailItem label="Profit/Unit" value={formatCurrency(shipment.profitPerUnit)} />
+          <DetailItem label="Sell/Unit" value={formatCurrencyValue(shipment.sellingPricePerUnit, shipment.currency)} />
+          <DetailItem label="Cost/Unit" value={formatCurrencyValue(shipment.costPerUnit, shipment.currency)} />
+          <DetailItem label="Profit/Unit" value={formatCurrencyValue(shipment.profitPerUnit, shipment.currency)} />
           <DetailItem label="Total Quantity" value={shipment.equipment?.reduce((sum, eq) => sum + eq.quantity, 0) || '-'} />
-          <DetailItem label="Invoice Amount" value={formatCurrency(shipment.totalInvoiceAmount)} />
+          <DetailItem label="Invoice Amount" value={formatCurrencyValue(shipment.totalInvoiceAmount, shipment.currency)} />
         </div>
       </div>
 
@@ -409,7 +410,7 @@ function ExpandedShipmentDetails({
             value={shipment.agentPaid ? `✓ ${formatDate(shipment.agentPaidDate)}` : '-'} 
           />
           <DetailItem label="Agent Invoice Uploaded" value={shipment.agentInvoiceUploaded ? '✓' : '-'} />
-          <DetailItem label="Agent Invoice Amount" value={formatCurrency(shipment.agentInvoiceAmount)} />
+          <DetailItem label="Agent Invoice Amount" value={formatCurrencyValue(shipment.agentInvoiceAmount, shipment.currency)} />
           <DetailItem label="Agent Invoice Date" value={formatDate(shipment.agentInvoiceDate)} />
         </div>
       </div>

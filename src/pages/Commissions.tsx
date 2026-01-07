@@ -31,6 +31,7 @@ import { SalaryInputs, FORMULA_TYPE_LABELS } from '@/types/commission';
 import { CommissionSettingsDialog } from '@/components/commissions/CommissionSettingsDialog';
 import { SalaryInputCard } from '@/components/commissions/SalaryInputCard';
 import { CommissionBreakdownTooltip } from '@/components/commissions/CommissionBreakdownTooltip';
+import { formatCurrency } from '@/lib/currency';
 
 export default function Commissions() {
   const { shipments, isLoading } = useShipments();
@@ -180,7 +181,7 @@ export default function Commissions() {
             <div>
               <p className="text-sm text-muted-foreground">Total Commission</p>
               <p className="text-2xl font-heading font-bold mt-1 text-primary">
-                ${totalCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                {formatCurrency(totalCommission, 'USD')}
               </p>
             </div>
             <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
@@ -226,11 +227,11 @@ export default function Commissions() {
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-semibold text-primary">
-                        ${commission.totalCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                        {formatCurrency(commission.totalCommission, 'USD')}
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {showHistory && commission.pendingCommission > 0 
-                          ? `Collected (+$${commission.pendingCommission.toLocaleString(undefined, { minimumFractionDigits: 2 })} pending)`
+                          ? `Collected (+${formatCurrency(commission.pendingCommission, 'USD')} pending)`
                           : 'Commission'
                         }
                       </p>
@@ -268,14 +269,14 @@ export default function Commissions() {
                               )}
                             </TableCell>
                             <TableCell className="text-right font-medium text-success">
-                              ${shipment.totalProfit?.toLocaleString()}
+                              {formatCurrency(shipment.totalProfit, shipment.currency)}
                             </TableCell>
                             <TableCell className={cn(
                               "text-right font-medium",
                               shipment.paymentCollected ? "text-primary" : "text-muted-foreground"
                             )}>
                               <span className="inline-flex items-center">
-                                ${breakdown.commission.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                                {formatCurrency(breakdown.commission, 'USD')}
                                 {!shipment.paymentCollected && " (pending)"}
                                 <CommissionBreakdownTooltip breakdown={breakdown} />
                               </span>

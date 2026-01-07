@@ -54,6 +54,7 @@ interface ShipmentRow {
   lost_reason: string | null;
   lost_at: string | null;
   pricing_owner: string | null;
+  currency: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -78,6 +79,7 @@ function rowToShipment(row: ShipmentRow): Shipment {
     paymentTerms: row.payment_terms as Shipment['paymentTerms'],
     incoterm: row.incoterm as Shipment['incoterm'],
     stage: row.stage as ShipmentStage,
+    currency: (row.currency as Shipment['currency']) || 'USD',
     createdAt: new Date(row.created_at),
     agent: row.agent ?? undefined,
     sellingPricePerUnit: row.selling_price_per_unit ?? undefined,
@@ -129,6 +131,7 @@ function shipmentToRow(shipment: Partial<Shipment>): Record<string, unknown> {
   if (shipment.paymentTerms !== undefined) row.payment_terms = shipment.paymentTerms;
   if (shipment.incoterm !== undefined) row.incoterm = shipment.incoterm;
   if (shipment.stage !== undefined) row.stage = shipment.stage;
+  if (shipment.currency !== undefined) row.currency = shipment.currency;
   if (shipment.agent !== undefined) row.agent = shipment.agent;
   if (shipment.sellingPricePerUnit !== undefined) row.selling_price_per_unit = shipment.sellingPricePerUnit;
   if (shipment.costPerUnit !== undefined) row.cost_per_unit = shipment.costPerUnit;

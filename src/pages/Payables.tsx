@@ -21,6 +21,7 @@ import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Shipment } from '@/types/shipment';
 import { InvoiceUploadDialog } from '@/components/payables/InvoiceUploadDialog';
+import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
 
 export default function Payables() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
@@ -98,10 +99,20 @@ export default function Payables() {
   );
   
   // Use invoice amount if available, otherwise use estimated cost
-  const totalDue = payables.reduce((sum, p) => {
-    const amount = p.shipment.agentInvoiceAmount ?? p.shipment.totalCost ?? 0;
-    return sum + amount;
-  }, 0);
+  // Group by currency for display
+  const totalsByCurrency = useMemo(() => {
+    const result: Record<string, number> = {};
+    payables.forEach((p) => {
+      const currency = p.shipment.currency || 'USD';
+      const amount = p.shipment.agentInvoiceAmount ?? p.shipment.totalCost ?? 0;
+      result[currency] = (result[currency] || 0) + amount;
+    });
+    return result;
+  }, [payables]);
+  
+  // For backwards compatibility, show primary total
+  const primaryCurrency = (Object.keys(totalsByCurrency)[0] || 'USD') as 'USD' | 'EUR' | 'JOD';
+  const totalDue = totalsByCurrency[primaryCurrency] || 0;
   
   if (isLoading) {
     return (
@@ -122,7 +133,15 @@ export default function Payables() {
       <div className="mb-6 p-4 glass-card rounded-xl flex items-center justify-between">
         <div>
           <p className="text-sm text-muted-foreground">Total Outstanding</p>
-          <p className="text-2xl font-heading font-bold">${totalDue.toLocaleString()}</p>
+          <p className="text-2xl font-heading font-bold">
+            {Object.entries(totalsByCurrency).map(([curr, amount], idx) => (
+              <span key={curr}>
+                {idx > 0 && ' + '}
+                {formatCurrency(amount, curr as 'USD' | 'EUR' | 'JOD')}
+              </span>
+            ))}
+            {Object.keys(totalsByCurrency).length === 0 && formatCurrency(0, 'USD')}
+          </p>
         </div>
         <div className="text-right">
           <p className="text-sm text-muted-foreground">Pending Payments</p>
@@ -179,13 +198,13 @@ export default function Payables() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
-                      ${shipment.totalCost?.toLocaleString()}
+                      {formatCurrency(shipment.totalCost, shipment.currency)}
                     </TableCell>
                     <TableCell className="text-right">
                       {hasInvoice ? (
                         <span className="inline-flex items-center gap-1.5 font-medium text-success">
                           <FileCheck className="w-4 h-4" />
-                          ${shipment.agentInvoiceAmount?.toLocaleString()}
+                          {formatCurrency(shipment.agentInvoiceAmount, shipment.currency)}
                         </span>
                       ) : (
                         <span className="text-muted-foreground">—</span>

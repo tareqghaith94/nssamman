@@ -20,6 +20,7 @@ import { Check, AlertCircle, Clock, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { formatCurrency } from '@/lib/currency';
 
 export default function Collections() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
@@ -65,10 +66,14 @@ export default function Collections() {
     (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
   );
 
-  const totalOutstanding = collections.reduce(
-    (sum, c) => sum + (c.shipment.totalInvoiceAmount || 0),
-    0
-  );
+  const totalsByCurrency = useMemo(() => {
+    const result: Record<string, number> = {};
+    collections.forEach((c) => {
+      const currency = c.shipment.currency || 'USD';
+      result[currency] = (result[currency] || 0) + (c.shipment.totalInvoiceAmount || 0);
+    });
+    return result;
+  }, [collections]);
 
   if (isLoading) {
     return (
@@ -89,7 +94,15 @@ export default function Collections() {
       <div className="grid grid-cols-2 gap-6 mb-6">
         <div className="p-4 glass-card rounded-xl">
           <p className="text-sm text-muted-foreground">Total Outstanding</p>
-          <p className="text-2xl font-heading font-bold">${totalOutstanding.toLocaleString()}</p>
+          <p className="text-2xl font-heading font-bold">
+            {Object.entries(totalsByCurrency).map(([curr, amount], idx) => (
+              <span key={curr}>
+                {idx > 0 && ' + '}
+                {formatCurrency(amount, curr as 'USD' | 'EUR' | 'JOD')}
+              </span>
+            ))}
+            {Object.keys(totalsByCurrency).length === 0 && formatCurrency(0, 'USD')}
+          </p>
         </div>
         <div className="p-4 glass-card rounded-xl">
           <p className="text-sm text-muted-foreground">Pending Collections</p>
@@ -144,7 +157,7 @@ export default function Collections() {
                       </span>
                     </TableCell>
                     <TableCell className="text-right font-medium">
-                      ${shipment.totalInvoiceAmount?.toLocaleString() || '0'}
+                      {formatCurrency(shipment.totalInvoiceAmount, shipment.currency)}
                     </TableCell>
                     <TableCell className="text-right">
                       {shipment.paymentCollected ? (
