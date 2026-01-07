@@ -28,7 +28,7 @@ import { Shipment } from '@/types/shipment';
 import { Lock, AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { LockedField } from '@/components/ui/LockedField';
 import { UserRole } from '@/types/permissions';
-import { getCurrencySymbol, formatCurrency, CURRENCIES, CURRENCY_LABELS } from '@/lib/currency';
+import { getCurrencySymbol, CURRENCIES } from '@/lib/currency';
 import { Currency } from '@/types/shipment';
 
 const EQUIPMENT_OPTIONS = [
@@ -53,6 +53,7 @@ interface LineItemInput {
   equipmentType: string;
   unitCost: number;
   quantity: number;
+  currency: string;
 }
 
 interface CostLineItemInput {
@@ -60,6 +61,7 @@ interface CostLineItemInput {
   equipmentType: string;
   unitCost: number;
   quantity: number;
+  currency: string;
 }
 
 export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) {
@@ -77,7 +79,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   // Agent name state
   const [agent, setAgent] = useState('');
   const [pricingOwner, setPricingOwner] = useState<string>('');
-  const [currency, setCurrency] = useState<Currency>('USD');
   // Cost line items for internal pricing
   const [costLineItems, setCostLineItems] = useState<CostLineItemInput[]>([]);
   
@@ -111,6 +112,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       equipmentType: eq.type,
       unitCost: shipment.costPerUnit || 0,
       quantity: eq.quantity,
+      currency: 'USD',
     }));
     
     if (items.length === 0) {
@@ -119,6 +121,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         equipmentType: '40hc',
         unitCost: 0,
         quantity: 1,
+        currency: 'USD',
       });
     }
     
@@ -135,6 +138,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       equipmentType: eq.type,
       unitCost: shipment.sellingPricePerUnit || 0,
       quantity: eq.quantity,
+      currency: 'USD',
     }));
     
     if (items.length === 0) {
@@ -143,6 +147,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         equipmentType: '40hc',
         unitCost: 0,
         quantity: 1,
+        currency: 'USD',
       });
     }
     
@@ -154,7 +159,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     if (shipment && open) {
       setAgent(shipment.agent || '');
       setPricingOwner((shipment as any).pricingOwner || '');
-      setCurrency(shipment.currency || 'USD');
       setRemarks('');
       setValidDays('30');
       
@@ -166,6 +170,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             equipmentType: item.equipmentType || '',
             unitCost: item.unitCost,
             quantity: item.quantity,
+            currency: item.currency || 'USD',
           })));
         } else {
           initCostLineItemsFromShipment();
@@ -189,6 +194,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               equipmentType: item.equipmentType || '',
               unitCost: item.unitCost,
               quantity: item.quantity,
+              currency: item.currency || 'USD',
             })));
             const prevTotal = items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
             setPreviousQuoteTotal(prevTotal);
@@ -231,7 +237,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   
   // Cost line item handlers
   const addCostLineItem = () => {
-    setCostLineItems([...costLineItems, { description: '', equipmentType: '', unitCost: 0, quantity: 1 }]);
+    setCostLineItems([...costLineItems, { description: '', equipmentType: '', unitCost: 0, quantity: 1, currency: 'USD' }]);
   };
   
   const removeCostLineItem = (index: number) => {
@@ -252,7 +258,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   
   // Selling line item handlers
   const addLineItem = () => {
-    setLineItems([...lineItems, { description: '', equipmentType: '', unitCost: 0, quantity: 1 }]);
+    setLineItems([...lineItems, { description: '', equipmentType: '', unitCost: 0, quantity: 1, currency: 'USD' }]);
   };
   
   const removeLineItem = (index: number) => {
@@ -295,6 +301,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           equipmentType: item.equipmentType || undefined,
           unitCost: item.unitCost,
           quantity: item.quantity,
+          currency: item.currency || 'USD',
         }))
       );
       
@@ -302,7 +309,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       await updateShipment(shipment.id, {
         agent,
         pricingOwner: (pricingOwner as 'Uma' | 'Rania' | 'Mozayan') || undefined,
-        currency,
         costPerUnit: costLineItems[0]?.unitCost || 0,
         sellingPricePerUnit: lineItems[0]?.unitCost || 0,
         profitPerUnit: (lineItems[0]?.unitCost || 0) - (costLineItems[0]?.unitCost || 0),
@@ -321,6 +327,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           equipmentType: item.equipmentType || undefined,
           unitCost: item.unitCost,
           quantity: item.quantity,
+          currency: item.currency || 'USD',
         }));
       
       const quotationData = {
@@ -408,8 +415,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const isReadOnly = !isEditable || !hasLock;
   const isLoading = isCreating || isUpdating || isSaving;
   
-  const currencySymbol = getCurrencySymbol(currency);
-  
   // Render line items table (shared between cost and selling)
   const renderLineItemsTable = (
     items: (LineItemInput | CostLineItemInput)[],
@@ -418,16 +423,17 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     isCost: boolean = false
   ) => (
     <div className="border rounded-md overflow-hidden">
-      <div className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] bg-muted/50 text-xs font-medium">
+      <div className="grid grid-cols-[1fr_100px_70px_80px_50px_90px_40px] bg-muted/50 text-xs font-medium">
         <div className="p-2 border-r border-border">Description</div>
         <div className="p-2 border-r border-border">Type</div>
-        <div className="p-2 border-r border-border text-right">{isCost ? `Cost (${currencySymbol})` : `Rate (${currencySymbol})`}</div>
+        <div className="p-2 border-r border-border">Currency</div>
+        <div className="p-2 border-r border-border text-right">{isCost ? 'Cost' : 'Rate'}</div>
         <div className="p-2 border-r border-border text-center">Qty</div>
         <div className="p-2 border-r border-border text-right">Amount</div>
         <div className="p-2"></div>
       </div>
       {items.map((item, idx) => (
-        <div key={idx} className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] border-t border-border">
+        <div key={idx} className="grid grid-cols-[1fr_100px_70px_80px_50px_90px_40px] border-t border-border">
           <Input
             value={item.description}
             onChange={(e) => onUpdate(idx, 'description', e.target.value)}
@@ -451,6 +457,20 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
               ))}
             </SelectContent>
           </Select>
+          <Select 
+            value={item.currency || 'USD'} 
+            onValueChange={(v) => onUpdate(idx, 'currency' as keyof LineItemInput, v)}
+            disabled={isReadOnly || (isCost && pricingLocked)}
+          >
+            <SelectTrigger className="border-0 border-l border-border rounded-none h-9 focus:ring-0 focus:ring-offset-0 text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent className="bg-background z-50">
+              {CURRENCIES.map((curr) => (
+                <SelectItem key={curr} value={curr}>{curr}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Input
             type="number"
             value={item.unitCost || ''}
@@ -468,7 +488,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             disabled={isReadOnly || (isCost && pricingLocked)}
           />
           <div className="flex items-center justify-end border-l border-border px-2 text-sm font-medium bg-muted/30">
-            {currencySymbol}{(item.unitCost * item.quantity).toLocaleString()}
+            {getCurrencySymbol((item.currency || 'USD') as Currency)}{(item.unitCost * item.quantity).toLocaleString()}
           </div>
           <button
             type="button"
@@ -481,10 +501,10 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         </div>
       ))}
       {/* Total Row */}
-      <div className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] border-t-2 border-border bg-muted/50">
-        <div className="col-span-4 p-2 text-right font-semibold text-sm">TOTAL</div>
-        <div className="p-2 text-right font-bold border-l border-border">
-          {currencySymbol}{items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0).toLocaleString()}
+      <div className="grid grid-cols-[1fr_100px_70px_80px_50px_90px_40px] border-t-2 border-border bg-muted/50">
+        <div className="col-span-5 p-2 text-right font-semibold text-sm">TOTAL</div>
+        <div className="p-2 text-right font-bold border-l border-border text-xs">
+          (mixed)
         </div>
         <div className="border-l border-border"></div>
       </div>
@@ -531,25 +551,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipment?.map((eq) => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'}</p>
             <p><span className="text-muted-foreground">Salesperson:</span> {shipment.salesperson}</p>
             <p><span className="text-muted-foreground">Pricing Owner:</span> {pricingOwner || '-'}</p>
-          </div>
-          
-          {/* Currency Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="currency">Currency</Label>
-            <Select
-              value={currency}
-              onValueChange={(v) => setCurrency(v as Currency)}
-              disabled={isReadOnly}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Select currency" />
-              </SelectTrigger>
-              <SelectContent>
-                {CURRENCIES.map((curr) => (
-                  <SelectItem key={curr} value={curr}>{CURRENCY_LABELS[curr]}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
           
           {/* Agent */}
@@ -638,20 +639,20 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           
           {/* Profit Summary */}
           <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-            <h4 className="font-medium text-sm mb-3">Profit Summary</h4>
+            <h4 className="font-medium text-sm mb-3">Profit Summary (quantities only, mixed currencies)</h4>
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Total Selling</p>
-                <p className="font-semibold text-lg">{formatCurrency(grandTotal, currency)}</p>
+                <p className="font-semibold text-lg">{grandTotal.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Cost</p>
-                <p className="font-semibold text-lg">{formatCurrency(totalCost, currency)}</p>
+                <p className="font-semibold text-lg">{totalCost.toLocaleString()}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Profit</p>
                 <p className={`font-semibold text-lg ${totalProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  {formatCurrency(totalProfit, currency)} ({profitMargin.toFixed(1)}%)
+                  {totalProfit.toLocaleString()} ({profitMargin.toFixed(1)}%)
                 </p>
               </div>
             </div>

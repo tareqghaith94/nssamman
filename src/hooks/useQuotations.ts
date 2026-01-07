@@ -34,6 +34,7 @@ interface LineItemRow {
   unit_cost: number;
   quantity: number;
   amount: number;
+  currency: string;
 }
 
 function rowToQuotation(row: QuotationRow & { shipments?: { reference_id: string } | null }): Quotation {
@@ -68,6 +69,7 @@ function rowToLineItem(row: LineItemRow): QuoteLineItem {
     unitCost: row.unit_cost,
     quantity: row.quantity,
     amount: row.amount,
+    currency: row.currency || 'USD',
   };
 }
 
@@ -131,6 +133,7 @@ export function useQuotations() {
             equipment_type: item.equipmentType || null,
             unit_cost: item.unitCost,
             quantity: item.quantity,
+            currency: item.currency || 'USD',
           })));
 
         if (lineError) throw lineError;
@@ -185,6 +188,7 @@ export function useQuotations() {
             equipment_type: item.equipmentType || null,
             unit_cost: item.unitCost,
             quantity: item.quantity,
+            currency: item.currency || 'USD',
           })));
 
         if (lineError) throw lineError;

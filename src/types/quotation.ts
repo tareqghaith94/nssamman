@@ -10,6 +10,7 @@ export interface QuoteLineItem {
   unitCost: number;
   quantity: number;
   amount: number;
+  currency?: string;
 }
 
 export interface Quotation {
