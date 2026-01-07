@@ -19,7 +19,7 @@ export const SALESPERSON_REF_PREFIX: Record<string, string> = {
 };
 
 // Page access permissions by role - all roles have access to all pages for now
-const ALL_PAGES = ['/', '/leads', '/pricing', '/quotations', '/operations', '/payables', '/collections', '/commissions', '/database', '/activity-log', '/users', '/settings'];
+const ALL_PAGES = ['/', '/leads', '/pricing', '/quotations', '/operations', '/payables', '/collections', '/commissions', '/database', '/activity-log', '/leave-tracker', '/users', '/settings'];
 
 export const PAGE_PERMISSIONS: Record<UserRole, string[]> = {
   admin: ALL_PAGES,

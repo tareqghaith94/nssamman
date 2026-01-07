@@ -179,6 +179,51 @@ export type Database = {
           },
         ]
       }
+      leave_requests: {
+        Row: {
+          approved_by: string | null
+          created_at: string
+          days_count: number
+          employee_name: string
+          end_date: string
+          id: string
+          leave_type: string
+          notes: string | null
+          start_date: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          created_at?: string
+          days_count?: number
+          employee_name: string
+          end_date: string
+          id?: string
+          leave_type?: string
+          notes?: string | null
+          start_date: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_by?: string | null
+          created_at?: string
+          days_count?: number
+          employee_name?: string
+          end_date?: string
+          id?: string
+          leave_type?: string
+          notes?: string | null
+          start_date?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           created_at: string | null
