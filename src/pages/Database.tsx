@@ -78,10 +78,6 @@ export default function Database() {
     );
   }
 
-  // Only admin can access this page
-  if (!isAdmin) {
-    return <Navigate to="/" replace />;
-  }
 
   const filteredShipments = shipments.filter((shipment) => {
     const matchesSearch =

@@ -79,8 +79,9 @@ export default function Operations() {
     setRevertShipment(null);
   };
   
-  // Check if user can revert operations stage shipments
-  const canRevert = canRevertStage(userRoles, 'operations');
+  // Check if user can revert from operations or completed stage
+  const canRevertOps = canRevertStage(userRoles, 'operations');
+  const canRevertCompleted = canRevertStage(userRoles, 'completed');
   
   if (isLoading) {
     return (
@@ -108,7 +109,7 @@ export default function Operations() {
       <OperationsCombinedTable
         shipments={shipments}
         onEdit={showHistory ? undefined : handleEdit}
-        onRevert={!showHistory && canRevert ? (ship) => setRevertShipment(ship) : undefined}
+        onRevert={(canRevertOps || canRevertCompleted) ? (ship) => setRevertShipment(ship) : undefined}
         isNew={showHistory ? undefined : (ship) => isNewShipment(ship.id)}
         currentUserOpsOwner={currentUserName}
       />

@@ -77,13 +77,14 @@ export function Sidebar() {
   const filteredNavigation = navigation.filter(item => userRoles.length > 0 ? canAccessPage(userRoles, item.href) : false);
   
   const handleSignOut = async () => {
-    const {
-      error
-    } = await signOut();
+    const { error } = await signOut();
     if (error) {
+      console.error('Sign out error:', error);
       toast.error('Failed to sign out');
     } else {
       toast.success('Signed out successfully');
+      // Force navigation to auth page
+      window.location.href = '/auth';
     }
   };
   
