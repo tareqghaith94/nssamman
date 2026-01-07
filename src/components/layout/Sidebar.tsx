@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Calculator, Truck, CreditCard, Banknote, Percent, ScrollText, Database, UserCog, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Calculator, Truck, CreditCard, Banknote, Percent, ScrollText, Database, UserCog, LogOut, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { canAccessPage } from '@/lib/permissions';
@@ -59,6 +59,11 @@ const navigation = [
     name: 'Users',
     href: '/users',
     icon: UserCog
+  },
+  {
+    name: 'Settings',
+    href: '/settings',
+    icon: Settings
   }
 ];
 

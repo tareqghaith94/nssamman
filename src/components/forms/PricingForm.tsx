@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useShipments } from '@/hooks/useShipments';
 import { useQuotations } from '@/hooks/useQuotations';
 import { useCostLineItems } from '@/hooks/useCostLineItems';
+import { useExchangeRates } from '@/hooks/useExchangeRates';
 import { useLockStore } from '@/store/lockStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
@@ -28,7 +29,7 @@ import { Shipment } from '@/types/shipment';
 import { Lock, AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { LockedField } from '@/components/ui/LockedField';
 import { UserRole } from '@/types/permissions';
-import { getCurrencySymbol, CURRENCIES } from '@/lib/currency';
+import { getCurrencySymbol, CURRENCIES, formatCurrency } from '@/lib/currency';
 import { Currency } from '@/types/shipment';
 
 const EQUIPMENT_OPTIONS = [
@@ -68,6 +69,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const { updateShipment } = useShipments();
   const { quotations, createQuotation, updateQuotation, fetchLineItems, isCreating, isUpdating } = useQuotations();
   const { fetchCostLineItems, saveCostLineItems } = useCostLineItems();
+  const { rates, convert } = useExchangeRates();
   const { profile, roles } = useAuth();
   const { logActivity } = useTrackedShipmentActions();
   const { acquireLock, releaseLock } = useLockStore();
@@ -86,6 +88,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const [lineItems, setLineItems] = useState<LineItemInput[]>([]);
   const [remarks, setRemarks] = useState('');
   const [validDays, setValidDays] = useState('30');
+  const [displayCurrency, setDisplayCurrency] = useState<Currency>('USD');
   
   // Existing quotation for this shipment
   const [existingQuotationId, setExistingQuotationId] = useState<string | null>(null);
@@ -229,11 +232,23 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     };
   }, [shipment?.id, open, quotations]);
   
-  // Calculate totals
-  const grandTotal = lineItems.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
-  const totalCost = costLineItems.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
-  const totalProfit = grandTotal - totalCost;
-  const profitMargin = grandTotal > 0 ? (totalProfit / grandTotal * 100) : 0;
+  // Calculate totals with currency conversion
+  const { grandTotal, totalCost, totalProfit, profitMargin } = useMemo(() => {
+    const selling = lineItems.reduce((sum, item) => {
+      const amount = item.unitCost * item.quantity;
+      return sum + convert(amount, (item.currency || 'USD') as Currency, displayCurrency);
+    }, 0);
+    
+    const cost = costLineItems.reduce((sum, item) => {
+      const amount = item.unitCost * item.quantity;
+      return sum + convert(amount, (item.currency || 'USD') as Currency, displayCurrency);
+    }, 0);
+    
+    const profit = selling - cost;
+    const margin = selling > 0 ? (profit / selling * 100) : 0;
+    
+    return { grandTotal: selling, totalCost: cost, totalProfit: profit, profitMargin: margin };
+  }, [lineItems, costLineItems, displayCurrency, convert]);
   
   // Cost line item handlers
   const addCostLineItem = () => {
@@ -639,23 +654,41 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           
           {/* Profit Summary */}
           <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
-            <h4 className="font-medium text-sm mb-3">Profit Summary (quantities only, mixed currencies)</h4>
+            <div className="flex items-center justify-between mb-3">
+              <h4 className="font-medium text-sm">Profit Summary</h4>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">Calculate in:</span>
+                <Select value={displayCurrency} onValueChange={(v) => setDisplayCurrency(v as Currency)}>
+                  <SelectTrigger className="w-20 h-7 text-xs">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {CURRENCIES.map((curr) => (
+                      <SelectItem key={curr} value={curr}>{curr}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Total Selling</p>
-                <p className="font-semibold text-lg">{grandTotal.toLocaleString()}</p>
+                <p className="font-semibold text-lg">{formatCurrency(grandTotal, displayCurrency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Cost</p>
-                <p className="font-semibold text-lg">{totalCost.toLocaleString()}</p>
+                <p className="font-semibold text-lg">{formatCurrency(totalCost, displayCurrency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Profit</p>
                 <p className={`font-semibold text-lg ${totalProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  {totalProfit.toLocaleString()} ({profitMargin.toFixed(1)}%)
+                  {formatCurrency(totalProfit, displayCurrency)} ({profitMargin.toFixed(1)}%)
                 </p>
               </div>
             </div>
+            <p className="text-xs text-muted-foreground mt-2">
+              Rates: 1 USD = {rates.EUR} EUR = {rates.JOD} JOD
+            </p>
           </div>
           
           {/* Actions */}
