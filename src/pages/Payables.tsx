@@ -16,12 +16,12 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format, isBefore, isToday, addDays, subDays } from 'date-fns';
-import { Check, AlertCircle, Clock, Upload, FileCheck } from 'lucide-react';
+import { Check, AlertCircle, Clock, Upload, FileCheck, Undo2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Shipment } from '@/types/shipment';
 import { InvoiceUploadDialog } from '@/components/payables/InvoiceUploadDialog';
-import { formatCurrency, getCurrencySymbol } from '@/lib/currency';
+import { formatCurrency } from '@/lib/currency';
 
 export default function Payables() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
@@ -77,6 +77,14 @@ export default function Payables() {
     });
     toast.success(`Payment marked as complete for ${referenceId}`);
   };
+
+  const handleUndoPaid = async (shipmentId: string, referenceId: string) => {
+    await updateShipment(shipmentId, {
+      agentPaid: false,
+      agentPaidDate: null,
+    });
+    toast.success(`Undid payment for ${referenceId}`);
+  };
   
   const handleOpenUploadDialog = (shipment: Shipment) => {
     setSelectedShipment(shipment);
@@ -103,16 +111,13 @@ export default function Payables() {
   const totalsByCurrency = useMemo(() => {
     const result: Record<string, number> = {};
     payables.forEach((p) => {
+      if (p.shipment.agentPaid) return; // Exclude paid from outstanding
       const currency = p.shipment.currency || 'USD';
       const amount = p.shipment.agentInvoiceAmount ?? p.shipment.totalCost ?? 0;
       result[currency] = (result[currency] || 0) + amount;
     });
     return result;
   }, [payables]);
-  
-  // For backwards compatibility, show primary total
-  const primaryCurrency = (Object.keys(totalsByCurrency)[0] || 'USD') as 'USD' | 'EUR' | 'JOD';
-  const totalDue = totalsByCurrency[primaryCurrency] || 0;
   
   if (isLoading) {
     return (
@@ -145,7 +150,9 @@ export default function Payables() {
         </div>
         <div className="text-right">
           <p className="text-sm text-muted-foreground">Pending Payments</p>
-          <p className="text-2xl font-heading font-bold">{payables.length}</p>
+          <p className="text-2xl font-heading font-bold">
+            {payables.filter((p) => !p.shipment.agentPaid).length}
+          </p>
         </div>
       </div>
       
@@ -189,13 +196,23 @@ export default function Payables() {
                     </TableCell>
                     <TableCell>{format(reminderDate, 'dd MMM yyyy')}</TableCell>
                     <TableCell>
-                      <span className={cn(
-                        'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
-                        status.className
-                      )}>
-                        <StatusIcon className="w-3 h-3" />
-                        {status.label}
-                      </span>
+                      {shipment.agentPaid ? (
+                        <span className={cn(
+                          'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
+                          'status-success'
+                        )}>
+                          <Check className="w-3 h-3" />
+                          Paid
+                        </span>
+                      ) : (
+                        <span className={cn(
+                          'inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium border',
+                          status.className
+                        )}>
+                          <StatusIcon className="w-3 h-3" />
+                          {status.label}
+                        </span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right text-muted-foreground">
                       {formatCurrency(shipment.totalCost, shipment.currency)}
@@ -212,10 +229,22 @@ export default function Payables() {
                     </TableCell>
                     <TableCell className="text-right">
                       {shipment.agentPaid ? (
-                        <span className="text-success text-sm font-medium flex items-center justify-end gap-1">
-                          <Check className="w-4 h-4" />
-                          Paid
-                        </span>
+                        canEdit ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleUndoPaid(shipment.id, shipment.referenceId)}
+                            className="h-8 gap-1 text-muted-foreground hover:text-foreground"
+                          >
+                            <Undo2 className="w-4 h-4" />
+                            Undo
+                          </Button>
+                        ) : (
+                          <span className="text-success text-sm font-medium flex items-center justify-end gap-1">
+                            <Check className="w-4 h-4" />
+                            Paid
+                          </span>
+                        )
                       ) : (
                         <div className="flex items-center justify-end gap-2">
                           <Button

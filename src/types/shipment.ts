@@ -57,6 +57,7 @@ export interface Shipment {
   // Payment tracking
   paymentCollected?: boolean;
   paymentCollectedDate?: Date;
+  amountCollected?: number;
   agentPaid?: boolean;
   agentPaidDate?: Date;
   

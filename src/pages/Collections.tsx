@@ -16,11 +16,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format, isBefore, isToday, addDays } from 'date-fns';
-import { Check, AlertCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Check, AlertCircle, Clock, AlertTriangle, Undo2, CreditCard } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { formatCurrency } from '@/lib/currency';
+import { Progress } from '@/components/ui/progress';
+import { Shipment } from '@/types/shipment';
+import { PartialPaymentDialog } from '@/components/collections/PartialPaymentDialog';
 
 export default function Collections() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
@@ -29,6 +32,8 @@ export default function Collections() {
   const userRoles = (roles || []) as UserRole[];
   const canEdit = canEditOnPage(userRoles, '/collections');
   const [showHistory, setShowHistory] = useState(false);
+  const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
 
   const collections = useMemo(() => {
     // Show shipments as soon as invoice amount is entered (no need for completed stage)
@@ -44,7 +49,10 @@ export default function Collections() {
     });
   }, [allShipments, showHistory]);
 
-  const getStatus = (dueDate: Date) => {
+  const getStatus = (dueDate: Date, isCollected: boolean) => {
+    if (isCollected) {
+      return { label: 'Collected', className: 'status-success', icon: Check };
+    }
     if (isBefore(dueDate, new Date()) && !isToday(dueDate)) {
       return { label: 'Overdue', className: 'status-overdue', icon: AlertCircle };
     }
@@ -62,6 +70,19 @@ export default function Collections() {
     toast.success(`Payment collected for ${referenceId}`);
   };
 
+  const handleUndoCollected = async (shipmentId: string, referenceId: string) => {
+    await updateShipment(shipmentId, {
+      paymentCollected: false,
+      paymentCollectedDate: null,
+    });
+    toast.success(`Undid collection for ${referenceId}`);
+  };
+
+  const handleOpenPaymentDialog = (shipment: Shipment) => {
+    setSelectedShipment(shipment);
+    setPaymentDialogOpen(true);
+  };
+
   const sortedCollections = [...collections].sort(
     (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
   );
@@ -69,8 +90,11 @@ export default function Collections() {
   const totalsByCurrency = useMemo(() => {
     const result: Record<string, number> = {};
     collections.forEach((c) => {
+      if (c.shipment.paymentCollected) return; // Exclude collected from outstanding
       const currency = c.shipment.currency || 'USD';
-      result[currency] = (result[currency] || 0) + (c.shipment.totalInvoiceAmount || 0);
+      const invoiceAmount = c.shipment.totalInvoiceAmount || 0;
+      const collected = c.shipment.amountCollected || 0;
+      result[currency] = (result[currency] || 0) + (invoiceAmount - collected);
     });
     return result;
   }, [collections]);
@@ -106,7 +130,9 @@ export default function Collections() {
         </div>
         <div className="p-4 glass-card rounded-xl">
           <p className="text-sm text-muted-foreground">Pending Collections</p>
-          <p className="text-2xl font-heading font-bold">{collections.length}</p>
+          <p className="text-2xl font-heading font-bold">
+            {collections.filter((c) => !c.shipment.paymentCollected).length}
+          </p>
         </div>
       </div>
 
@@ -119,6 +145,7 @@ export default function Collections() {
               <TableHead className="text-muted-foreground">Route</TableHead>
               <TableHead className="text-muted-foreground">Due Date</TableHead>
               <TableHead className="text-muted-foreground">Status</TableHead>
+              <TableHead className="text-muted-foreground">Progress</TableHead>
               <TableHead className="text-muted-foreground text-right">Amount</TableHead>
               <TableHead className="text-muted-foreground text-right">Actions</TableHead>
             </TableRow>
@@ -126,14 +153,18 @@ export default function Collections() {
           <TableBody>
             {sortedCollections.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
                   No pending collections
                 </TableCell>
               </TableRow>
             ) : (
               sortedCollections.map(({ shipment, dueDate }) => {
-                const status = getStatus(dueDate);
+                const status = getStatus(dueDate, !!shipment.paymentCollected);
                 const StatusIcon = status.icon;
+                const totalInvoice = shipment.totalInvoiceAmount || 0;
+                const amountCollected = shipment.amountCollected || 0;
+                const progressPercent = totalInvoice > 0 ? (amountCollected / totalInvoice) * 100 : 0;
+                const isPartial = amountCollected > 0 && amountCollected < totalInvoice;
 
                 return (
                   <TableRow key={shipment.id} className="border-border/50">
@@ -153,28 +184,59 @@ export default function Collections() {
                         status.className
                       )}>
                         <StatusIcon className="w-3 h-3" />
-                        {status.label}
+                        {isPartial ? 'Partial' : status.label}
                       </span>
                     </TableCell>
+                    <TableCell>
+                      <div className="w-24">
+                        <Progress value={progressPercent} className="h-2" />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {formatCurrency(amountCollected, shipment.currency)} / {formatCurrency(totalInvoice, shipment.currency)}
+                        </p>
+                      </div>
+                    </TableCell>
                     <TableCell className="text-right font-medium">
-                      {formatCurrency(shipment.totalInvoiceAmount, shipment.currency)}
+                      {formatCurrency(totalInvoice - amountCollected, shipment.currency)}
                     </TableCell>
                     <TableCell className="text-right">
                       {shipment.paymentCollected ? (
-                        <span className="text-success text-sm font-medium flex items-center justify-end gap-1">
-                          <Check className="w-4 h-4" />
-                          Collected
-                        </span>
+                        canEdit ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleUndoCollected(shipment.id, shipment.referenceId)}
+                            className="h-8 gap-1 text-muted-foreground hover:text-foreground"
+                          >
+                            <Undo2 className="w-4 h-4" />
+                            Undo
+                          </Button>
+                        ) : (
+                          <span className="text-success text-sm font-medium flex items-center justify-end gap-1">
+                            <Check className="w-4 h-4" />
+                            Collected
+                          </span>
+                        )
                       ) : canEdit ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleMarkCollected(shipment.id, shipment.referenceId)}
-                          className="h-8 gap-1 text-success hover:text-success"
-                        >
-                          <Check className="w-4 h-4" />
-                          Mark Collected
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenPaymentDialog(shipment)}
+                            className="h-8 gap-1"
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            Record
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleMarkCollected(shipment.id, shipment.referenceId)}
+                            className="h-8 gap-1 text-success hover:text-success"
+                          >
+                            <Check className="w-4 h-4" />
+                            Mark Full
+                          </Button>
+                        </div>
                       ) : (
                         <Tooltip>
                           <TooltipTrigger asChild>
@@ -201,6 +263,14 @@ export default function Collections() {
           </TableBody>
         </Table>
       </div>
+
+      {selectedShipment && (
+        <PartialPaymentDialog
+          open={paymentDialogOpen}
+          onOpenChange={setPaymentDialogOpen}
+          shipment={selectedShipment}
+        />
+      )}
     </div>
   );
 }
