@@ -225,10 +225,10 @@ export function OperationsCombinedTable({
                             </Button>
                           </DropdownMenuTrigger>
                           <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => onRevert(shipment)}>
-                              <Undo2 className="w-4 h-4 mr-2" />
-                              Undo to Pricing
-                            </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => onRevert(shipment)}>
+            <Undo2 className="w-4 h-4 mr-2" />
+            {shipment.stage === 'completed' ? 'Undo Completion' : 'Undo to Pricing'}
+          </DropdownMenuItem>
                           </DropdownMenuContent>
                         </DropdownMenu>
                       )}
