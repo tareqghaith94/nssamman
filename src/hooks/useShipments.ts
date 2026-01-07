@@ -44,6 +44,7 @@ interface ShipmentRow {
   ops_owner: string | null;
   payment_collected: boolean | null;
   payment_collected_date: string | null;
+  amount_collected: number | null;
   agent_paid: boolean | null;
   agent_paid_date: string | null;
   agent_invoice_uploaded: boolean | null;
@@ -106,6 +107,7 @@ function rowToShipment(row: ShipmentRow): Shipment {
     pricingOwner: row.pricing_owner as Shipment['pricingOwner'] ?? undefined,
     paymentCollected: row.payment_collected ?? undefined,
     paymentCollectedDate: row.payment_collected_date ? new Date(row.payment_collected_date) : undefined,
+    amountCollected: row.amount_collected ?? undefined,
     agentPaid: row.agent_paid ?? undefined,
     agentPaidDate: row.agent_paid_date ? new Date(row.agent_paid_date) : undefined,
     agentInvoiceUploaded: row.agent_invoice_uploaded ?? undefined,
@@ -156,9 +158,10 @@ function shipmentToRow(shipment: Partial<Shipment>): Record<string, unknown> {
   if (shipment.opsOwner !== undefined) row.ops_owner = shipment.opsOwner;
   if (shipment.pricingOwner !== undefined) row.pricing_owner = shipment.pricingOwner;
   if (shipment.paymentCollected !== undefined) row.payment_collected = shipment.paymentCollected;
-  if (shipment.paymentCollectedDate !== undefined) row.payment_collected_date = shipment.paymentCollectedDate?.toISOString();
+  if (shipment.paymentCollectedDate !== undefined) row.payment_collected_date = shipment.paymentCollectedDate?.toISOString() ?? null;
+  if (shipment.amountCollected !== undefined) row.amount_collected = shipment.amountCollected;
   if (shipment.agentPaid !== undefined) row.agent_paid = shipment.agentPaid;
-  if (shipment.agentPaidDate !== undefined) row.agent_paid_date = shipment.agentPaidDate?.toISOString();
+  if (shipment.agentPaidDate !== undefined) row.agent_paid_date = shipment.agentPaidDate?.toISOString() ?? null;
   if (shipment.agentInvoiceUploaded !== undefined) row.agent_invoice_uploaded = shipment.agentInvoiceUploaded;
   if (shipment.agentInvoiceFileName !== undefined) row.agent_invoice_file_name = shipment.agentInvoiceFileName;
   if (shipment.agentInvoiceAmount !== undefined) row.agent_invoice_amount = shipment.agentInvoiceAmount;

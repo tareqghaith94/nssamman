@@ -91,6 +91,50 @@ export type Database = {
         }
         Relationships: []
       }
+      collection_payments: {
+        Row: {
+          amount: number
+          created_at: string
+          created_by: string | null
+          currency: string
+          id: string
+          notes: string | null
+          payment_date: string
+          payment_method: string | null
+          shipment_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          shipment_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          created_by?: string | null
+          currency?: string
+          id?: string
+          notes?: string | null
+          payment_date?: string
+          payment_method?: string | null
+          shipment_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "collection_payments_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cost_line_items: {
         Row: {
           amount: number | null
@@ -360,6 +404,7 @@ export type Database = {
           agent_invoice_uploaded: boolean | null
           agent_paid: boolean | null
           agent_paid_date: string | null
+          amount_collected: number | null
           arrival_notice_sent: boolean | null
           bl_draft_approval: boolean | null
           bl_type: string | null
@@ -411,6 +456,7 @@ export type Database = {
           agent_invoice_uploaded?: boolean | null
           agent_paid?: boolean | null
           agent_paid_date?: string | null
+          amount_collected?: number | null
           arrival_notice_sent?: boolean | null
           bl_draft_approval?: boolean | null
           bl_type?: string | null
@@ -462,6 +508,7 @@ export type Database = {
           agent_invoice_uploaded?: boolean | null
           agent_paid?: boolean | null
           agent_paid_date?: string | null
+          amount_collected?: number | null
           arrival_notice_sent?: boolean | null
           bl_draft_approval?: boolean | null
           bl_type?: string | null
