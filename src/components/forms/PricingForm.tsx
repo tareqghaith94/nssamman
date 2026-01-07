@@ -28,7 +28,8 @@ import { Shipment } from '@/types/shipment';
 import { Lock, AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { LockedField } from '@/components/ui/LockedField';
 import { UserRole } from '@/types/permissions';
-import { getCurrencySymbol, formatCurrency } from '@/lib/currency';
+import { getCurrencySymbol, formatCurrency, CURRENCIES, CURRENCY_LABELS } from '@/lib/currency';
+import { Currency } from '@/types/shipment';
 
 const EQUIPMENT_OPTIONS = [
   { value: '20ft', label: "20' Standard" },
@@ -76,6 +77,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   // Agent name state
   const [agent, setAgent] = useState('');
   const [pricingOwner, setPricingOwner] = useState<string>('');
+  const [currency, setCurrency] = useState<Currency>('USD');
   // Cost line items for internal pricing
   const [costLineItems, setCostLineItems] = useState<CostLineItemInput[]>([]);
   
@@ -152,6 +154,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     if (shipment && open) {
       setAgent(shipment.agent || '');
       setPricingOwner((shipment as any).pricingOwner || '');
+      setCurrency(shipment.currency || 'USD');
       setRemarks('');
       setValidDays('30');
       
@@ -299,6 +302,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       await updateShipment(shipment.id, {
         agent,
         pricingOwner: (pricingOwner as 'Uma' | 'Rania' | 'Mozayan') || undefined,
+        currency,
         costPerUnit: costLineItems[0]?.unitCost || 0,
         sellingPricePerUnit: lineItems[0]?.unitCost || 0,
         profitPerUnit: (lineItems[0]?.unitCost || 0) - (costLineItems[0]?.unitCost || 0),
@@ -404,7 +408,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const isReadOnly = !isEditable || !hasLock;
   const isLoading = isCreating || isUpdating || isSaving;
   
-  const currencySymbol = getCurrencySymbol(shipment?.currency || 'USD');
+  const currencySymbol = getCurrencySymbol(currency);
   
   // Render line items table (shared between cost and selling)
   const renderLineItemsTable = (
@@ -527,7 +531,25 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipment?.map((eq) => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'}</p>
             <p><span className="text-muted-foreground">Salesperson:</span> {shipment.salesperson}</p>
             <p><span className="text-muted-foreground">Pricing Owner:</span> {pricingOwner || '-'}</p>
-            <p><span className="text-muted-foreground">Currency:</span> {shipment.currency || 'USD'}</p>
+          </div>
+          
+          {/* Currency Selection */}
+          <div className="space-y-2">
+            <Label htmlFor="currency">Currency</Label>
+            <Select
+              value={currency}
+              onValueChange={(v) => setCurrency(v as Currency)}
+              disabled={isReadOnly}
+            >
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Select currency" />
+              </SelectTrigger>
+              <SelectContent>
+                {CURRENCIES.map((curr) => (
+                  <SelectItem key={curr} value={curr}>{CURRENCY_LABELS[curr]}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           
           {/* Agent */}
@@ -620,16 +642,16 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Total Selling</p>
-                <p className="font-semibold text-lg">{formatCurrency(grandTotal, shipment.currency)}</p>
+                <p className="font-semibold text-lg">{formatCurrency(grandTotal, currency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Cost</p>
-                <p className="font-semibold text-lg">{formatCurrency(totalCost, shipment.currency)}</p>
+                <p className="font-semibold text-lg">{formatCurrency(totalCost, currency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Profit</p>
                 <p className={`font-semibold text-lg ${totalProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  {formatCurrency(totalProfit, shipment.currency)} ({profitMargin.toFixed(1)}%)
+                  {formatCurrency(totalProfit, currency)} ({profitMargin.toFixed(1)}%)
                 </p>
               </div>
             </div>
