@@ -92,10 +92,11 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   
   // Check if shipment is editable
   const isEditable = shipment ? canEditShipment(shipment, userRoles, refPrefix) : false;
+  const userName = profile?.name;
   
-  // Field lock states based on role and stage
-  const agentLocked = shipment ? !canEditField(shipment, 'agent', userRoles, refPrefix) : true;
-  const pricingLocked = shipment ? !canEditField(shipment, 'costPerUnit', userRoles, refPrefix) : true;
+  // Field lock states based on role and stage - pass userName for ownership checks
+  const agentLocked = shipment ? !canEditField(shipment, 'agent', userRoles, refPrefix, userName) : true;
+  const pricingLocked = shipment ? !canEditField(shipment, 'costPerUnit', userRoles, refPrefix, userName) : true;
   
   // Initialize cost line items from shipment equipment
   const initCostLineItemsFromShipment = () => {
