@@ -9,6 +9,7 @@ export interface CostLineItem {
   unitCost: number;
   quantity: number;
   amount: number;
+  currency?: string;
 }
 
 interface CostLineItemRow {
@@ -19,6 +20,7 @@ interface CostLineItemRow {
   unit_cost: number;
   quantity: number;
   amount: number | null;
+  currency: string;
 }
 
 function rowToCostLineItem(row: CostLineItemRow): CostLineItem {
@@ -30,6 +32,7 @@ function rowToCostLineItem(row: CostLineItemRow): CostLineItem {
     unitCost: row.unit_cost,
     quantity: row.quantity,
     amount: row.amount || row.unit_cost * row.quantity,
+    currency: row.currency || 'USD',
   };
 }
 
@@ -65,6 +68,7 @@ export function useCostLineItems() {
           unit_cost: item.unitCost,
           quantity: item.quantity,
           amount: item.unitCost * item.quantity,
+          currency: item.currency || 'USD',
         })));
 
       if (error) throw error;

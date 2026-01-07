@@ -95,6 +95,7 @@ export type Database = {
         Row: {
           amount: number | null
           created_at: string
+          currency: string
           description: string
           equipment_type: string | null
           id: string
@@ -105,6 +106,7 @@ export type Database = {
         Insert: {
           amount?: number | null
           created_at?: string
+          currency?: string
           description: string
           equipment_type?: string | null
           id?: string
@@ -115,6 +117,7 @@ export type Database = {
         Update: {
           amount?: number | null
           created_at?: string
+          currency?: string
           description?: string
           equipment_type?: string | null
           id?: string
@@ -280,6 +283,7 @@ export type Database = {
       quote_line_items: {
         Row: {
           amount: number | null
+          currency: string
           description: string
           equipment_type: string | null
           id: string
@@ -289,6 +293,7 @@ export type Database = {
         }
         Insert: {
           amount?: number | null
+          currency?: string
           description: string
           equipment_type?: string | null
           id?: string
@@ -298,6 +303,7 @@ export type Database = {
         }
         Update: {
           amount?: number | null
+          currency?: string
           description?: string
           equipment_type?: string | null
           id?: string

@@ -193,11 +193,14 @@ function canRoleEditField(
     return false;
   }
   
-  // Pricing: can only edit pricing fields during pricing stage
+  // Pricing: can edit pricing fields AND lead fields during pricing stage
   if (role === 'pricing') {
-    if (FIELD_CATEGORIES.pricing.includes(fieldName)) {
-      // Ownership check is done in canEditField via canEditAsPricingOwner
-      return shipment.stage === 'pricing';
+    if (shipment.stage === 'pricing') {
+      // During pricing stage, can edit both pricing and lead fields
+      if (FIELD_CATEGORIES.pricing.includes(fieldName)) return true;
+      if (FIELD_CATEGORIES.lead.includes(fieldName)) return true;
+      // Also allow editing client name and currency
+      if (fieldName === 'clientName' || fieldName === 'currency') return true;
     }
     // Pricing can also set pricingOwner during lead stage
     if (fieldName === 'pricingOwner' && shipment.stage === 'lead') {
