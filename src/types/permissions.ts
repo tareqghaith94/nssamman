@@ -18,14 +18,16 @@ export const SALESPERSON_REF_PREFIX: Record<string, string> = {
   'Marwan': 'MA',
 };
 
-// Page access permissions by role (removed /confirmed)
+// Page access permissions by role - all roles have access to all pages for now
+const ALL_PAGES = ['/', '/leads', '/pricing', '/quotations', '/operations', '/payables', '/collections', '/commissions', '/database', '/activity-log', '/users'];
+
 export const PAGE_PERMISSIONS: Record<UserRole, string[]> = {
-  admin: ['/', '/leads', '/pricing', '/quotations', '/operations', '/payables', '/collections', '/commissions', '/database', '/activity-log', '/users'],
-  sales: ['/', '/leads', '/pricing', '/quotations', '/operations', '/collections', '/commissions'],
-  pricing: ['/', '/leads', '/pricing', '/quotations'],
-  ops: ['/', '/operations'],
-  collections: ['/', '/collections'],
-  finance: ['/', '/payables'],
+  admin: ALL_PAGES,
+  sales: ALL_PAGES,
+  pricing: ALL_PAGES,
+  ops: ALL_PAGES,
+  collections: ALL_PAGES,
+  finance: ALL_PAGES,
 };
 
 // Fields that are ALWAYS read-only (global locks)
