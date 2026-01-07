@@ -523,6 +523,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             <p><span className="text-muted-foreground">Client:</span> {shipment.clientName || '-'}</p>
             <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipment?.map((eq) => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'}</p>
             <p><span className="text-muted-foreground">Salesperson:</span> {shipment.salesperson}</p>
+            <p><span className="text-muted-foreground">Pricing Owner:</span> {pricingOwner || '-'}</p>
           </div>
           
           {/* Agent */}
@@ -542,30 +543,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
                   disabled={isReadOnly || agentLocked}
                   className="max-w-sm"
                 />
-              </div>
-            </LockedField>
-            
-            {/* Pricing Owner */}
-            <LockedField 
-              isLocked={pricingLocked} 
-              lockReason={getFieldLockReason('pricingOwner', userRoles, shipment)}
-            >
-              <div className="space-y-2">
-                <Label htmlFor="pricingOwner">Pricing Owner</Label>
-                <Select
-                  value={pricingOwner}
-                  onValueChange={setPricingOwner}
-                  disabled={isReadOnly || pricingLocked}
-                >
-                  <SelectTrigger className="max-w-sm">
-                    <SelectValue placeholder="Select pricing owner" />
-                  </SelectTrigger>
-                  <SelectContent className="bg-background z-50">
-                    <SelectItem value="Uma">Uma</SelectItem>
-                    <SelectItem value="Rania">Rania</SelectItem>
-                    <SelectItem value="Mozayan">Mozayan</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </LockedField>
           </div>
