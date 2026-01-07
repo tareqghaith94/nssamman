@@ -31,15 +31,15 @@ export default function Collections() {
   const [showHistory, setShowHistory] = useState(false);
 
   const collections = useMemo(() => {
-    // Current: Only pending collections (completed + has completedAt + not collected)
-    // History: All completed shipments with completedAt
+    // Show shipments as soon as invoice amount is entered (no need for completed stage)
     const filtered = showHistory
-      ? allShipments.filter((s) => s.stage === 'completed' && s.completedAt)
-      : allShipments.filter((s) => s.stage === 'completed' && s.completedAt && !s.paymentCollected);
+      ? allShipments.filter((s) => s.totalInvoiceAmount && s.totalInvoiceAmount > 0)
+      : allShipments.filter((s) => s.totalInvoiceAmount && s.totalInvoiceAmount > 0 && !s.paymentCollected);
     
     return filtered.map((s) => {
       const daysToAdd = parseInt(s.paymentTerms) || 0;
-      const dueDate = addDays(new Date(s.completedAt!), daysToAdd);
+      // Use lead creation date as base for payment terms calculation
+      const dueDate = addDays(new Date(s.createdAt), daysToAdd);
       return { shipment: s, dueDate };
     });
   }, [allShipments, showHistory]);
