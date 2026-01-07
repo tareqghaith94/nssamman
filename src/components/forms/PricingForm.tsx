@@ -28,6 +28,7 @@ import { Shipment } from '@/types/shipment';
 import { Lock, AlertTriangle, Plus, Trash2 } from 'lucide-react';
 import { LockedField } from '@/components/ui/LockedField';
 import { UserRole } from '@/types/permissions';
+import { getCurrencySymbol, formatCurrency } from '@/lib/currency';
 
 const EQUIPMENT_OPTIONS = [
   { value: '20ft', label: "20' Standard" },
@@ -403,6 +404,8 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const isReadOnly = !isEditable || !hasLock;
   const isLoading = isCreating || isUpdating || isSaving;
   
+  const currencySymbol = getCurrencySymbol(shipment?.currency || 'USD');
+  
   // Render line items table (shared between cost and selling)
   const renderLineItemsTable = (
     items: (LineItemInput | CostLineItemInput)[],
@@ -414,7 +417,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       <div className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] bg-muted/50 text-xs font-medium">
         <div className="p-2 border-r border-border">Description</div>
         <div className="p-2 border-r border-border">Type</div>
-        <div className="p-2 border-r border-border text-right">{isCost ? 'Cost ($)' : 'Rate ($)'}</div>
+        <div className="p-2 border-r border-border text-right">{isCost ? `Cost (${currencySymbol})` : `Rate (${currencySymbol})`}</div>
         <div className="p-2 border-r border-border text-center">Qty</div>
         <div className="p-2 border-r border-border text-right">Amount</div>
         <div className="p-2"></div>
@@ -461,7 +464,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             disabled={isReadOnly || (isCost && pricingLocked)}
           />
           <div className="flex items-center justify-end border-l border-border px-2 text-sm font-medium bg-muted/30">
-            ${(item.unitCost * item.quantity).toLocaleString()}
+            {currencySymbol}{(item.unitCost * item.quantity).toLocaleString()}
           </div>
           <button
             type="button"
@@ -477,7 +480,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       <div className="grid grid-cols-[1fr_120px_100px_60px_90px_40px] border-t-2 border-border bg-muted/50">
         <div className="col-span-4 p-2 text-right font-semibold text-sm">TOTAL</div>
         <div className="p-2 text-right font-bold border-l border-border">
-          ${items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0).toLocaleString()}
+          {currencySymbol}{items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0).toLocaleString()}
         </div>
         <div className="border-l border-border"></div>
       </div>
@@ -524,6 +527,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             <p><span className="text-muted-foreground">Equipment:</span> {shipment.equipment?.map((eq) => `${eq.type?.toUpperCase()} × ${eq.quantity}`).join(', ') || '-'}</p>
             <p><span className="text-muted-foreground">Salesperson:</span> {shipment.salesperson}</p>
             <p><span className="text-muted-foreground">Pricing Owner:</span> {pricingOwner || '-'}</p>
+            <p><span className="text-muted-foreground">Currency:</span> {shipment.currency || 'USD'}</p>
           </div>
           
           {/* Agent */}
@@ -616,16 +620,16 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             <div className="grid grid-cols-3 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Total Selling</p>
-                <p className="font-semibold text-lg">${grandTotal.toLocaleString()}</p>
+                <p className="font-semibold text-lg">{formatCurrency(grandTotal, shipment.currency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Cost</p>
-                <p className="font-semibold text-lg">${totalCost.toLocaleString()}</p>
+                <p className="font-semibold text-lg">{formatCurrency(totalCost, shipment.currency)}</p>
               </div>
               <div>
                 <p className="text-muted-foreground">Total Profit</p>
                 <p className={`font-semibold text-lg ${totalProfit >= 0 ? 'text-green-600' : 'text-destructive'}`}>
-                  ${totalProfit.toLocaleString()} ({profitMargin.toFixed(1)}%)
+                  {formatCurrency(totalProfit, shipment.currency)} ({profitMargin.toFixed(1)}%)
                 </p>
               </div>
             </div>
