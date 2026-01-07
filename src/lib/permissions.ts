@@ -383,18 +383,9 @@ export function getFieldLockReason(fieldName: string, roles: UserRole[], shipmen
   return 'This field is locked';
 }
 
-// Check if user can edit based on roles and page (legacy compatibility)
+// Check if user can edit based on roles and page - all authenticated users can edit for now
 export function canEditOnPage(roles: UserRole[], page: string): boolean {
-  if (roles.includes('admin')) return true;
-  
-  const editPermissions: Record<UserRole, string[]> = {
-    admin: ['/', '/leads', '/pricing', '/operations', '/payables', '/collections', '/commissions'],
-    sales: ['/leads'], // Can only edit on leads page
-    pricing: ['/pricing'],
-    ops: ['/operations'],
-    collections: ['/collections'],
-    finance: ['/payables'],
-  };
-  
-  return roles.some(role => editPermissions[role]?.includes(page));
+  // All authenticated users can edit on all pages for now
+  if (roles.length > 0) return true;
+  return false;
 }
