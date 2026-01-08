@@ -24,11 +24,9 @@ interface LeaveRequestDialogProps {
 }
 
 const LEAVE_TYPES = [
-  { value: 'annual', label: 'Annual Leave' },
+  { value: 'annual', label: 'Paid Leave' },
   { value: 'sick', label: 'Sick Leave' },
   { value: 'unpaid', label: 'Unpaid Leave' },
-  { value: 'personal', label: 'Personal Leave' },
-  { value: 'other', label: 'Other' },
 ];
 
 export function LeaveRequestDialog({

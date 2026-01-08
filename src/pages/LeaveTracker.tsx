@@ -19,11 +19,9 @@ const STATUS_COLORS = {
 };
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
-  annual: 'Annual',
+  annual: 'Paid',
   sick: 'Sick',
   unpaid: 'Unpaid',
-  personal: 'Personal',
-  other: 'Other',
 };
 
 export default function LeaveTracker() {
@@ -103,7 +101,7 @@ export default function LeaveTracker() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Annual Leave</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Paid Leave</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">{leaveBalance.annualRemaining} days</div>
@@ -125,12 +123,12 @@ export default function LeaveTracker() {
         </Card>
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Other Leave</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">Unpaid Leave</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{leaveBalance.otherUsed} days</div>
+            <div className="text-2xl font-bold">{leaveBalance.unpaidUsed} days</div>
             <p className="text-xs text-muted-foreground mt-1">
-              Unpaid / Personal
+              Used this year
             </p>
           </CardContent>
         </Card>
