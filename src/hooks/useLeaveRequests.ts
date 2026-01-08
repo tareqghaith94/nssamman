@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from 'sonner';
+import { getLeaveEntitlement } from '@/lib/leaveEntitlements';
 
 export interface LeaveRequest {
   id: string;
@@ -18,11 +19,13 @@ export interface LeaveRequest {
 }
 
 export interface LeaveBalance {
-  annual: number;
-  sick: number;
-  unpaid: number;
-  personal: number;
-  other: number;
+  annualUsed: number;
+  annualEntitlement: number;
+  annualRemaining: number;
+  sickUsed: number;
+  sickEntitlement: number;
+  sickRemaining: number;
+  otherUsed: number;
   pending: number;
 }
 
@@ -45,19 +48,36 @@ export function useLeaveRequests() {
     enabled: !!user,
   });
 
-  // Calculate leave balance for current year
+  // Calculate leave balance for current year based on labor law
   const currentYear = new Date().getFullYear();
   const myRequests = leaveRequests.filter(r => r.user_id === user?.id);
   const approvedThisYear = myRequests.filter(
     r => r.status === 'approved' && new Date(r.start_date).getFullYear() === currentYear
   );
 
+  // Get entitlement based on employee tenure
+  const entitlement = getLeaveEntitlement(profile?.name || '');
+  
+  const annualUsed = approvedThisYear
+    .filter(r => r.leave_type === 'annual')
+    .reduce((sum, r) => sum + r.days_count, 0);
+  
+  const sickUsed = approvedThisYear
+    .filter(r => r.leave_type === 'sick')
+    .reduce((sum, r) => sum + r.days_count, 0);
+  
+  const otherUsed = approvedThisYear
+    .filter(r => ['unpaid', 'personal', 'other'].includes(r.leave_type))
+    .reduce((sum, r) => sum + r.days_count, 0);
+
   const leaveBalance: LeaveBalance = {
-    annual: approvedThisYear.filter(r => r.leave_type === 'annual').reduce((sum, r) => sum + r.days_count, 0),
-    sick: approvedThisYear.filter(r => r.leave_type === 'sick').reduce((sum, r) => sum + r.days_count, 0),
-    unpaid: approvedThisYear.filter(r => r.leave_type === 'unpaid').reduce((sum, r) => sum + r.days_count, 0),
-    personal: approvedThisYear.filter(r => r.leave_type === 'personal').reduce((sum, r) => sum + r.days_count, 0),
-    other: approvedThisYear.filter(r => r.leave_type === 'other').reduce((sum, r) => sum + r.days_count, 0),
+    annualUsed,
+    annualEntitlement: entitlement.annual,
+    annualRemaining: Math.max(0, entitlement.annual - annualUsed),
+    sickUsed,
+    sickEntitlement: entitlement.sick,
+    sickRemaining: Math.max(0, entitlement.sick - sickUsed),
+    otherUsed,
     pending: myRequests.filter(r => r.status === 'pending').length,
   };
 

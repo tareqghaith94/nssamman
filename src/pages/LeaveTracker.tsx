@@ -106,7 +106,10 @@ export default function LeaveTracker() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Annual Leave</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{leaveBalance.annual} days</div>
+            <div className="text-2xl font-bold text-green-600">{leaveBalance.annualRemaining} days</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {leaveBalance.annualUsed} used of {leaveBalance.annualEntitlement}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -114,7 +117,10 @@ export default function LeaveTracker() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Sick Leave</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{leaveBalance.sick} days</div>
+            <div className="text-2xl font-bold text-blue-600">{leaveBalance.sickRemaining} days</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              {leaveBalance.sickUsed} used of {leaveBalance.sickEntitlement}
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -122,9 +128,10 @@ export default function LeaveTracker() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Other Leave</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              {leaveBalance.unpaid + leaveBalance.personal + leaveBalance.other} days
-            </div>
+            <div className="text-2xl font-bold">{leaveBalance.otherUsed} days</div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Unpaid / Personal
+            </p>
           </CardContent>
         </Card>
         <Card>
