@@ -8,9 +8,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { CalendarIcon } from 'lucide-react';
-import { format, differenceInBusinessDays, addDays } from 'date-fns';
+import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { LeaveRequest } from '@/hooks/useLeaveRequests';
+import { calculateBusinessDays } from '@/lib/leaveEntitlements';
 
 interface LeaveRequestDialogProps {
   open: boolean;
@@ -67,11 +68,11 @@ export function LeaveRequestDialog({
     }
   }, [open, editingRequest, currentUser]);
 
-  // Auto-calculate days when dates change
+  // Auto-calculate days when dates change (weekdays only)
   useEffect(() => {
     if (startDate && endDate) {
-      const days = differenceInBusinessDays(addDays(endDate, 1), startDate);
-      setDaysCount(Math.max(1, days));
+      const days = calculateBusinessDays(startDate, endDate);
+      setDaysCount(days);
     }
   }, [startDate, endDate]);
 
