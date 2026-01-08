@@ -8,7 +8,7 @@ export interface LeaveRequest {
   id: string;
   user_id: string;
   employee_name: string;
-  leave_type: 'annual' | 'sick' | 'unpaid' | 'personal' | 'other';
+  leave_type: 'annual' | 'sick' | 'unpaid';
   start_date: string;
   end_date: string;
   days_count: number;
@@ -25,7 +25,7 @@ export interface LeaveBalance {
   sickUsed: number;
   sickEntitlement: number;
   sickRemaining: number;
-  otherUsed: number;
+  unpaidUsed: number;
   pending: number;
 }
 
@@ -66,8 +66,8 @@ export function useLeaveRequests() {
     .filter(r => r.leave_type === 'sick')
     .reduce((sum, r) => sum + r.days_count, 0);
   
-  const otherUsed = approvedThisYear
-    .filter(r => ['unpaid', 'personal', 'other'].includes(r.leave_type))
+  const unpaidUsed = approvedThisYear
+    .filter(r => r.leave_type === 'unpaid')
     .reduce((sum, r) => sum + r.days_count, 0);
 
   const leaveBalance: LeaveBalance = {
@@ -77,7 +77,7 @@ export function useLeaveRequests() {
     sickUsed,
     sickEntitlement: entitlement.sick,
     sickRemaining: Math.max(0, entitlement.sick - sickUsed),
-    otherUsed,
+    unpaidUsed,
     pending: myRequests.filter(r => r.status === 'pending').length,
   };
 
