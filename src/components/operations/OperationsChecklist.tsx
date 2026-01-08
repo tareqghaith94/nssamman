@@ -189,8 +189,21 @@ export function OperationsChecklist({ shipment, open, onOpenChange }: Operations
   const handleComplete = () => {
     if (!shipment || !hasLock || !canAdvanceStage(userRoles, 'operations')) return;
     
+    // Validate required fields before completing
+    const missingFields: string[] = [];
+    
+    if (!formData.doReleaseDate) {
+      missingFields.push('DO Release Date');
+    }
+    if (!formData.nssInvoiceNumber) {
+      missingFields.push('NSS Invoice Number');
+    }
     if (!formData.totalInvoiceAmount) {
-      toast.error('Please enter the total invoice amount before completing');
+      missingFields.push('Total Invoice Amount');
+    }
+    
+    if (missingFields.length > 0) {
+      toast.error(`Cannot complete: Missing ${missingFields.join(', ')}`);
       return;
     }
     

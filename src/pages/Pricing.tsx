@@ -264,6 +264,7 @@ export default function Pricing() {
           onConfirm={handleConfirmToOps}
           referenceId={confirmShipment.referenceId}
           isLoading={isProcessing}
+          shipment={confirmShipment}
         />
       )}
 
