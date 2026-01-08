@@ -277,7 +277,8 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
                 onValueChange={(v) => setFormData({ ...formData, portOfLoading: v })}
                 options={locationOptions}
                 placeholder={formData.modeOfTransport === 'air' ? 'Select airport' : 'Select port'}
-                searchPlaceholder="Search..."
+                searchPlaceholder="Search or add new..."
+                allowCustom
               />
             </div>
             <div className="space-y-2">
@@ -287,7 +288,8 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
                 onValueChange={(v) => setFormData({ ...formData, portOfDischarge: v })}
                 options={locationOptions}
                 placeholder={formData.modeOfTransport === 'air' ? 'Select airport' : 'Select port'}
-                searchPlaceholder="Search..."
+                searchPlaceholder="Search or add new..."
+                allowCustom
               />
             </div>
           </div>
