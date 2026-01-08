@@ -118,6 +118,26 @@ export function canEditAsSalesperson(
   return true;
 }
 
+// Check if user can edit Payables or Collections based on ownership
+export function canEditPayablesCollections(
+  shipment: Shipment,
+  roles: UserRole[],
+  userName?: string
+): boolean {
+  // Admin can always edit
+  if (roles.includes('admin')) return true;
+  
+  // Finance role can always edit payables/collections
+  if (roles.includes('finance')) return true;
+  
+  // Check if user is one of the three owners
+  const isSalesperson = userName && shipment.salesperson === userName;
+  const isPricingOwner = userName && shipment.pricingOwner === userName;
+  const isOpsOwner = userName && shipment.opsOwner === userName;
+  
+  return isSalesperson || isPricingOwner || isOpsOwner;
+}
+
 // Check if a specific field can be edited based on roles and shipment stage
 export function canEditField(
   shipment: Shipment,
@@ -139,6 +159,16 @@ export function canEditField(
   
   // Admin can edit everything
   if (roles.includes('admin')) return true;
+  
+  // For payables fields, check ownership-based permission
+  if (FIELD_CATEGORIES.payables.includes(fieldName)) {
+    return canEditPayablesCollections(shipment, roles, userName);
+  }
+  
+  // For collections fields, check ownership-based permission
+  if (FIELD_CATEGORIES.collections.includes(fieldName)) {
+    return canEditPayablesCollections(shipment, roles, userName);
+  }
   
   // For operations fields, check ops owner permission
   if (FIELD_CATEGORIES.operations.includes(fieldName)) {

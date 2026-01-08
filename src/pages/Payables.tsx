@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useShipments } from '@/hooks/useShipments';
 import { useAuth } from '@/hooks/useAuth';
-import { canEditOnPage } from '@/lib/permissions';
+import { canEditPayablesCollections } from '@/lib/permissions';
 import { UserRole } from '@/types/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StageFilter } from '@/components/ui/StageFilter';
@@ -16,23 +16,28 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { format, isBefore, isToday, addDays, subDays } from 'date-fns';
-import { Check, AlertCircle, Clock, Upload, FileCheck, Undo2 } from 'lucide-react';
+import { Check, AlertCircle, Clock, Upload, FileCheck, Undo2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Shipment } from '@/types/shipment';
 import { InvoiceUploadDialog } from '@/components/payables/InvoiceUploadDialog';
 import { formatCurrency } from '@/lib/currency';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function Payables() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
   const { updateShipment } = useShipments();
-  const { roles } = useAuth();
+  const { roles, profile } = useAuth();
   const userRoles = (roles || []) as UserRole[];
-  const canEdit = canEditOnPage(userRoles, '/payables');
+  const userName = profile?.name;
   
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [showHistory, setShowHistory] = useState(false);
+
+  // Helper to check if user can edit a specific shipment's payables
+  const canEditShipmentPayables = (shipment: Shipment) => 
+    canEditPayablesCollections(shipment, userRoles, userName);
 
   const payables = useMemo(() => {
     // Shipments appear in payables once ETD or ETA is set (not waiting for ops completion)
@@ -182,6 +187,7 @@ export default function Payables() {
                 const status = getStatus(reminderDate);
                 const StatusIcon = status.icon;
                 const hasInvoice = shipment.agentInvoiceUploaded;
+                const canEdit = canEditShipmentPayables(shipment);
                 
                 return (
                   <TableRow key={shipment.id} className="border-border/50">
@@ -245,14 +251,13 @@ export default function Payables() {
                             Paid
                           </span>
                         )
-                      ) : (
+                      ) : canEdit ? (
                         <div className="flex items-center justify-end gap-2">
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleOpenUploadDialog(shipment)}
                             className="h-8 gap-1"
-                            disabled={!canEdit}
                           >
                             <Upload className="w-4 h-4" />
                             {hasInvoice ? 'Update' : 'Upload'}
@@ -262,12 +267,29 @@ export default function Payables() {
                             size="sm"
                             onClick={() => handleMarkPaid(shipment.id, shipment.referenceId)}
                             className="h-8 gap-1 text-success hover:text-success"
-                            disabled={!hasInvoice || !canEdit}
+                            disabled={!hasInvoice}
                           >
                             <Check className="w-4 h-4" />
                             Mark Paid
                           </Button>
                         </div>
+                      ) : (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              disabled
+                              className="h-8 gap-1"
+                            >
+                              <AlertTriangle className="w-4 h-4" />
+                              No Edit Access
+                            </Button>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p>Only the Salesperson, Pricing Owner, Ops Owner, Finance, or Admin can edit</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </TableCell>
                   </TableRow>

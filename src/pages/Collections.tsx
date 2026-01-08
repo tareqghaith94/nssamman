@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useShipments } from '@/hooks/useShipments';
 import { useAuth } from '@/hooks/useAuth';
-import { canEditOnPage } from '@/lib/permissions';
+import { canEditPayablesCollections } from '@/lib/permissions';
 import { UserRole } from '@/types/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StageFilter } from '@/components/ui/StageFilter';
@@ -28,12 +28,16 @@ import { PartialPaymentDialog } from '@/components/collections/PartialPaymentDia
 export default function Collections() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
   const { updateShipment } = useShipments();
-  const { roles } = useAuth();
+  const { roles, profile } = useAuth();
   const userRoles = (roles || []) as UserRole[];
-  const canEdit = canEditOnPage(userRoles, '/collections');
+  const userName = profile?.name;
   const [showHistory, setShowHistory] = useState(false);
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+
+  // Helper to check if user can edit a specific shipment's collections
+  const canEditShipmentCollections = (shipment: Shipment) => 
+    canEditPayablesCollections(shipment, userRoles, userName);
 
   const collections = useMemo(() => {
     // Show shipments as soon as invoice amount is entered (no need for completed stage)
@@ -165,6 +169,7 @@ export default function Collections() {
                 const amountCollected = shipment.amountCollected || 0;
                 const progressPercent = totalInvoice > 0 ? (amountCollected / totalInvoice) * 100 : 0;
                 const isPartial = amountCollected > 0 && amountCollected < totalInvoice;
+                const canEdit = canEditShipmentCollections(shipment);
 
                 return (
                   <TableRow key={shipment.id} className="border-border/50">
@@ -251,7 +256,7 @@ export default function Collections() {
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent>
-                            <p>You don't have permission to mark collections</p>
+                            <p>Only the Salesperson, Pricing Owner, Ops Owner, Finance, or Admin can edit</p>
                           </TooltipContent>
                         </Tooltip>
                       )}

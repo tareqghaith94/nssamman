@@ -4,24 +4,30 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
-import { Notification } from '@/types/notification';
+import { Notification, NotificationType } from '@/types/notification';
 import { cn } from '@/lib/utils';
-import { Package, ArrowRight, RefreshCw, CreditCard, FileText, CheckCheck } from 'lucide-react';
+import { Package, ArrowRight, RefreshCw, CreditCard, FileText, CheckCheck, ShieldAlert, Receipt, DollarSign } from 'lucide-react';
 
-const typeIcons: Record<Notification['type'], React.ElementType> = {
+const typeIcons: Record<NotificationType, React.ElementType> = {
   stage_change: ArrowRight,
   assignment: Package,
   update: RefreshCw,
   payment: CreditCard,
   quotation: FileText,
+  admin_edit: ShieldAlert,
+  payables_update: Receipt,
+  collections_update: DollarSign,
 };
 
-const typeColors: Record<Notification['type'], string> = {
+const typeColors: Record<NotificationType, string> = {
   stage_change: 'text-blue-500',
   assignment: 'text-purple-500',
   update: 'text-amber-500',
   payment: 'text-green-500',
   quotation: 'text-cyan-500',
+  admin_edit: 'text-red-500',
+  payables_update: 'text-orange-500',
+  collections_update: 'text-emerald-500',
 };
 
 interface NotificationPanelProps {
@@ -45,13 +51,18 @@ export function NotificationPanel({ open, onOpenChange }: NotificationPanelProps
         case 'stage_change':
         case 'assignment':
         case 'update':
+        case 'admin_edit':
           navigate('/operations');
           break;
         case 'payment':
+        case 'collections_update':
           navigate('/collections');
           break;
         case 'quotation':
           navigate('/quotations');
+          break;
+        case 'payables_update':
+          navigate('/payables');
           break;
         default:
           navigate('/');
