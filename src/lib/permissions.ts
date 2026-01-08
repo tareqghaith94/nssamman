@@ -37,12 +37,51 @@ export function canSeeShipment(shipment: Shipment, roles: UserRole[], refPrefix?
 }
 
 // Check if a shipment can be edited at all
-export function canEditShipment(shipment: Shipment, roles: UserRole[], refPrefix?: string): boolean {
+export function canEditShipment(
+  shipment: Shipment, 
+  roles: UserRole[], 
+  refPrefix?: string,
+  userName?: string
+): boolean {
   // Lost shipments are read-only
   if (shipment.isLost) return false;
   
-  // All authenticated users can potentially edit - field-level permissions handle ownership
-  return roles.length > 0;
+  // Completed shipments are read-only (except admin)
+  if (shipment.stage === 'completed') {
+    return roles.includes('admin');
+  }
+  
+  // Admin can always edit
+  if (roles.includes('admin')) return true;
+  
+  // Check stage-based ownership
+  switch (shipment.stage) {
+    case 'lead':
+      // Salesperson can edit their own leads
+      if (roles.includes('sales') && shipment.salesperson === userName) return true;
+      // Pricing/Ops users can view to claim
+      if (roles.includes('pricing') || roles.includes('ops')) return true;
+      return false;
+      
+    case 'pricing':
+      // Only the assigned pricing owner can edit
+      if (roles.includes('pricing')) {
+        if (!shipment.pricingOwner) return true;
+        return shipment.pricingOwner === userName;
+      }
+      return false;
+      
+    case 'operations':
+      // Only the assigned ops owner can edit
+      if (roles.includes('ops')) {
+        if (!shipment.opsOwner) return true;
+        return shipment.opsOwner === userName;
+      }
+      return false;
+      
+    default:
+      return false;
+  }
 }
 
 // Check if user can edit a shipment in operations stage based on ops owner assignment
@@ -209,7 +248,13 @@ function canRoleEditField(
   userName?: string
 ): boolean {
   // Sales: can only edit lead info and client remarks on their own shipments
+  // Sales CANNOT edit pricing or operations fields
   if (role === 'sales') {
+    // Sales cannot edit pricing fields
+    if (FIELD_CATEGORIES.pricing.includes(fieldName)) return false;
+    // Sales cannot edit operations fields
+    if (FIELD_CATEGORIES.operations.includes(fieldName)) return false;
+    
     // Check ownership by salesperson name match
     if (!userName || shipment.salesperson !== userName) return false;
     // Can only edit during lead stage for lead fields

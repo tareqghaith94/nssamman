@@ -61,9 +61,12 @@ const stageOptions: { value: ShipmentStage | 'all'; label: string }[] = [
 ];
 
 export default function Database() {
-  const { isAdmin, loading } = useAuth();
+  const { isAdmin, loading, profile } = useAuth();
   const { shipments, clearAllShipments, isLoading } = useShipments();
   const { activities, getActivitiesByShipment } = useActivityLogs();
+  
+  // Only Tareq can clear all data
+  const canClearAllData = profile?.name === 'Tareq';
   
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState<ShipmentStage | 'all'>('all');
@@ -203,34 +206,36 @@ export default function Database() {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" size="sm" disabled={shipments.length === 0}>
-                <Trash2 className="w-4 h-4 mr-2" />
-                Clear All Data
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Clear all shipment data?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  This will permanently delete all {shipments.length} shipments and cannot be undone.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction
-                  onClick={() => {
-                    clearAllShipments();
-                    toast({ title: 'All shipment data cleared' });
-                  }}
-                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                >
-                  Clear All
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+          {canClearAllData && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" disabled={shipments.length === 0}>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Clear All Data
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Clear all shipment data?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This will permanently delete all {shipments.length} shipments and cannot be undone.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      clearAllShipments();
+                      toast({ title: 'All shipment data cleared' });
+                    }}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Clear All
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
       </div>
 

@@ -97,9 +97,10 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const [hasLock, setHasLock] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Check if shipment is editable
-  const isEditable = shipment ? canEditShipment(shipment, userRoles, refPrefix) : false;
   const userName = profile?.name;
+  
+  // Check if shipment is editable - pass userName for ownership checks
+  const isEditable = shipment ? canEditShipment(shipment, userRoles, refPrefix, userName) : false;
   
   // Field lock states based on role and stage - pass userName for ownership checks
   const agentLocked = shipment ? !canEditField(shipment, 'agent', userRoles, refPrefix, userName) : true;
