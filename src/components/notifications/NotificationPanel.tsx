@@ -59,7 +59,7 @@ export function NotificationPanel({ open, onOpenChange }: NotificationPanelProps
           navigate('/collections');
           break;
         case 'quotation':
-          navigate('/quotations');
+          navigate('/pricing');
           break;
         case 'payables_update':
           navigate('/payables');
