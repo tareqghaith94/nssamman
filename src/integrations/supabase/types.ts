@@ -440,6 +440,68 @@ export type Database = {
         }
         Relationships: []
       }
+      shipment_payables: {
+        Row: {
+          created_at: string
+          currency: string
+          estimated_amount: number | null
+          id: string
+          invoice_amount: number | null
+          invoice_date: string | null
+          invoice_file_name: string | null
+          invoice_uploaded: boolean | null
+          notes: string | null
+          paid: boolean | null
+          paid_date: string | null
+          party_name: string
+          party_type: string
+          shipment_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          estimated_amount?: number | null
+          id?: string
+          invoice_amount?: number | null
+          invoice_date?: string | null
+          invoice_file_name?: string | null
+          invoice_uploaded?: boolean | null
+          notes?: string | null
+          paid?: boolean | null
+          paid_date?: string | null
+          party_name: string
+          party_type?: string
+          shipment_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          estimated_amount?: number | null
+          id?: string
+          invoice_amount?: number | null
+          invoice_date?: string | null
+          invoice_file_name?: string | null
+          invoice_uploaded?: boolean | null
+          notes?: string | null
+          paid?: boolean | null
+          paid_date?: string | null
+          party_name?: string
+          party_type?: string
+          shipment_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "shipment_payables_shipment_id_fkey"
+            columns: ["shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       shipments: {
         Row: {
           agent: string | null
