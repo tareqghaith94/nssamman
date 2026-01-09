@@ -181,7 +181,7 @@ export default function Payables() {
         action={
           <div className="flex items-center gap-3">
             <Select
-              value={selectedShipmentForAdd?.id || ''}
+              value=""
               onValueChange={(v) => {
                 const shipment = shipmentsWithSchedule.find((s) => s.id === v);
                 if (shipment) handleOpenAddDialog(shipment);
@@ -190,7 +190,7 @@ export default function Payables() {
               <SelectTrigger className="w-[200px]">
                 <div className="flex items-center gap-2">
                   <Plus className="h-4 w-4" />
-                  <SelectValue placeholder="Add Payable..." />
+                  <span className="text-muted-foreground">Add Payable...</span>
                 </div>
               </SelectTrigger>
               <SelectContent>
@@ -388,7 +388,10 @@ export default function Payables() {
       {selectedShipmentForAdd && (
         <AddPayableDialog
           open={addDialogOpen}
-          onOpenChange={setAddDialogOpen}
+          onOpenChange={(open) => {
+            setAddDialogOpen(open);
+            if (!open) setSelectedShipmentForAdd(null);
+          }}
           shipmentId={selectedShipmentForAdd.id}
           referenceId={selectedShipmentForAdd.referenceId}
           onSubmit={handleAddPayable}
