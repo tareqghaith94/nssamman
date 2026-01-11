@@ -67,7 +67,7 @@ export function useCostLineItems() {
           equipment_type: item.equipmentType || null,
           unit_cost: item.unitCost,
           quantity: item.quantity,
-          amount: item.unitCost * item.quantity,
+          // amount is auto-calculated by database (generated column)
           currency: item.currency || 'USD',
         })));
 
