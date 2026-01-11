@@ -215,15 +215,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         setPreviousQuoteTotal(0);
         initLineItemsFromShipment();
       }
-      
-      // Try to acquire lock
-      if (isEditable && userId) {
-        const acquired = acquireLock(shipment.id, userId);
-        setHasLock(acquired);
-        if (!acquired) {
-          toast.warning(`This shipment is being edited by another user`);
-        }
-      }
     }
     
     return () => {
@@ -232,6 +223,17 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       }
     };
   }, [shipment?.id, open, quotations]);
+  
+  // Separate effect for acquiring lock - runs when auth data loads
+  useEffect(() => {
+    if (shipment && open && isEditable && userId && !hasLock) {
+      const acquired = acquireLock(shipment.id, userId);
+      setHasLock(acquired);
+      if (!acquired) {
+        toast.warning(`This shipment is being edited by another user`);
+      }
+    }
+  }, [shipment?.id, open, isEditable, userId]);
   
   // Calculate totals with currency conversion
   const { grandTotal, totalCost, totalProfit, profitMargin } = useMemo(() => {
