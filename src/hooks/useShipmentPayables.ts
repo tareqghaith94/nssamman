@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { ShipmentPayable, PayableWithShipment, PartyType } from '@/types/payable';
+import { ShipmentPayable, PayableWithShipment, PartyType, ShipmentWithPayables } from '@/types/payable';
 import { toast } from 'sonner';
 
 interface PayableRow {
@@ -106,6 +106,7 @@ export function useShipmentPayables(shipmentId?: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shipment-payables'] });
       queryClient.invalidateQueries({ queryKey: ['all-pending-payables'] });
+      queryClient.invalidateQueries({ queryKey: ['shipments-with-payables'] });
       toast.success('Payable added successfully');
     },
     onError: (error) => {
@@ -137,6 +138,7 @@ export function useShipmentPayables(shipmentId?: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shipment-payables'] });
       queryClient.invalidateQueries({ queryKey: ['all-pending-payables'] });
+      queryClient.invalidateQueries({ queryKey: ['shipments-with-payables'] });
       toast.success('Invoice saved successfully');
     },
     onError: (error) => {
@@ -160,6 +162,7 @@ export function useShipmentPayables(shipmentId?: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shipment-payables'] });
       queryClient.invalidateQueries({ queryKey: ['all-pending-payables'] });
+      queryClient.invalidateQueries({ queryKey: ['shipments-with-payables'] });
       toast.success('Marked as paid');
     },
     onError: (error) => {
@@ -183,6 +186,7 @@ export function useShipmentPayables(shipmentId?: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shipment-payables'] });
       queryClient.invalidateQueries({ queryKey: ['all-pending-payables'] });
+      queryClient.invalidateQueries({ queryKey: ['shipments-with-payables'] });
       toast.success('Payment undone');
     },
     onError: (error) => {
@@ -203,6 +207,7 @@ export function useShipmentPayables(shipmentId?: string) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['shipment-payables'] });
       queryClient.invalidateQueries({ queryKey: ['all-pending-payables'] });
+      queryClient.invalidateQueries({ queryKey: ['shipments-with-payables'] });
       toast.success('Payable deleted');
     },
     onError: (error) => {
@@ -249,6 +254,79 @@ export function useAllPendingPayables(showHistory = false) {
       
       if (error) throw error;
       return (data as PayableWithShipmentRow[]).map(rowToPayableWithShipment);
+    },
+  });
+}
+
+// Hook to fetch all shipments with their payables grouped
+export function useShipmentsWithPayables(showHistory = false) {
+  return useQuery({
+    queryKey: ['shipments-with-payables', showHistory],
+    queryFn: async () => {
+      // Fetch shipments that have ETD or ETA set (indicating they're ready for payables tracking)
+      const { data: shipments, error: shipmentsError } = await supabase
+        .from('shipments')
+        .select('id, reference_id, client_name, port_of_loading, port_of_discharge, etd, eta, salesperson, pricing_owner, ops_owner, stage')
+        .or('etd.not.is.null,eta.not.is.null')
+        .order('created_at', { ascending: false });
+
+      if (shipmentsError) throw shipmentsError;
+
+      // Fetch all payables
+      let payablesQuery = supabase
+        .from('shipment_payables')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      const { data: payables, error: payablesError } = await payablesQuery;
+
+      if (payablesError) throw payablesError;
+
+      // Group payables by shipment
+      const payablesByShipment = new Map<string, ShipmentPayable[]>();
+      (payables as PayableRow[]).forEach((row) => {
+        const payable = rowToPayable(row);
+        const existing = payablesByShipment.get(row.shipment_id) || [];
+        existing.push(payable);
+        payablesByShipment.set(row.shipment_id, existing);
+      });
+
+      // Build the result
+      const result: ShipmentWithPayables[] = shipments.map((s) => {
+        const shipmentPayables = payablesByShipment.get(s.id) || [];
+        const pendingPayables = shipmentPayables.filter((p) => !p.paid);
+        const paidPayables = shipmentPayables.filter((p) => p.paid);
+
+        // Calculate total outstanding (pending only)
+        const totalOutstanding = pendingPayables.reduce((sum, p) => {
+          return sum + (p.invoiceAmount ?? p.estimatedAmount ?? 0);
+        }, 0);
+
+        return {
+          id: s.id,
+          referenceId: s.reference_id,
+          clientName: s.client_name,
+          portOfLoading: s.port_of_loading,
+          portOfDischarge: s.port_of_discharge,
+          etd: s.etd,
+          eta: s.eta,
+          salesperson: s.salesperson,
+          pricingOwner: s.pricing_owner,
+          opsOwner: s.ops_owner,
+          payables: shipmentPayables,
+          totalOutstanding,
+          paidCount: paidPayables.length,
+          pendingCount: pendingPayables.length,
+        };
+      });
+
+      // Filter based on showHistory
+      if (!showHistory) {
+        // Show shipments that have pending payables OR no payables yet
+        return result.filter((s) => s.pendingCount > 0 || s.payables.length === 0);
+      }
+
+      return result;
     },
   });
 }
