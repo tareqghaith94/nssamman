@@ -51,6 +51,7 @@ export interface Shipment {
   doIssued?: boolean;
   doReleaseDate?: Date;
   totalInvoiceAmount?: number;
+  invoiceCurrency?: Currency;
   completedAt?: Date;
   opsOwner?: 'Uma' | 'Rania' | 'Mozayan';
   

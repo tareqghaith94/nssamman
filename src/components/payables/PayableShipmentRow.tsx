@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, Upload, Check, Undo2, Trash2, FileCheck, AlertCircle, Clock } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Upload, Check, Undo2, Trash2, FileCheck, AlertCircle, Clock, Eye } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -17,6 +17,7 @@ interface PayableShipmentRowProps {
   onMarkPaid: (payable: ShipmentPayable) => void;
   onUndoPaid: (payable: ShipmentPayable) => void;
   onDeletePayable: (payable: ShipmentPayable) => void;
+  onViewInvoice?: (payable: ShipmentPayable) => void;
   showPaid?: boolean;
 }
 
@@ -28,6 +29,7 @@ export function PayableShipmentRow({
   onMarkPaid,
   onUndoPaid,
   onDeletePayable,
+  onViewInvoice,
   showPaid = false,
 }: PayableShipmentRowProps) {
   const [isOpen, setIsOpen] = useState(shipment.payables.length > 0);
@@ -165,10 +167,23 @@ export function PayableShipmentRow({
                   </TableCell>
                   <TableCell className="text-right">
                     {hasInvoice ? (
-                      <span className="inline-flex items-center gap-1 font-medium text-success text-sm">
-                        <FileCheck className="w-3 h-3" />
-                        {formatCurrency(payable.invoiceAmount, payable.currency as Currency)}
-                      </span>
+                      <div className="flex items-center justify-end gap-1">
+                        <span className="inline-flex items-center gap-1 font-medium text-success text-sm">
+                          <FileCheck className="w-3 h-3" />
+                          {formatCurrency(payable.invoiceAmount, payable.currency as Currency)}
+                        </span>
+                        {onViewInvoice && payable.invoiceFilePath && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => onViewInvoice(payable)}
+                            className="h-6 w-6 text-muted-foreground hover:text-primary"
+                            title="View Invoice"
+                          >
+                            <Eye className="w-3 h-3" />
+                          </Button>
+                        )}
+                      </div>
                     ) : (
                       <span className="text-muted-foreground text-sm">—</span>
                     )}

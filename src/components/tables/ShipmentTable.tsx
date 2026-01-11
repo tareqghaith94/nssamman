@@ -18,7 +18,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { format } from 'date-fns';
-import { MoreHorizontal, Edit2, Undo2, CheckCircle, XCircle, Eye } from 'lucide-react';
+import { MoreHorizontal, Edit2, Undo2, CheckCircle, XCircle, Eye, Trash2 } from 'lucide-react';
 
 const LOST_REASON_LABELS: Record<LostReason, string> = {
   price: 'Price too high',
@@ -37,6 +37,7 @@ interface ShipmentTableProps {
   onConfirm?: (shipment: Shipment) => void;
   onMarkLost?: (shipment: Shipment) => void;
   onViewQuote?: (shipment: Shipment) => void;
+  onDelete?: (shipment: Shipment) => void;
   showPricing?: boolean;
   showOperations?: boolean;
   showQuotationStatus?: boolean;
@@ -51,13 +52,14 @@ export function ShipmentTable({
   onConfirm,
   onMarkLost,
   onViewQuote,
+  onDelete,
   showPricing,
   showOperations,
   showQuotationStatus,
   isNew,
   getQuotationStatus,
 }: ShipmentTableProps) {
-  const hasActions = onEdit || onRevert || onConfirm || onMarkLost;
+  const hasActions = onEdit || onRevert || onConfirm || onMarkLost || onDelete;
 
   const getQuoteStatusBadge = (shipment: Shipment) => {
     const status = getQuotationStatus?.(shipment.id);
@@ -139,6 +141,7 @@ export function ShipmentTable({
               const isNewShipment = isNew?.(shipment);
               const canConfirmThisShipment = onConfirm && !shipment.isLost;
               const canMarkLostThisShipment = onMarkLost && !shipment.isLost;
+              const canDeleteThisShipment = onDelete && shipment.stage === 'lead';
               
               return (
                 <TableRow 
@@ -218,7 +221,7 @@ export function ShipmentTable({
                             <Edit2 className="w-4 h-4" />
                           </Button>
                         )}
-                        {(onRevert || canConfirmThisShipment || canMarkLostThisShipment) && (
+                        {(onRevert || canConfirmThisShipment || canMarkLostThisShipment || canDeleteThisShipment) && (
                           <DropdownMenu>
                             <DropdownMenuTrigger asChild>
                               <Button
@@ -250,6 +253,15 @@ export function ShipmentTable({
                                   <Undo2 className="w-4 h-4 mr-2" />
                                   Undo to Previous Stage
                                 </DropdownMenuItem>
+                              )}
+                              {canDeleteThisShipment && (
+                                <>
+                                  <DropdownMenuSeparator />
+                                  <DropdownMenuItem onClick={() => onDelete(shipment)} className="text-destructive">
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete Shipment
+                                  </DropdownMenuItem>
+                                </>
                               )}
                             </DropdownMenuContent>
                           </DropdownMenu>

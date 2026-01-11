@@ -3,19 +3,22 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Upload, X, FileText } from 'lucide-react';
-import { PayableWithShipment } from '@/types/payable';
+import { Upload, X, FileText, Loader2 } from 'lucide-react';
+import { PayableWithShipment, ShipmentPayable } from '@/types/payable';
 import { PayableTypeBadge } from './PayableTypeBadge';
 import { Currency, formatCurrency } from '@/lib/currency';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface PayableInvoiceDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  payable: PayableWithShipment | null;
+  payable: PayableWithShipment | ShipmentPayable | null;
   onSubmit: (data: {
     id: string;
     invoiceAmount: number;
     invoiceFileName: string;
+    invoiceFilePath: string;
     invoiceUploaded: boolean;
     invoiceDate: string;
   }) => void;
@@ -28,7 +31,9 @@ export function PayableInvoiceDialog({
   onSubmit,
 }: PayableInvoiceDialogProps) {
   const [fileName, setFileName] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [invoiceAmount, setInvoiceAmount] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,34 +41,62 @@ export function PayableInvoiceDialog({
     if (file) {
       // Validate file size (max 10MB)
       if (file.size > 10 * 1024 * 1024) {
+        toast.error('File size must be less than 10MB');
         return;
       }
       setFileName(file.name);
+      setSelectedFile(file);
     }
   };
 
   const handleRemoveFile = () => {
     setFileName('');
+    setSelectedFile(null);
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
   };
 
-  const handleSubmit = () => {
-    if (!payable || !invoiceAmount || !fileName) return;
+  const handleSubmit = async () => {
+    if (!payable || !invoiceAmount || !selectedFile) return;
 
-    onSubmit({
-      id: payable.id,
-      invoiceAmount: parseFloat(invoiceAmount),
-      invoiceFileName: fileName,
-      invoiceUploaded: true,
-      invoiceDate: new Date().toISOString(),
-    });
+    setIsUploading(true);
+    try {
+      // Generate unique file path
+      const timestamp = Date.now();
+      const sanitizedFileName = selectedFile.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+      const filePath = `${payable.id}/${timestamp}_${sanitizedFileName}`;
 
-    // Reset form
-    setFileName('');
-    setInvoiceAmount('');
-    onOpenChange(false);
+      // Upload file to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('payable-invoices')
+        .upload(filePath, selectedFile);
+
+      if (uploadError) {
+        throw uploadError;
+      }
+
+      // Call onSubmit with the file path
+      onSubmit({
+        id: payable.id,
+        invoiceAmount: parseFloat(invoiceAmount),
+        invoiceFileName: selectedFile.name,
+        invoiceFilePath: filePath,
+        invoiceUploaded: true,
+        invoiceDate: new Date().toISOString(),
+      });
+
+      // Reset form
+      setFileName('');
+      setSelectedFile(null);
+      setInvoiceAmount('');
+      onOpenChange(false);
+    } catch (error) {
+      console.error('Error uploading invoice:', error);
+      toast.error('Failed to upload invoice');
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   if (!payable) return null;
@@ -71,6 +104,9 @@ export function PayableInvoiceDialog({
   const difference = invoiceAmount && payable.estimatedAmount
     ? parseFloat(invoiceAmount) - payable.estimatedAmount
     : null;
+
+  // Check if payable has reference ID (PayableWithShipment)
+  const referenceId = 'referenceId' in payable ? payable.referenceId : undefined;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -80,10 +116,12 @@ export function PayableInvoiceDialog({
         </DialogHeader>
         
         <div className="space-y-2 text-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Reference:</span>
-            <span className="font-medium">{payable.referenceId}</span>
-          </div>
+          {referenceId && (
+            <div className="flex items-center justify-between">
+              <span className="text-muted-foreground">Reference:</span>
+              <span className="font-medium">{referenceId}</span>
+            </div>
+          )}
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Party:</span>
             <div className="flex items-center gap-2">
@@ -157,9 +195,10 @@ export function PayableInvoiceDialog({
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={!fileName || !invoiceAmount}
+            disabled={!fileName || !invoiceAmount || isUploading}
           >
-            Save Invoice
+            {isUploading && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+            {isUploading ? 'Uploading...' : 'Save Invoice'}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -449,6 +449,7 @@ export type Database = {
           invoice_amount: number | null
           invoice_date: string | null
           invoice_file_name: string | null
+          invoice_file_path: string | null
           invoice_uploaded: boolean | null
           notes: string | null
           paid: boolean | null
@@ -466,6 +467,7 @@ export type Database = {
           invoice_amount?: number | null
           invoice_date?: string | null
           invoice_file_name?: string | null
+          invoice_file_path?: string | null
           invoice_uploaded?: boolean | null
           notes?: string | null
           paid?: boolean | null
@@ -483,6 +485,7 @@ export type Database = {
           invoice_amount?: number | null
           invoice_date?: string | null
           invoice_file_name?: string | null
+          invoice_file_path?: string | null
           invoice_uploaded?: boolean | null
           notes?: string | null
           paid?: boolean | null
@@ -530,6 +533,7 @@ export type Database = {
           gate_in_terminal: string | null
           id: string
           incoterm: string
+          invoice_currency: string
           is_lost: boolean | null
           lost_at: string | null
           lost_reason: string | null
@@ -582,6 +586,7 @@ export type Database = {
           gate_in_terminal?: string | null
           id?: string
           incoterm?: string
+          invoice_currency?: string
           is_lost?: boolean | null
           lost_at?: string | null
           lost_reason?: string | null
@@ -634,6 +639,7 @@ export type Database = {
           gate_in_terminal?: string | null
           id?: string
           incoterm?: string
+          invoice_currency?: string
           is_lost?: boolean | null
           lost_at?: string | null
           lost_reason?: string | null

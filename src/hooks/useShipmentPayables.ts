@@ -11,6 +11,7 @@ interface PayableRow {
   estimated_amount: number | null;
   invoice_amount: number | null;
   invoice_file_name: string | null;
+  invoice_file_path: string | null;
   invoice_uploaded: boolean | null;
   invoice_date: string | null;
   paid: boolean | null;
@@ -40,6 +41,7 @@ const rowToPayable = (row: PayableRow): ShipmentPayable => ({
   estimatedAmount: row.estimated_amount,
   invoiceAmount: row.invoice_amount,
   invoiceFileName: row.invoice_file_name,
+  invoiceFilePath: row.invoice_file_path,
   invoiceUploaded: row.invoice_uploaded ?? false,
   invoiceDate: row.invoice_date,
   paid: row.paid ?? false,
@@ -120,6 +122,7 @@ export function useShipmentPayables(shipmentId?: string) {
       id: string;
       invoiceAmount?: number;
       invoiceFileName?: string;
+      invoiceFilePath?: string;
       invoiceUploaded?: boolean;
       invoiceDate?: string;
     }) => {
@@ -128,6 +131,7 @@ export function useShipmentPayables(shipmentId?: string) {
         .update({
           invoice_amount: data.invoiceAmount,
           invoice_file_name: data.invoiceFileName,
+          invoice_file_path: data.invoiceFilePath,
           invoice_uploaded: data.invoiceUploaded,
           invoice_date: data.invoiceDate,
         })
@@ -215,6 +219,19 @@ export function useShipmentPayables(shipmentId?: string) {
     },
   });
 
+  // Get signed URL for viewing invoice
+  const getInvoiceUrl = async (filePath: string): Promise<string | null> => {
+    const { data, error } = await supabase.storage
+      .from('payable-invoices')
+      .createSignedUrl(filePath, 3600); // 1 hour expiry
+    
+    if (error) {
+      console.error('Error getting invoice URL:', error);
+      return null;
+    }
+    return data.signedUrl;
+  };
+
   return {
     payables,
     isLoading,
@@ -223,6 +240,7 @@ export function useShipmentPayables(shipmentId?: string) {
     markAsPaid,
     undoPayment,
     deletePayable,
+    getInvoiceUrl,
   };
 }
 
