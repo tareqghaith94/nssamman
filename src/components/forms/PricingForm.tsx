@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useShipments } from '@/hooks/useShipments';
 import { useQuotations } from '@/hooks/useQuotations';
 import { useCostLineItems } from '@/hooks/useCostLineItems';
@@ -70,8 +70,11 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const { quotations, createQuotation, updateQuotation, fetchLineItems, isCreating, isUpdating } = useQuotations();
   const { fetchCostLineItems, saveCostLineItems } = useCostLineItems();
   const { rates, convert } = useExchangeRates();
-  const { profile, roles } = useAuth();
+  const { profile, roles, loading: authLoading } = useAuth();
   const { logActivity } = useTrackedShipmentActions();
+  
+  // Ref to prevent duplicate lock attempts
+  const hasAttemptedLock = useRef(false);
   const { acquireLock, releaseLock } = useLockStore();
   
   const userRoles = (roles || []) as UserRole[];
@@ -224,16 +227,41 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     };
   }, [shipment?.id, open, quotations]);
   
-  // Separate effect for acquiring lock - runs when auth data loads
+  // Reset lock attempt ref when form closes or shipment changes
   useEffect(() => {
-    if (shipment && open && isEditable && userId && !hasLock) {
+    if (!open) {
+      hasAttemptedLock.current = false;
+      setHasLock(false);
+    }
+  }, [open, shipment?.id]);
+  
+  // Separate effect for acquiring lock - waits for auth to fully load
+  useEffect(() => {
+    // Don't attempt lock until auth has finished loading
+    if (authLoading) return;
+    
+    if (shipment && open && isEditable && userId && !hasLock && !hasAttemptedLock.current) {
+      hasAttemptedLock.current = true;
       const acquired = acquireLock(shipment.id, userId);
       setHasLock(acquired);
       if (!acquired) {
         toast.warning(`This shipment is being edited by another user`);
       }
     }
-  }, [shipment?.id, open, isEditable, userId]);
+  }, [shipment?.id, open, isEditable, userId, hasLock, authLoading]);
+  
+  // Show loading state while auth is resolving
+  if (authLoading && open) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-center p-8">
+            <span className="text-muted-foreground">Loading...</span>
+          </div>
+        </DialogContent>
+      </Dialog>
+    );
+  }
   
   // Calculate totals with currency conversion
   const { grandTotal, totalCost, totalProfit, profitMargin } = useMemo(() => {
