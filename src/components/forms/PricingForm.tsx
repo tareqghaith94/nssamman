@@ -525,14 +525,15 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             className="border-0 border-l border-border rounded-none text-right focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
             disabled={isReadOnly || (isCost && pricingLocked)}
           />
-          <Input
-            type="number"
-            value={item.quantity || ''}
-            onChange={(e) => onUpdate(idx, 'quantity', e.target.value)}
-            className="border-0 border-l border-border rounded-none text-center focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
-            min={1}
-            disabled={isReadOnly || (isCost && pricingLocked)}
-          />
+                  <Input
+                    type="number"
+                    value={item.quantity || ''}
+                    onChange={(e) => onUpdate(idx, 'quantity', e.target.value)}
+                    className="border-0 border-l border-border rounded-none text-center focus-visible:ring-0 focus-visible:ring-offset-0 h-9 text-sm"
+                    min={0.01}
+                    step="any"
+                    disabled={isReadOnly || (isCost && pricingLocked)}
+                  />
           <div className="flex items-center justify-end border-l border-border px-2 text-sm font-medium bg-muted/30">
             {getCurrencySymbol((item.currency || 'USD') as Currency)}{(item.unitCost * item.quantity).toLocaleString()}
           </div>

@@ -144,7 +144,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
 
   const calculateAmount = (item: LineItemInput) => {
     const cost = parseFloat(item.unitCost) || 0;
-    const qty = parseInt(item.quantity) || 0;
+    const qty = parseFloat(item.quantity) || 0;
     return cost * qty;
   };
 
@@ -176,7 +176,7 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
         description: item.description,
         equipmentType: item.equipmentType || undefined,
         unitCost: parseFloat(item.unitCost) || 0,
-        quantity: parseInt(item.quantity) || 1,
+        quantity: parseFloat(item.quantity) || 1,
       }));
 
     try {
@@ -360,7 +360,8 @@ export function QuotationForm({ open, onOpenChange, shipment, quotation }: Quota
                     value={item.quantity}
                     onChange={(e) => updateLineItem(idx, 'quantity', e.target.value)}
                     className="border-0 border-l border-border rounded-none text-center focus-visible:ring-0 focus-visible:ring-offset-0 h-10"
-                    min={1}
+                    min={0.01}
+                    step="any"
                   />
                   <div className="flex items-center justify-end border-l border-border px-2 text-sm font-medium bg-muted/30">
                     ${calculateAmount(item).toLocaleString()}
