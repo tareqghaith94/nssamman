@@ -27,6 +27,23 @@ export interface PayableWithShipment extends ShipmentPayable {
   clientName: string | null;
 }
 
+export interface ShipmentWithPayables {
+  id: string;
+  referenceId: string;
+  clientName: string | null;
+  portOfLoading: string;
+  portOfDischarge: string;
+  etd: string | null;
+  eta: string | null;
+  salesperson: string;
+  pricingOwner: string | null;
+  opsOwner: string | null;
+  payables: ShipmentPayable[];
+  totalOutstanding: number;
+  paidCount: number;
+  pendingCount: number;
+}
+
 export const PARTY_TYPE_LABELS: Record<PartyType, string> = {
   agent: 'Agent',
   shipping_line: 'Shipping Line',
