@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
+import { useShipments } from '@/hooks/useShipments';
 import { useAuth } from '@/hooks/useAuth';
 import { useTrackedShipmentActions } from '@/hooks/useTrackedShipmentActions';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -12,9 +13,20 @@ import { OpsOwnerFilter } from '@/components/ui/OpsOwnerFilter';
 import { hasReachedStage } from '@/lib/stageOrder';
 import { Shipment } from '@/types/shipment';
 import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 export default function Leads() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
+  const { deleteShipment } = useShipments();
   const { profile } = useAuth();
   const { trackMoveToStage, updateShipment } = useTrackedShipmentActions();
   const [showHistory, setShowHistory] = useState(false);
@@ -22,6 +34,8 @@ export default function Leads() {
   const [selectedShipment, setSelectedShipment] = useState<Shipment | null>(null);
   const [editFormOpen, setEditFormOpen] = useState(false);
   const [confirmShipment, setConfirmShipment] = useState<Shipment | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [shipmentToDelete, setShipmentToDelete] = useState<Shipment | null>(null);
 
   const currentUserName = profile?.name;
 
@@ -40,6 +54,19 @@ export default function Leads() {
   const handleEdit = (shipment: Shipment) => {
     setSelectedShipment(shipment);
     setEditFormOpen(true);
+  };
+
+  const handleDelete = (shipment: Shipment) => {
+    setShipmentToDelete(shipment);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (shipmentToDelete) {
+      await deleteShipment(shipmentToDelete.id);
+      setDeleteConfirmOpen(false);
+      setShipmentToDelete(null);
+    }
   };
 
   const handleAdvanceToPricing = async (assignment?: { pricingOwner?: string }) => {
@@ -84,6 +111,7 @@ export default function Leads() {
         shipments={shipments} 
         onEdit={handleEdit} 
         onConfirm={(ship) => setConfirmShipment(ship)}
+        onDelete={handleDelete}
       />
       
       <LeadEditForm 
@@ -103,6 +131,24 @@ export default function Leads() {
           currentPricingOwner={confirmShipment.pricingOwner}
         />
       )}
+
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Shipment</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{shipmentToDelete?.referenceId}"?
+              This will permanently remove the shipment and all related data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

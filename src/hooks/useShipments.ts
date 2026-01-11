@@ -40,6 +40,7 @@ interface ShipmentRow {
   do_issued: boolean | null;
   do_release_date: string | null;
   total_invoice_amount: number | null;
+  invoice_currency: string;
   completed_at: string | null;
   ops_owner: string | null;
   payment_collected: boolean | null;
@@ -102,6 +103,7 @@ function rowToShipment(row: ShipmentRow): Shipment {
     doIssued: row.do_issued ?? undefined,
     doReleaseDate: row.do_release_date ? new Date(row.do_release_date) : undefined,
     totalInvoiceAmount: row.total_invoice_amount ?? undefined,
+    invoiceCurrency: (row.invoice_currency as Shipment['invoiceCurrency']) || 'USD',
     completedAt: row.completed_at ? new Date(row.completed_at) : undefined,
     opsOwner: row.ops_owner as Shipment['opsOwner'] ?? undefined,
     pricingOwner: row.pricing_owner as Shipment['pricingOwner'] ?? undefined,
@@ -154,6 +156,7 @@ function shipmentToRow(shipment: Partial<Shipment>): Record<string, unknown> {
   if (shipment.doIssued !== undefined) row.do_issued = shipment.doIssued;
   if (shipment.doReleaseDate !== undefined) row.do_release_date = shipment.doReleaseDate?.toISOString();
   if (shipment.totalInvoiceAmount !== undefined) row.total_invoice_amount = shipment.totalInvoiceAmount;
+  if (shipment.invoiceCurrency !== undefined) row.invoice_currency = shipment.invoiceCurrency;
   if (shipment.completedAt !== undefined) row.completed_at = shipment.completedAt?.toISOString() ?? null;
   if (shipment.opsOwner !== undefined) row.ops_owner = shipment.opsOwner;
   if (shipment.pricingOwner !== undefined) row.pricing_owner = shipment.pricingOwner;
@@ -275,6 +278,87 @@ export function useShipments() {
     },
   });
 
+  // Delete a single shipment and all related data
+  const deleteShipmentMutation = useMutation({
+    mutationFn: async (shipmentId: string) => {
+      // First get all quotations for this shipment to delete their line items
+      const { data: quotations } = await supabase
+        .from('quotations')
+        .select('id')
+        .eq('shipment_id', shipmentId);
+      
+      // Delete quote_line_items for each quotation
+      if (quotations && quotations.length > 0) {
+        const quotationIds = quotations.map(q => q.id);
+        const { error: lineItemsError } = await supabase
+          .from('quote_line_items')
+          .delete()
+          .in('quotation_id', quotationIds);
+        if (lineItemsError) throw lineItemsError;
+      }
+
+      // Delete quotations
+      const { error: quotationsError } = await supabase
+        .from('quotations')
+        .delete()
+        .eq('shipment_id', shipmentId);
+      if (quotationsError) throw quotationsError;
+
+      // Delete cost_line_items
+      const { error: costItemsError } = await supabase
+        .from('cost_line_items')
+        .delete()
+        .eq('shipment_id', shipmentId);
+      if (costItemsError) throw costItemsError;
+
+      // Delete shipment_payables
+      const { error: payablesError } = await supabase
+        .from('shipment_payables')
+        .delete()
+        .eq('shipment_id', shipmentId);
+      if (payablesError) throw payablesError;
+
+      // Delete collection_payments
+      const { error: paymentsError } = await supabase
+        .from('collection_payments')
+        .delete()
+        .eq('shipment_id', shipmentId);
+      if (paymentsError) throw paymentsError;
+
+      // Delete activity_logs
+      const { error: activitiesError } = await supabase
+        .from('activity_logs')
+        .delete()
+        .eq('shipment_id', shipmentId);
+      if (activitiesError) throw activitiesError;
+
+      // Delete notifications
+      const { error: notificationsError } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('shipment_id', shipmentId);
+      if (notificationsError) throw notificationsError;
+
+      // Finally delete the shipment
+      const { error: shipmentError } = await supabase
+        .from('shipments')
+        .delete()
+        .eq('id', shipmentId);
+      if (shipmentError) throw shipmentError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shipments'] });
+      queryClient.invalidateQueries({ queryKey: ['activity_logs'] });
+      queryClient.invalidateQueries({ queryKey: ['quotations'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
+      toast.success('Shipment deleted successfully');
+    },
+    onError: (error) => {
+      console.error('Error deleting shipment:', error);
+      toast.error('Failed to delete shipment');
+    },
+  });
+
   // Delete all shipments mutation (admin only)
   // Must delete in correct order due to foreign key constraints
   const clearAllShipmentsMutation = useMutation({
@@ -293,21 +377,42 @@ export function useShipments() {
         .neq('id', '00000000-0000-0000-0000-000000000000');
       if (quotationsError) throw quotationsError;
 
-      // 3. Delete all activity_logs (depends on shipments)
+      // 3. Delete all cost_line_items
+      const { error: costItemsError } = await supabase
+        .from('cost_line_items')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      if (costItemsError) throw costItemsError;
+
+      // 4. Delete all shipment_payables
+      const { error: payablesError } = await supabase
+        .from('shipment_payables')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      if (payablesError) throw payablesError;
+
+      // 5. Delete all collection_payments
+      const { error: paymentsError } = await supabase
+        .from('collection_payments')
+        .delete()
+        .neq('id', '00000000-0000-0000-0000-000000000000');
+      if (paymentsError) throw paymentsError;
+
+      // 6. Delete all activity_logs (depends on shipments)
       const { error: activitiesError } = await supabase
         .from('activity_logs')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000');
       if (activitiesError) throw activitiesError;
 
-      // 4. Delete all notifications (depends on shipments)
+      // 7. Delete all notifications (depends on shipments)
       const { error: notificationsError } = await supabase
         .from('notifications')
         .delete()
         .neq('id', '00000000-0000-0000-0000-000000000000');
       if (notificationsError) throw notificationsError;
 
-      // 5. Finally delete all shipments
+      // 8. Finally delete all shipments
       const { error: shipmentsError } = await supabase
         .from('shipments')
         .delete()
@@ -343,6 +448,10 @@ export function useShipments() {
     return clearAllShipmentsMutation.mutateAsync();
   };
 
+  const deleteShipment = (id: string) => {
+    return deleteShipmentMutation.mutateAsync(id);
+  };
+
   const getShipmentsByStage = (stage: ShipmentStage) => {
     return shipments.filter((s) => s.stage === stage);
   };
@@ -356,8 +465,10 @@ export function useShipments() {
     updateShipment,
     moveToStage,
     clearAllShipments,
+    deleteShipment,
     getShipmentsByStage,
     isAdding: addShipmentMutation.isPending,
     isUpdating: updateShipmentMutation.isPending,
+    isDeleting: deleteShipmentMutation.isPending,
   };
 }

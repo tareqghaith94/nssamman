@@ -8,6 +8,7 @@ export interface ShipmentPayable {
   estimatedAmount: number | null;
   invoiceAmount: number | null;
   invoiceFileName: string | null;
+  invoiceFilePath: string | null;
   invoiceUploaded: boolean;
   invoiceDate: string | null;
   paid: boolean;

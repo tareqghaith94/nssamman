@@ -18,6 +18,7 @@ import { AddPayableDialog } from '@/components/payables/AddPayableDialog';
 import { formatCurrency, Currency } from '@/lib/currency';
 import { ShipmentPayable, PartyType, ShipmentWithPayables } from '@/types/payable';
 import { PayableShipmentRow } from '@/components/payables/PayableShipmentRow';
+import { toast } from 'sonner';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,7 +33,7 @@ import {
 export default function Payables() {
   const [showHistory, setShowHistory] = useState(false);
   const { data: shipmentsWithPayables = [], isLoading } = useShipmentsWithPayables(showHistory);
-  const { updatePayable, markAsPaid, undoPayment, deletePayable, addPayable } = useShipmentPayables();
+  const { updatePayable, markAsPaid, undoPayment, deletePayable, addPayable, getInvoiceUrl } = useShipmentPayables();
   const { roles, profile } = useAuth();
   const userRoles = (roles || []) as UserRole[];
   const userName = profile?.name;
@@ -71,6 +72,7 @@ export default function Payables() {
     id: string;
     invoiceAmount: number;
     invoiceFileName: string;
+    invoiceFilePath: string;
     invoiceUploaded: boolean;
     invoiceDate: string;
   }) => {
@@ -103,6 +105,25 @@ export default function Payables() {
       await deletePayable.mutateAsync(payableToDelete.id);
       setDeleteConfirmOpen(false);
       setPayableToDelete(null);
+    }
+  };
+
+  const handleViewInvoice = async (payable: ShipmentPayable) => {
+    if (!payable.invoiceFilePath) {
+      toast.error('No invoice file found');
+      return;
+    }
+
+    try {
+      const url = await getInvoiceUrl(payable.invoiceFilePath);
+      if (url) {
+        window.open(url, '_blank');
+      } else {
+        toast.error('Failed to get invoice URL');
+      }
+    } catch (error) {
+      console.error('Error viewing invoice:', error);
+      toast.error('Failed to view invoice');
     }
   };
 
@@ -187,6 +208,7 @@ export default function Payables() {
                   onMarkPaid={handleMarkPaid}
                   onUndoPaid={handleUndoPaid}
                   onDeletePayable={handleDeletePayable}
+                  onViewInvoice={handleViewInvoice}
                   showPaid={showHistory}
                 />
               ))

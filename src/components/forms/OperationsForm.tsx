@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/dialog';
 import { RevertConfirmDialog } from '@/components/dialogs/RevertConfirmDialog';
 import { toast } from 'sonner';
-import { Shipment, BLType } from '@/types/shipment';
+import { Shipment, BLType, Currency } from '@/types/shipment';
 import { format } from 'date-fns';
 import { CalendarIcon, Lock, AlertTriangle, ArrowLeft } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -67,6 +67,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
     doIssued: false,
     doReleaseDate: '',
     totalInvoiceAmount: 0,
+    invoiceCurrency: 'USD' as Currency,
   });
   
   const [hasLock, setHasLock] = useState(false);
@@ -96,6 +97,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
         doIssued: shipment.doIssued || false,
         doReleaseDate: shipment.doReleaseDate ? format(new Date(shipment.doReleaseDate), 'yyyy-MM-dd') : '',
         totalInvoiceAmount: shipment.totalInvoiceAmount || 0,
+        invoiceCurrency: shipment.invoiceCurrency || 'USD',
       });
       
       // Try to acquire lock
@@ -134,6 +136,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
       doIssued: formData.doIssued,
       doReleaseDate: formData.doReleaseDate ? new Date(formData.doReleaseDate) : undefined,
       totalInvoiceAmount: formData.totalInvoiceAmount,
+      invoiceCurrency: formData.invoiceCurrency,
     });
     
     toast.success('Operations updated successfully');
@@ -163,6 +166,7 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
       doIssued: formData.doIssued,
       doReleaseDate: formData.doReleaseDate ? new Date(formData.doReleaseDate) : undefined,
       totalInvoiceAmount: formData.totalInvoiceAmount,
+      invoiceCurrency: formData.invoiceCurrency,
     });
     
     trackMoveToStage(shipment, 'completed');
@@ -478,16 +482,35 @@ export function OperationsForm({ shipment, open, onOpenChange }: OperationsFormP
           
           <div className="space-y-4">
             <h4 className="font-medium">Invoice</h4>
-            <div className="space-y-2">
-              <Label htmlFor="invoiceAmount">Total Invoice Amount ($)</Label>
-              <Input
-                id="invoiceAmount"
-                type="number"
-                min={0}
-                value={formData.totalInvoiceAmount}
-                onChange={(e) => setFormData({ ...formData, totalInvoiceAmount: parseFloat(e.target.value) || 0 })}
-                disabled={isReadOnly || etdLocked}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Currency</Label>
+                <Select
+                  value={formData.invoiceCurrency}
+                  onValueChange={(v) => setFormData({ ...formData, invoiceCurrency: v as Currency })}
+                  disabled={isReadOnly || etdLocked}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="USD">USD</SelectItem>
+                    <SelectItem value="EUR">EUR</SelectItem>
+                    <SelectItem value="JOD">JOD</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="invoiceAmount">Total Invoice Amount ({formData.invoiceCurrency})</Label>
+                <Input
+                  id="invoiceAmount"
+                  type="number"
+                  min={0}
+                  value={formData.totalInvoiceAmount}
+                  onChange={(e) => setFormData({ ...formData, totalInvoiceAmount: parseFloat(e.target.value) || 0 })}
+                  disabled={isReadOnly || etdLocked}
+                />
+              </div>
             </div>
           </div>
           
