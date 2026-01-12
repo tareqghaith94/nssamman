@@ -15,6 +15,7 @@ export interface ShipmentPayable {
   paidDate: string | null;
   currency: string;
   notes: string | null;
+  dueDate: string | null;
   createdAt: string;
   updatedAt: string;
 }

@@ -18,6 +18,7 @@ interface PayableRow {
   paid_date: string | null;
   currency: string;
   notes: string | null;
+  due_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -48,6 +49,7 @@ const rowToPayable = (row: PayableRow): ShipmentPayable => ({
   paidDate: row.paid_date,
   currency: row.currency,
   notes: row.notes,
+  dueDate: row.due_date,
   createdAt: row.created_at,
   updatedAt: row.updated_at,
 });
@@ -150,6 +152,42 @@ export function useShipmentPayables(shipmentId?: string) {
     },
   });
 
+  // Edit payable details (party info, due date, etc.)
+  const editPayable = useMutation({
+    mutationFn: async (data: {
+      id: string;
+      partyType: PartyType;
+      partyName: string;
+      estimatedAmount: number | null;
+      currency: string;
+      notes: string | null;
+      dueDate: string | null;
+    }) => {
+      const { error } = await supabase
+        .from('shipment_payables')
+        .update({
+          party_type: data.partyType,
+          party_name: data.partyName,
+          estimated_amount: data.estimatedAmount,
+          currency: data.currency,
+          notes: data.notes,
+          due_date: data.dueDate,
+        })
+        .eq('id', data.id);
+      
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['shipment-payables'] });
+      queryClient.invalidateQueries({ queryKey: ['all-pending-payables'] });
+      queryClient.invalidateQueries({ queryKey: ['shipments-with-payables'] });
+      toast.success('Payable updated successfully');
+    },
+    onError: (error) => {
+      toast.error('Failed to update payable: ' + error.message);
+    },
+  });
+
   // Mark as paid
   const markAsPaid = useMutation({
     mutationFn: async (id: string) => {
@@ -237,6 +275,7 @@ export function useShipmentPayables(shipmentId?: string) {
     isLoading,
     addPayable,
     updatePayable,
+    editPayable,
     markAsPaid,
     undoPayment,
     deletePayable,

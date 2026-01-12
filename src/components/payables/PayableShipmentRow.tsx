@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, Upload, Check, Undo2, Trash2, FileCheck, AlertCircle, Clock, Eye } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Upload, Check, Undo2, Trash2, FileCheck, AlertCircle, Clock, Eye, Pencil } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -18,6 +18,7 @@ interface PayableShipmentRowProps {
   onUndoPaid: (payable: ShipmentPayable) => void;
   onDeletePayable: (payable: ShipmentPayable) => void;
   onViewInvoice?: (payable: ShipmentPayable) => void;
+  onEditPayable?: (payable: ShipmentPayable, shipmentInfo: { portOfLoading: string; etd: string | null; eta: string | null }) => void;
   showPaid?: boolean;
 }
 
@@ -30,11 +31,25 @@ export function PayableShipmentRow({
   onUndoPaid,
   onDeletePayable,
   onViewInvoice,
+  onEditPayable,
   showPaid = false,
 }: PayableShipmentRowProps) {
   const [isOpen, setIsOpen] = useState(shipment.payables.length > 0);
 
   const getPayableStatus = (payable: ShipmentPayable) => {
+    // Use custom due date if set, otherwise calculate from shipment schedule
+    if (payable.dueDate) {
+      const dueDate = new Date(payable.dueDate);
+      if (isBefore(dueDate, new Date()) && !isToday(dueDate)) {
+        return { label: 'Overdue', className: 'status-overdue', icon: AlertCircle, date: dueDate, isCustom: true };
+      }
+      if (isToday(dueDate) || isBefore(dueDate, addDays(new Date(), 3))) {
+        return { label: 'Due Soon', className: 'status-pending', icon: Clock, date: dueDate, isCustom: true };
+      }
+      return { label: 'Upcoming', className: 'status-active', icon: Clock, date: dueDate, isCustom: true };
+    }
+
+    // Calculate from shipment schedule
     const isExport = shipment.portOfLoading.toLowerCase().includes('aqaba');
     let reminderDate: Date;
 
@@ -47,12 +62,22 @@ export function PayableShipmentRow({
     }
 
     if (isBefore(reminderDate, new Date()) && !isToday(reminderDate)) {
-      return { label: 'Overdue', className: 'status-overdue', icon: AlertCircle, date: reminderDate };
+      return { label: 'Overdue', className: 'status-overdue', icon: AlertCircle, date: reminderDate, isCustom: false };
     }
     if (isToday(reminderDate) || isBefore(reminderDate, addDays(new Date(), 3))) {
-      return { label: 'Due Soon', className: 'status-pending', icon: Clock, date: reminderDate };
+      return { label: 'Due Soon', className: 'status-pending', icon: Clock, date: reminderDate, isCustom: false };
     }
-    return { label: 'Upcoming', className: 'status-active', icon: Clock, date: reminderDate };
+    return { label: 'Upcoming', className: 'status-active', icon: Clock, date: reminderDate, isCustom: false };
+  };
+
+  const handleEditPayable = (payable: ShipmentPayable) => {
+    if (onEditPayable) {
+      onEditPayable(payable, {
+        portOfLoading: shipment.portOfLoading,
+        etd: shipment.etd,
+        eta: shipment.eta,
+      });
+    }
   };
 
   // Filter payables based on showPaid
@@ -160,6 +185,7 @@ export function PayableShipmentRow({
                         </span>
                         <span className="text-xs text-muted-foreground">
                           Due: {format(status.date, 'dd MMM yyyy')}
+                          {status.isCustom && <span className="ml-1 text-primary">(custom)</span>}
                         </span>
                       </div>
                     )}
@@ -208,6 +234,15 @@ export function PayableShipmentRow({
                       ) : null
                     ) : canEdit ? (
                       <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleEditPayable(payable)}
+                          className="h-7 w-7 text-muted-foreground hover:text-primary"
+                          title="Edit payable"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </Button>
                         <Button
                           variant="ghost"
                           size="sm"
