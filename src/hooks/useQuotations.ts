@@ -100,6 +100,13 @@ export function useQuotations() {
       }
 
       const { lineItems, ...quotationData } = quotation;
+      
+      // Debug: Log what currency we're receiving
+      console.log('[useQuotations] createQuotation called with currency:', quotationData.currency);
+      
+      // Ensure currency is explicitly set
+      const currencyValue = quotationData.currency ?? 'USD';
+      console.log('[useQuotations] Currency value to save:', currencyValue);
 
       const { data, error } = await supabase
         .from('quotations')
@@ -119,12 +126,14 @@ export function useQuotations() {
           valid_until: quotationData.validUntil?.toISOString() || null,
           created_by: user?.id,
           issued_at: quotationData.issuedAt?.toISOString() || null,
-          currency: quotationData.currency || 'USD',
+          currency: currencyValue,
         })
         .select('*, shipments(reference_id)')
         .single();
 
       if (error) throw error;
+      
+      console.log('[useQuotations] Created quotation, returned currency:', data.currency);
 
       // Insert line items if provided
       if (lineItems && lineItems.length > 0) {
@@ -151,6 +160,13 @@ export function useQuotations() {
 
   const updateQuotationMutation = useMutation({
     mutationFn: async ({ id, lineItems, ...updates }: Partial<Quotation> & { id: string; lineItems?: Omit<QuoteLineItem, 'id' | 'quotationId' | 'amount'>[] }) => {
+      // Debug: Log what currency we're receiving
+      console.log('[useQuotations] updateQuotation called with currency:', updates.currency);
+      
+      // Ensure currency is explicitly set - never default to USD if a value was provided
+      const currencyValue = updates.currency ?? 'USD';
+      console.log('[useQuotations] Currency value to save:', currencyValue);
+      
       const { data, error } = await supabase
         .from('quotations')
         .update({
@@ -167,13 +183,15 @@ export function useQuotations() {
           status: updates.status,
           valid_until: updates.validUntil?.toISOString() || null,
           issued_at: updates.issuedAt?.toISOString() || null,
-          currency: updates.currency || 'USD',
+          currency: currencyValue,
         })
         .eq('id', id)
         .select()
         .single();
 
       if (error) throw error;
+      
+      console.log('[useQuotations] Saved quotation, returned currency:', data.currency);
 
       // Update line items if provided
       if (lineItems && lineItems.length > 0) {
