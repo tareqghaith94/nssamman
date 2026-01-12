@@ -156,10 +156,14 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
           </div>
 
           {/* Reference and Date Row */}
-          <div className="grid grid-cols-2 gap-8 mb-6">
+          <div className="grid grid-cols-3 gap-8 mb-6">
             <div>
               <p className="text-sm font-semibold text-gray-600 uppercase">Reference</p>
               <p className="text-lg font-bold">{quotation.referenceId}</p>
+            </div>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-gray-600 uppercase">Currency</p>
+              <p className="text-lg font-bold">{quoteCurrency}</p>
             </div>
             <div className="text-right">
               <p className="text-sm font-semibold text-gray-600 uppercase">Quote Date</p>
