@@ -75,6 +75,8 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   
   // Ref to prevent duplicate lock attempts
   const hasAttemptedLock = useRef(false);
+  // Ref to track if we've already initialized form state for this dialog session
+  const hasInitialized = useRef(false);
   const { acquireLock, releaseLock } = useLockStore();
   
   const userRoles = (roles || []) as UserRole[];
@@ -102,6 +104,11 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const [isSaving, setIsSaving] = useState(false);
   
   const userName = profile?.name;
+  
+  // Memoize existingQuote to avoid depending on full quotations array in effects
+  const existingQuote = useMemo(() => {
+    return quotations?.find(q => q.shipmentId === shipment?.id);
+  }, [quotations, shipment?.id]);
   
   // Check if shipment is editable - pass userName for ownership checks
   const isEditable = shipment ? canEditShipment(shipment, userRoles, refPrefix, userName) : false;
@@ -162,65 +169,73 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     setLineItems(items);
   };
   
-  // Load shipment data and existing data
+  // Load shipment data and existing data - only once per dialog open
   useEffect(() => {
-    if (shipment && open) {
-      setAgent(shipment.agent || '');
-      setPricingOwner((shipment as any).pricingOwner || '');
-      setRemarks('');
-      setValidDays('30');
+    // Reset initialization flag when dialog closes
+    if (!open) {
+      hasInitialized.current = false;
+      hasAttemptedLock.current = false;
+      setHasLock(false);
+      return;
+    }
+    
+    // Only initialize once per dialog open
+    if (!shipment || hasInitialized.current) return;
+    hasInitialized.current = true;
+    
+    setAgent(shipment.agent || '');
+    setPricingOwner((shipment as any).pricingOwner || '');
+    setRemarks('');
+    setValidDays('30');
+    
+    // Load cost line items
+    fetchCostLineItems(shipment.id).then((items) => {
+      if (items.length > 0) {
+        setCostLineItems(items.map(item => ({
+          description: item.description,
+          equipmentType: item.equipmentType || '',
+          unitCost: item.unitCost,
+          quantity: item.quantity,
+          currency: item.currency || 'USD',
+        })));
+      } else {
+        initCostLineItemsFromShipment();
+      }
+    }).catch(() => {
+      initCostLineItemsFromShipment();
+    });
+    
+    // Check for existing quotation
+    if (existingQuote) {
+      setExistingQuotationId(existingQuote.id);
+      setRemarks(existingQuote.remarks || '');
+      setQuotationCurrency((existingQuote.currency || 'USD') as Currency);
       
-      // Load cost line items
-      fetchCostLineItems(shipment.id).then((items) => {
+      // Load line items from existing quotation
+      fetchLineItems(existingQuote.id).then((items) => {
         if (items.length > 0) {
-          setCostLineItems(items.map(item => ({
+          setLineItems(items.map(item => ({
             description: item.description,
             equipmentType: item.equipmentType || '',
             unitCost: item.unitCost,
             quantity: item.quantity,
             currency: item.currency || 'USD',
           })));
+          const prevTotal = items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
+          setPreviousQuoteTotal(prevTotal);
         } else {
-          initCostLineItemsFromShipment();
-        }
-      }).catch(() => {
-        initCostLineItemsFromShipment();
-      });
-      
-      // Check for existing quotation
-      const existingQuote = quotations.find(q => q.shipmentId === shipment.id);
-      
-      if (existingQuote) {
-        setExistingQuotationId(existingQuote.id);
-        setRemarks(existingQuote.remarks || '');
-        setQuotationCurrency((existingQuote.currency || 'USD') as Currency);
-        
-        // Load line items from existing quotation
-        fetchLineItems(existingQuote.id).then((items) => {
-          if (items.length > 0) {
-            setLineItems(items.map(item => ({
-              description: item.description,
-              equipmentType: item.equipmentType || '',
-              unitCost: item.unitCost,
-              quantity: item.quantity,
-              currency: item.currency || 'USD',
-            })));
-            const prevTotal = items.reduce((sum, item) => sum + (item.unitCost * item.quantity), 0);
-            setPreviousQuoteTotal(prevTotal);
-          } else {
-            setPreviousQuoteTotal(0);
-            initLineItemsFromShipment();
-          }
-        }).catch(() => {
           setPreviousQuoteTotal(0);
           initLineItemsFromShipment();
-        });
-      } else {
-        setExistingQuotationId(null);
+        }
+      }).catch(() => {
         setPreviousQuoteTotal(0);
-        setQuotationCurrency('USD');
         initLineItemsFromShipment();
-      }
+      });
+    } else {
+      setExistingQuotationId(null);
+      setPreviousQuoteTotal(0);
+      setQuotationCurrency('USD');
+      initLineItemsFromShipment();
     }
     
     return () => {
@@ -228,15 +243,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         releaseLock(shipment.id);
       }
     };
-  }, [shipment?.id, open, quotations]);
-  
-  // Reset lock attempt ref when form closes or shipment changes
-  useEffect(() => {
-    if (!open) {
-      hasAttemptedLock.current = false;
-      setHasLock(false);
-    }
-  }, [open, shipment?.id]);
+  }, [shipment?.id, open, existingQuote?.id]);
   
   // Separate effect for acquiring lock - waits for auth to fully load
   useEffect(() => {
@@ -400,13 +407,15 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           ...quotationData,
         });
         
+        const currSymbol = getCurrencySymbol(quotationCurrency);
+        
         await logActivity(
           shipment.id,
           shipment.referenceId,
           'quotation_revised',
-          `Quotation revised - new total: $${grandTotal.toLocaleString()}`,
-          `$${previousQuoteTotal.toLocaleString()}`,
-          `$${grandTotal.toLocaleString()}`
+          `Quotation revised - new total: ${currSymbol}${grandTotal.toLocaleString()}`,
+          `${currSymbol}${previousQuoteTotal.toLocaleString()}`,
+          `${currSymbol}${grandTotal.toLocaleString()}`
         );
         
         if (status === 'issued') {
@@ -414,22 +423,24 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             shipment.id,
             shipment.referenceId,
             'quotation_issued',
-            `Quotation issued for $${grandTotal.toLocaleString()}`
+            `Quotation issued for ${currSymbol}${grandTotal.toLocaleString()} (${quotationCurrency})`
           );
         }
         
-        toast.success(status === 'issued' ? 'Quotation updated & issued' : 'Draft saved');
+        toast.success(status === 'issued' ? `Quotation updated & issued in ${quotationCurrency}` : `Draft saved in ${quotationCurrency}`);
       } else {
         await createQuotation({
           shipmentId: shipment.id,
           ...quotationData,
         });
         
+        const currSymbol = getCurrencySymbol(quotationCurrency);
+        
         await logActivity(
           shipment.id,
           shipment.referenceId,
           'quotation_created',
-          `Quotation created with total $${grandTotal.toLocaleString()}`
+          `Quotation created with total ${currSymbol}${grandTotal.toLocaleString()} (${quotationCurrency})`
         );
         
         if (status === 'issued') {
@@ -437,11 +448,11 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             shipment.id,
             shipment.referenceId,
             'quotation_issued',
-            `Quotation issued for $${grandTotal.toLocaleString()}`
+            `Quotation issued for ${currSymbol}${grandTotal.toLocaleString()} (${quotationCurrency})`
           );
         }
         
-        toast.success(status === 'issued' ? 'Quotation issued' : 'Draft saved');
+        toast.success(status === 'issued' ? `Quotation issued in ${quotationCurrency}` : `Draft saved in ${quotationCurrency}`);
       }
       
       releaseLock(shipment.id);
