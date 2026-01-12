@@ -24,6 +24,7 @@ interface QuotationRow {
   created_at: string;
   created_by: string | null;
   issued_at: string | null;
+  currency: string;
 }
 
 interface LineItemRow {
@@ -57,6 +58,7 @@ function rowToQuotation(row: QuotationRow & { shipments?: { reference_id: string
     createdAt: new Date(row.created_at),
     createdBy: row.created_by || undefined,
     issuedAt: row.issued_at ? new Date(row.issued_at) : undefined,
+    currency: (row.currency || 'USD') as Quotation['currency'],
   };
 }
 
@@ -117,6 +119,7 @@ export function useQuotations() {
           valid_until: quotationData.validUntil?.toISOString() || null,
           created_by: user?.id,
           issued_at: quotationData.issuedAt?.toISOString() || null,
+          currency: quotationData.currency || 'USD',
         })
         .select('*, shipments(reference_id)')
         .single();
@@ -164,6 +167,7 @@ export function useQuotations() {
           status: updates.status,
           valid_until: updates.validUntil?.toISOString() || null,
           issued_at: updates.issuedAt?.toISOString() || null,
+          currency: updates.currency || 'USD',
         })
         .eq('id', id)
         .select()
