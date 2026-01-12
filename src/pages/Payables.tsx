@@ -15,6 +15,7 @@ import {
 } from '@/components/ui/table';
 import { PayableInvoiceDialog } from '@/components/payables/PayableInvoiceDialog';
 import { AddPayableDialog } from '@/components/payables/AddPayableDialog';
+import { EditPayableDialog } from '@/components/payables/EditPayableDialog';
 import { formatCurrency, Currency } from '@/lib/currency';
 import { ShipmentPayable, PartyType, ShipmentWithPayables } from '@/types/payable';
 import { PayableShipmentRow } from '@/components/payables/PayableShipmentRow';
@@ -33,14 +34,17 @@ import {
 export default function Payables() {
   const [showHistory, setShowHistory] = useState(false);
   const { data: shipmentsWithPayables = [], isLoading } = useShipmentsWithPayables(showHistory);
-  const { updatePayable, markAsPaid, undoPayment, deletePayable, addPayable, getInvoiceUrl } = useShipmentPayables();
+  const { updatePayable, editPayable, markAsPaid, undoPayment, deletePayable, addPayable, getInvoiceUrl } = useShipmentPayables();
   const { roles, profile } = useAuth();
   const userRoles = (roles || []) as UserRole[];
   const userName = profile?.name;
 
   const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedPayable, setSelectedPayable] = useState<ShipmentPayable | null>(null);
+  const [selectedPayableForEdit, setSelectedPayableForEdit] = useState<ShipmentPayable | null>(null);
+  const [selectedShipmentInfo, setSelectedShipmentInfo] = useState<{ portOfLoading: string; etd: string | null; eta: string | null } | undefined>(undefined);
   const [selectedShipmentForAdd, setSelectedShipmentForAdd] = useState<{ id: string; referenceId: string } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [payableToDelete, setPayableToDelete] = useState<ShipmentPayable | null>(null);
@@ -93,6 +97,24 @@ export default function Payables() {
     notes?: string;
   }) => {
     await addPayable.mutateAsync(data);
+  };
+
+  const handleOpenEditDialog = (payable: ShipmentPayable, shipmentInfo: { portOfLoading: string; etd: string | null; eta: string | null }) => {
+    setSelectedPayableForEdit(payable);
+    setSelectedShipmentInfo(shipmentInfo);
+    setEditDialogOpen(true);
+  };
+
+  const handleEditPayable = async (data: {
+    id: string;
+    partyType: PartyType;
+    partyName: string;
+    estimatedAmount: number | null;
+    currency: string;
+    notes: string | null;
+    dueDate: string | null;
+  }) => {
+    await editPayable.mutateAsync(data);
   };
 
   const handleDeletePayable = (payable: ShipmentPayable) => {
@@ -209,6 +231,7 @@ export default function Payables() {
                   onUndoPaid={handleUndoPaid}
                   onDeletePayable={handleDeletePayable}
                   onViewInvoice={handleViewInvoice}
+                  onEditPayable={handleOpenEditDialog}
                   showPaid={showHistory}
                 />
               ))
@@ -244,6 +267,20 @@ export default function Payables() {
           onSubmit={handleAddPayable}
         />
       )}
+
+      <EditPayableDialog
+        open={editDialogOpen}
+        onOpenChange={(open) => {
+          setEditDialogOpen(open);
+          if (!open) {
+            setSelectedPayableForEdit(null);
+            setSelectedShipmentInfo(undefined);
+          }
+        }}
+        payable={selectedPayableForEdit}
+        shipmentInfo={selectedShipmentInfo}
+        onSubmit={handleEditPayable}
+      />
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
         <AlertDialogContent>
