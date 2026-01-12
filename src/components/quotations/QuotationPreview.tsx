@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Quotation } from '@/types/quotation';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,16 @@ import { toast } from 'sonner';
 import nssLogo from '@/assets/nss-logo.png';
 import { getCurrencySymbol } from '@/lib/currency';
 import { Currency } from '@/types/shipment';
+import { useExchangeRates } from '@/hooks/useExchangeRates';
+
+interface LineItemWithCurrency {
+  description: string;
+  equipmentType?: string;
+  unitCost: number;
+  quantity: number;
+  amount: number;
+  currency: Currency;
+}
 
 interface QuotationPreviewProps {
   quotation: Quotation | null;
@@ -18,7 +28,11 @@ interface QuotationPreviewProps {
 
 export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPreviewProps) {
   const { issueQuotation, fetchLineItems } = useQuotations();
-  const [lineItems, setLineItems] = useState<{ description: string; equipmentType?: string; unitCost: number; quantity: number; amount: number }[]>([]);
+  const { convert } = useExchangeRates();
+  const [lineItems, setLineItems] = useState<LineItemWithCurrency[]>([]);
+
+  const quoteCurrency = (quotation?.currency || 'USD') as Currency;
+  const currencySymbol = getCurrencySymbol(quoteCurrency);
 
   useEffect(() => {
     if (quotation && open) {
@@ -30,6 +44,7 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
             unitCost: item.unitCost,
             quantity: item.quantity,
             amount: item.amount,
+            currency: (item.currency || 'USD') as Currency,
           })));
         } else {
           // Fallback to old equipment-based rendering
@@ -39,6 +54,7 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
             unitCost: quotation.oceanFreightAmount || 0,
             quantity: eq.quantity,
             amount: (quotation.oceanFreightAmount || 0) * eq.quantity,
+            currency: 'USD' as Currency,
           }));
           
           // Add ex-works if present
@@ -49,6 +65,7 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
               unitCost: quotation.exwAmount,
               quantity: quotation.exwQty,
               amount: quotation.exwAmount * quotation.exwQty,
+              currency: 'USD' as Currency,
             });
           }
           setLineItems(equipmentItems);
@@ -59,11 +76,24 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
     }
   }, [quotation, open]);
 
-  if (!quotation) return null;
+  // Convert all line items to quotation currency
+  const convertedItems = useMemo(() => {
+    return lineItems.map(item => {
+      const convertedUnitCost = convert(item.unitCost, item.currency, quoteCurrency);
+      const convertedAmount = convert(item.amount, item.currency, quoteCurrency);
+      return {
+        ...item,
+        displayUnitCost: convertedUnitCost,
+        displayAmount: convertedAmount,
+      };
+    });
+  }, [lineItems, quoteCurrency, convert]);
 
-  const grandTotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
-  const quoteCurrency = (quotation.currency || 'USD') as Currency;
-  const currencySymbol = getCurrencySymbol(quoteCurrency);
+  const grandTotal = useMemo(() => {
+    return convertedItems.reduce((sum, item) => sum + item.displayAmount, 0);
+  }, [convertedItems]);
+
+  if (!quotation) return null;
 
   const handleIssue = async () => {
     try {
@@ -178,25 +208,24 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
                 </tr>
               </thead>
               <tbody>
-                {lineItems.map((item, index) => (
+                {convertedItems.map((item, index) => (
                   <tr key={index} className="hover:bg-gray-50">
                     <td className="border border-gray-300 p-3">{item.description}</td>
                     <td className="border border-gray-300 p-3">{item.equipmentType || '-'}</td>
                     <td className="border border-gray-300 p-3 text-right">
-                      {currencySymbol}{item.unitCost.toLocaleString()}
+                      {currencySymbol}{item.displayUnitCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                     <td className="border border-gray-300 p-3 text-center">{item.quantity}</td>
                     <td className="border border-gray-300 p-3 text-right">
-                      {currencySymbol}{item.amount.toLocaleString()}
+                      {currencySymbol}{item.displayAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </td>
                   </tr>
                 ))}
 
-                {/* Total Row */}
                 <tr className="bg-gray-100 font-bold">
                   <td colSpan={4} className="border border-gray-300 p-3 text-right">TOTAL ({quoteCurrency})</td>
                   <td className="border border-gray-300 p-3 text-right">
-                    {currencySymbol}{grandTotal.toLocaleString()}
+                    {currencySymbol}{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                 </tr>
               </tbody>
