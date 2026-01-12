@@ -77,6 +77,8 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const hasAttemptedLock = useRef(false);
   // Ref to track if we've already initialized form state for this dialog session
   const hasInitialized = useRef(false);
+  // Ref to track if user has manually changed the quotation currency
+  const hasUserPickedQuotationCurrency = useRef(false);
   const { acquireLock, releaseLock } = useLockStore();
   
   const userRoles = (roles || []) as UserRole[];
@@ -175,6 +177,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     if (!open) {
       hasInitialized.current = false;
       hasAttemptedLock.current = false;
+      hasUserPickedQuotationCurrency.current = false;
       setHasLock(false);
       return;
     }
@@ -234,6 +237,8 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     } else {
       setExistingQuotationId(null);
       setPreviousQuoteTotal(0);
+      // For new quotes, initialize quotation currency from display currency if not manually set
+      // This will be synced again in the auto-sync effect below
       setQuotationCurrency('USD');
       initLineItemsFromShipment();
     }
@@ -333,6 +338,18 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
     setLineItems(updated);
   };
   
+  // Compute the dominant line item currency for mismatch detection
+  const lineItemCurrencyInfo = useMemo(() => {
+    const describedItems = lineItems.filter(item => item.description);
+    if (describedItems.length === 0) return { currencies: new Set<string>(), dominant: null };
+    
+    const currencies = new Set(describedItems.map(item => item.currency || 'USD'));
+    const dominant = currencies.size === 1 ? Array.from(currencies)[0] : null;
+    return { currencies, dominant };
+  }, [lineItems]);
+  
+  const hasCurrencyMismatch = lineItemCurrencyInfo.dominant && lineItemCurrencyInfo.dominant !== quotationCurrency;
+  
   // Save pricing and create/update quotation
   const handleSaveAndIssue = async (status: 'draft' | 'issued') => {
     if (!shipment || !hasLock) return;
@@ -346,9 +363,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       toast.error('Please add at least one cost line item');
       return;
     }
-    
-    // Debug: Log the currency being saved
-    console.log('[PricingForm] Saving quotation with currency:', quotationCurrency);
     
     setIsSaving(true);
     try {
@@ -389,10 +403,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           currency: item.currency || 'USD',
         }));
       
-      // Explicitly set currency to ensure it's not undefined
       const currencyToSave = quotationCurrency as 'USD' | 'EUR' | 'JOD';
-      
-      console.log('[PricingForm] Currency to save:', currencyToSave);
       
       const quotationData = {
         clientName: shipment.clientName || '',
@@ -408,8 +419,6 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         currency: currencyToSave,
         lineItems: lineItemsData,
       };
-      
-      console.log('[PricingForm] Full quotation data:', JSON.stringify(quotationData, null, 2));
       
       if (existingQuotationId) {
         await updateQuotation({
@@ -685,10 +694,13 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             
             <div className="grid grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="quotationCurrency">Quotation Currency</Label>
+                <Label htmlFor="quotationCurrency">Document Currency (PDF/Preview)</Label>
                 <Select 
                   value={quotationCurrency} 
-                  onValueChange={(v) => setQuotationCurrency(v as Currency)}
+                  onValueChange={(v) => {
+                    hasUserPickedQuotationCurrency.current = true;
+                    setQuotationCurrency(v as Currency);
+                  }}
                   disabled={isReadOnly}
                 >
                   <SelectTrigger className="w-full">
@@ -700,6 +712,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
                     ))}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">The currency shown on the quotation document</p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="validDays">Valid for (days)</Label>
@@ -724,14 +737,39 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
                 />
               </div>
             </div>
+            
+            {/* Currency mismatch warning */}
+            {hasCurrencyMismatch && (
+              <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700">
+                <div className="flex items-center gap-2 text-sm">
+                  <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                  <span>
+                    Your line items are in <strong>{lineItemCurrencyInfo.dominant}</strong>, but document currency is <strong>{quotationCurrency}</strong>. 
+                    Amounts will be converted.
+                  </span>
+                </div>
+                <Button 
+                  type="button" 
+                  size="sm" 
+                  variant="outline"
+                  className="flex-shrink-0 border-amber-500 text-amber-700 hover:bg-amber-500/20"
+                  onClick={() => {
+                    hasUserPickedQuotationCurrency.current = true;
+                    setQuotationCurrency(lineItemCurrencyInfo.dominant as Currency);
+                  }}
+                >
+                  Set to {lineItemCurrencyInfo.dominant}
+                </Button>
+              </div>
+            )}
           </div>
           
           {/* Profit Summary */}
           <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
             <div className="flex items-center justify-between mb-3">
-              <h4 className="font-medium text-sm">Profit Summary</h4>
+              <h4 className="font-medium text-sm">Profit Summary <span className="font-normal text-muted-foreground">(display only)</span></h4>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground">Calculate in:</span>
+                <span className="text-xs text-muted-foreground">Display in:</span>
                 <Select value={displayCurrency} onValueChange={(v) => setDisplayCurrency(v as Currency)}>
                   <SelectTrigger className="w-20 h-7 text-xs">
                     <SelectValue />

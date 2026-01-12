@@ -47,14 +47,14 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
             currency: (item.currency || 'USD') as Currency,
           })));
         } else {
-          // Fallback to old equipment-based rendering
+          // Fallback to old equipment-based rendering - use quotation currency, not hardcoded USD
           const equipmentItems = quotation.equipment.map(eq => ({
             description: 'Ocean Freight',
             equipmentType: eq.type,
             unitCost: quotation.oceanFreightAmount || 0,
             quantity: eq.quantity,
             amount: (quotation.oceanFreightAmount || 0) * eq.quantity,
-            currency: 'USD' as Currency,
+            currency: quoteCurrency,
           }));
           
           // Add ex-works if present
@@ -65,7 +65,7 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
               unitCost: quotation.exwAmount,
               quantity: quotation.exwQty,
               amount: quotation.exwAmount * quotation.exwQty,
-              currency: 'USD' as Currency,
+              currency: quoteCurrency,
             });
           }
           setLineItems(equipmentItems);
