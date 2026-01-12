@@ -347,6 +347,9 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       return;
     }
     
+    // Debug: Log the currency being saved
+    console.log('[PricingForm] Saving quotation with currency:', quotationCurrency);
+    
     setIsSaving(true);
     try {
       // Save cost line items
@@ -386,6 +389,11 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
           currency: item.currency || 'USD',
         }));
       
+      // Explicitly set currency to ensure it's not undefined
+      const currencyToSave = quotationCurrency as 'USD' | 'EUR' | 'JOD';
+      
+      console.log('[PricingForm] Currency to save:', currencyToSave);
+      
       const quotationData = {
         clientName: shipment.clientName || '',
         clientAddress: undefined,
@@ -397,9 +405,11 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         status,
         validUntil,
         issuedAt: status === 'issued' ? new Date() : undefined,
-        currency: quotationCurrency,
+        currency: currencyToSave,
         lineItems: lineItemsData,
       };
+      
+      console.log('[PricingForm] Full quotation data:', JSON.stringify(quotationData, null, 2));
       
       if (existingQuotationId) {
         await updateQuotation({
