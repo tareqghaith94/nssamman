@@ -307,6 +307,7 @@ export type Database = {
           client_name: string
           created_at: string
           created_by: string | null
+          currency: string
           equipment: Json
           exw_amount: number | null
           exw_qty: number | null
@@ -326,6 +327,7 @@ export type Database = {
           client_name: string
           created_at?: string
           created_by?: string | null
+          currency?: string
           equipment?: Json
           exw_amount?: number | null
           exw_qty?: number | null
@@ -345,6 +347,7 @@ export type Database = {
           client_name?: string
           created_at?: string
           created_by?: string | null
+          currency?: string
           equipment?: Json
           exw_amount?: number | null
           exw_qty?: number | null

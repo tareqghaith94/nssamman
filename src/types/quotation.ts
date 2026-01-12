@@ -1,4 +1,4 @@
-import { EquipmentItem, ModeOfTransport } from './shipment';
+import { EquipmentItem, ModeOfTransport, Currency } from './shipment';
 
 export type QuotationStatus = 'draft' | 'issued' | 'accepted' | 'expired';
 
@@ -32,5 +32,6 @@ export interface Quotation {
   createdAt: Date;
   createdBy?: string;
   issuedAt?: Date;
+  currency?: Currency; // Currency for the quotation document (USD, EUR, JOD)
   lineItems?: Omit<QuoteLineItem, 'id' | 'quotationId' | 'amount'>[];
 }

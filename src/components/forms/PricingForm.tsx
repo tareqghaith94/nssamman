@@ -92,6 +92,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
   const [remarks, setRemarks] = useState('');
   const [validDays, setValidDays] = useState('30');
   const [displayCurrency, setDisplayCurrency] = useState<Currency>('USD');
+  const [quotationCurrency, setQuotationCurrency] = useState<Currency>('USD');
   
   // Existing quotation for this shipment
   const [existingQuotationId, setExistingQuotationId] = useState<string | null>(null);
@@ -192,6 +193,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       if (existingQuote) {
         setExistingQuotationId(existingQuote.id);
         setRemarks(existingQuote.remarks || '');
+        setQuotationCurrency((existingQuote.currency || 'USD') as Currency);
         
         // Load line items from existing quotation
         fetchLineItems(existingQuote.id).then((items) => {
@@ -216,6 +218,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       } else {
         setExistingQuotationId(null);
         setPreviousQuoteTotal(0);
+        setQuotationCurrency('USD');
         initLineItemsFromShipment();
       }
     }
@@ -387,6 +390,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         status,
         validUntil,
         issuedAt: status === 'issued' ? new Date() : undefined,
+        currency: quotationCurrency,
         lineItems: lineItemsData,
       };
       
@@ -658,7 +662,24 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
             
             {renderLineItemsTable(lineItems, updateLineItem, removeLineItem, false)}
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="quotationCurrency">Quotation Currency</Label>
+                <Select 
+                  value={quotationCurrency} 
+                  onValueChange={(v) => setQuotationCurrency(v as Currency)}
+                  disabled={isReadOnly}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select currency" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-background z-50">
+                    {CURRENCIES.map((curr) => (
+                      <SelectItem key={curr} value={curr}>{curr}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="validDays">Valid for (days)</Label>
                 <Input

@@ -8,6 +8,7 @@ import { useQuotations } from '@/hooks/useQuotations';
 import { toast } from 'sonner';
 import nssLogo from '@/assets/nss-logo.png';
 import { getCurrencySymbol } from '@/lib/currency';
+import { Currency } from '@/types/shipment';
 
 interface QuotationPreviewProps {
   quotation: Quotation | null;
@@ -61,6 +62,8 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
   if (!quotation) return null;
 
   const grandTotal = lineItems.reduce((sum, item) => sum + item.amount, 0);
+  const quoteCurrency = (quotation.currency || 'USD') as Currency;
+  const currencySymbol = getCurrencySymbol(quoteCurrency);
 
   const handleIssue = async () => {
     try {
@@ -180,20 +183,20 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
                     <td className="border border-gray-300 p-3">{item.description}</td>
                     <td className="border border-gray-300 p-3">{item.equipmentType || '-'}</td>
                     <td className="border border-gray-300 p-3 text-right">
-                      ${item.unitCost.toLocaleString()}
+                      {currencySymbol}{item.unitCost.toLocaleString()}
                     </td>
                     <td className="border border-gray-300 p-3 text-center">{item.quantity}</td>
                     <td className="border border-gray-300 p-3 text-right">
-                      ${item.amount.toLocaleString()}
+                      {currencySymbol}{item.amount.toLocaleString()}
                     </td>
                   </tr>
                 ))}
 
                 {/* Total Row */}
                 <tr className="bg-gray-100 font-bold">
-                  <td colSpan={4} className="border border-gray-300 p-3 text-right">TOTAL</td>
+                  <td colSpan={4} className="border border-gray-300 p-3 text-right">TOTAL ({quoteCurrency})</td>
                   <td className="border border-gray-300 p-3 text-right">
-                    ${grandTotal.toLocaleString()}
+                    {currencySymbol}{grandTotal.toLocaleString()}
                   </td>
                 </tr>
               </tbody>
