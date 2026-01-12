@@ -35,7 +35,7 @@ import {
 } from '@/components/ui/collapsible';
 import { RevertConfirmDialog } from '@/components/dialogs/RevertConfirmDialog';
 import { toast } from 'sonner';
-import { Shipment, BLType } from '@/types/shipment';
+import { Shipment, BLType, Currency } from '@/types/shipment';
 import { format } from 'date-fns';
 import { CalendarIcon, Lock, AlertTriangle, ChevronDown, Check, RotateCcw, Save, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -61,6 +61,7 @@ interface FormData {
   doIssued: boolean;
   doReleaseDate: string;
   totalInvoiceAmount: number;
+  invoiceCurrency: Currency;
 }
 
 export function OperationsChecklist({ shipment, open, onOpenChange }: OperationsChecklistProps) {
@@ -86,6 +87,7 @@ export function OperationsChecklist({ shipment, open, onOpenChange }: Operations
     doIssued: false,
     doReleaseDate: '',
     totalInvoiceAmount: 0,
+    invoiceCurrency: 'USD',
   });
   
   const [originalData, setOriginalData] = useState<FormData | null>(null);
@@ -136,6 +138,7 @@ export function OperationsChecklist({ shipment, open, onOpenChange }: Operations
         doIssued: shipment.doIssued || false,
         doReleaseDate: shipment.doReleaseDate ? format(new Date(shipment.doReleaseDate), 'yyyy-MM-dd') : '',
         totalInvoiceAmount: shipment.totalInvoiceAmount || 0,
+        invoiceCurrency: shipment.invoiceCurrency || 'USD',
       };
       setFormData(data);
       setOriginalData(data);
@@ -180,6 +183,7 @@ export function OperationsChecklist({ shipment, open, onOpenChange }: Operations
       doIssued: formData.doIssued,
       doReleaseDate: formData.doReleaseDate ? new Date(formData.doReleaseDate) : undefined,
       totalInvoiceAmount: formData.totalInvoiceAmount || undefined,
+      invoiceCurrency: formData.invoiceCurrency,
     });
     
     setOriginalData(formData);
@@ -497,16 +501,35 @@ export function OperationsChecklist({ shipment, open, onOpenChange }: Operations
           <Collapsible open={openSections.invoicing} onOpenChange={() => toggleSection('invoicing')}>
             <SectionHeader title="Invoicing" section="invoicing" isComplete={sectionCompletion.invoicing} />
             <CollapsibleContent className="pt-3 pl-9 space-y-4">
-              <div className="space-y-2 max-w-xs">
-                <Label htmlFor="invoiceAmount">Total Invoice Amount ($)</Label>
-                <Input
-                  id="invoiceAmount"
-                  type="number"
-                  value={formData.totalInvoiceAmount || ''}
-                  onChange={(e) => setFormData({ ...formData, totalInvoiceAmount: parseFloat(e.target.value) || 0 })}
-                  placeholder="0.00"
-                  disabled={isReadOnly}
-                />
+              <div className="grid grid-cols-2 gap-4 max-w-md">
+                <div className="space-y-2">
+                  <Label>Currency</Label>
+                  <Select
+                    value={formData.invoiceCurrency}
+                    onValueChange={(v) => setFormData({ ...formData, invoiceCurrency: v as Currency })}
+                    disabled={isReadOnly}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select currency" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="USD">USD</SelectItem>
+                      <SelectItem value="EUR">EUR</SelectItem>
+                      <SelectItem value="JOD">JOD</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="invoiceAmount">Total Invoice Amount ({formData.invoiceCurrency})</Label>
+                  <Input
+                    id="invoiceAmount"
+                    type="number"
+                    value={formData.totalInvoiceAmount || ''}
+                    onChange={(e) => setFormData({ ...formData, totalInvoiceAmount: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.00"
+                    disabled={isReadOnly}
+                  />
+                </div>
               </div>
             </CollapsibleContent>
           </Collapsible>
