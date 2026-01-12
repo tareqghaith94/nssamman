@@ -150,13 +150,18 @@ export function PayableShipmentRow({
                         Paid
                       </span>
                     ) : (
-                      <span className={cn(
-                        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border',
-                        status.className
-                      )}>
-                        <StatusIcon className="w-3 h-3" />
-                        {status.label}
-                      </span>
+                      <div className="flex flex-col gap-0.5">
+                        <span className={cn(
+                          'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border w-fit',
+                          status.className
+                        )}>
+                          <StatusIcon className="w-3 h-3" />
+                          {status.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          Due: {format(status.date, 'dd MMM yyyy')}
+                        </span>
+                      </div>
                     )}
                   </TableCell>
                   <TableCell className="text-muted-foreground text-sm">
