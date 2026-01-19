@@ -540,6 +540,7 @@ export type Database = {
           id: string
           incoterm: string
           invoice_currency: string
+          is_dg: boolean | null
           is_lost: boolean | null
           lost_at: string | null
           lost_reason: string | null
@@ -557,12 +558,14 @@ export type Database = {
           reference_id: string
           salesperson: string
           selling_price_per_unit: number | null
+          special_remarks: string | null
           stage: string
           terminal_cutoff: string | null
           total_cost: number | null
           total_invoice_amount: number | null
           total_profit: number | null
           total_selling_price: number | null
+          un_number: string | null
           updated_at: string
         }
         Insert: {
@@ -593,6 +596,7 @@ export type Database = {
           id?: string
           incoterm?: string
           invoice_currency?: string
+          is_dg?: boolean | null
           is_lost?: boolean | null
           lost_at?: string | null
           lost_reason?: string | null
@@ -610,12 +614,14 @@ export type Database = {
           reference_id: string
           salesperson: string
           selling_price_per_unit?: number | null
+          special_remarks?: string | null
           stage?: string
           terminal_cutoff?: string | null
           total_cost?: number | null
           total_invoice_amount?: number | null
           total_profit?: number | null
           total_selling_price?: number | null
+          un_number?: string | null
           updated_at?: string
         }
         Update: {
@@ -646,6 +652,7 @@ export type Database = {
           id?: string
           incoterm?: string
           invoice_currency?: string
+          is_dg?: boolean | null
           is_lost?: boolean | null
           lost_at?: string | null
           lost_reason?: string | null
@@ -663,12 +670,14 @@ export type Database = {
           reference_id?: string
           salesperson?: string
           selling_price_per_unit?: number | null
+          special_remarks?: string | null
           stage?: string
           terminal_cutoff?: string | null
           total_cost?: number | null
           total_invoice_amount?: number | null
           total_profit?: number | null
           total_selling_price?: number | null
+          un_number?: string | null
           updated_at?: string
         }
         Relationships: []

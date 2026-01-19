@@ -72,6 +72,11 @@ export interface Shipment {
   isLost?: boolean;
   lostReason?: LostReason;
   lostAt?: Date;
+  
+  // Lead additional fields
+  specialRemarks?: string;
+  isDG?: boolean;
+  unNumber?: string;
 }
 
 export interface Payable {
