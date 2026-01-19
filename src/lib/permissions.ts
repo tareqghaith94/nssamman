@@ -59,8 +59,8 @@ export function canEditShipment(
     case 'lead':
       // Salesperson can edit their own leads
       if (roles.includes('sales') && shipment.salesperson === userName) return true;
-      // Pricing/Ops users can view to claim
-      if (roles.includes('pricing') || roles.includes('ops')) return true;
+      // Assigned pricing owner can also edit lead stage shipments
+      if (roles.includes('pricing') && shipment.pricingOwner && shipment.pricingOwner === userName) return true;
       return false;
       
     case 'pricing':
@@ -135,7 +135,7 @@ export function canEditAsPricingOwner(
   return true;
 }
 
-// Check if user can edit a lead based on salesperson assignment
+// Check if user can edit a lead based on salesperson or pricing owner assignment
 export function canEditAsSalesperson(
   shipment: Shipment, 
   roles: UserRole[], 
@@ -148,13 +148,17 @@ export function canEditAsSalesperson(
   if (shipment.stage !== 'lead') return true;
   
   // If user has sales role, check if they are the assigned salesperson
-  if (roles.includes('sales')) {
-    // Check if current user is the assigned salesperson
-    return shipment.salesperson === userName;
+  if (roles.includes('sales') && shipment.salesperson === userName) {
+    return true;
   }
   
-  // Other roles can't edit lead fields anyway, so return true
-  return true;
+  // Assigned pricing owner can also edit lead stage shipments
+  if (roles.includes('pricing') && shipment.pricingOwner === userName) {
+    return true;
+  }
+  
+  // User is neither the salesperson nor the assigned pricing owner
+  return false;
 }
 
 // Check if user can edit Payables or Collections based on ownership
