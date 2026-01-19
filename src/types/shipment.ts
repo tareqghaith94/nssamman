@@ -9,6 +9,8 @@ export type Currency = 'USD' | 'EUR' | 'JOD';
 export interface EquipmentItem {
   type: EquipmentType;
   quantity: number;
+  isDG?: boolean;
+  unNumber?: string;
 }
 export type BLType = 'original' | 'telex' | 'seaway';
 
