@@ -49,15 +49,13 @@ export function LeadForm() {
     salesperson: '',
     portOfLoading: '',
     portOfDischarge: '',
-    equipment: [{ type: '' as EquipmentType, quantity: 1 }] as EquipmentItem[],
+    equipment: [{ type: '' as EquipmentType, quantity: 1, isDG: false, unNumber: '' }] as EquipmentItem[],
     modeOfTransport: 'sea' as ModeOfTransport,
     paymentTerms: '' as PaymentTerms,
     incoterm: '' as Incoterm,
     clientName: '',
     pricingOwner: '',
     specialRemarks: '',
-    isDG: false,
-    unNumber: '',
   });
   
   // Get location options based on mode
@@ -97,7 +95,7 @@ export function LeadForm() {
     if (formData.equipment.length < 3) {
       setFormData({
         ...formData,
-        equipment: [...formData.equipment, { type: '' as EquipmentType, quantity: 1 }],
+        equipment: [...formData.equipment, { type: '' as EquipmentType, quantity: 1, isDG: false, unNumber: '' }],
       });
     }
   };
@@ -111,9 +109,14 @@ export function LeadForm() {
     }
   };
   
-  const updateEquipment = (index: number, field: keyof EquipmentItem, value: string | number) => {
+  const updateEquipment = (index: number, field: keyof EquipmentItem, value: string | number | boolean) => {
     const updated = [...formData.equipment];
-    updated[index] = { ...updated[index], [field]: value };
+    // If unchecking DG, clear the UN number
+    if (field === 'isDG' && value === false) {
+      updated[index] = { ...updated[index], isDG: false, unNumber: '' };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
     setFormData({ ...formData, equipment: updated });
   };
   
@@ -127,12 +130,19 @@ export function LeadForm() {
     
     // Build shipment data, only include pricingOwner if set
     // Currency defaults to USD, will be set during pricing stage
-    // Clear UN number if DG is not checked
+    // Compute shipment-level DG status from equipment
+    const hasDGEquipment = formData.equipment.some(eq => eq.isDG);
+    const allUnNumbers = formData.equipment
+      .filter(eq => eq.isDG && eq.unNumber)
+      .map(eq => eq.unNumber)
+      .join(', ');
+    
     const shipmentData = {
       ...formData,
       pricingOwner: formData.pricingOwner ? formData.pricingOwner as 'Uma' | 'Rania' | 'Mozayan' : undefined,
       currency: 'USD' as const,
-      unNumber: formData.isDG ? formData.unNumber : undefined,
+      isDG: hasDGEquipment,
+      unNumber: allUnNumbers || undefined,
     };
     
     const newShipment = await createShipment(shipmentData);
@@ -165,15 +175,13 @@ export function LeadForm() {
       salesperson: '',
       portOfLoading: '',
       portOfDischarge: '',
-      equipment: [{ type: '' as EquipmentType, quantity: 1 }],
+      equipment: [{ type: '' as EquipmentType, quantity: 1, isDG: false, unNumber: '' }],
       modeOfTransport: 'sea' as ModeOfTransport,
       paymentTerms: '' as PaymentTerms,
       incoterm: '' as Incoterm,
       clientName: '',
       pricingOwner: '',
       specialRemarks: '',
-      isDG: false,
-      unNumber: '',
     });
   };
   
@@ -274,36 +282,59 @@ export function LeadForm() {
               )}
             </div>
             {formData.equipment.map((eq, index) => (
-              <div key={index} className="grid grid-cols-[1fr,100px,40px] gap-2 items-end">
-                <Select
-                  value={eq.type}
-                  onValueChange={(v) => updateEquipment(index, 'type', v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="20ft">20ft Container</SelectItem>
-                    <SelectItem value="40ft">40ft Container</SelectItem>
-                    <SelectItem value="40hc">40ft High Cube</SelectItem>
-                    <SelectItem value="45ft">45ft Container</SelectItem>
-                    <SelectItem value="lcl">LCL</SelectItem>
-                    <SelectItem value="breakbulk">Breakbulk</SelectItem>
-                    <SelectItem value="airfreight">Airfreight</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  min={1}
-                  value={eq.quantity}
-                  onChange={(e) => updateEquipment(index, 'quantity', parseInt(e.target.value) || 1)}
-                  placeholder="Qty"
-                />
-                {formData.equipment.length > 1 && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeEquipment(index)} className="h-9 w-9 p-0 text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
+              <div key={index} className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                <div className="grid grid-cols-[1fr,80px,40px] gap-2 items-end">
+                  <Select
+                    value={eq.type}
+                    onValueChange={(v) => updateEquipment(index, 'type', v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="20ft">20ft Container</SelectItem>
+                      <SelectItem value="40ft">40ft Container</SelectItem>
+                      <SelectItem value="40hc">40ft High Cube</SelectItem>
+                      <SelectItem value="45ft">45ft Container</SelectItem>
+                      <SelectItem value="lcl">LCL</SelectItem>
+                      <SelectItem value="breakbulk">Breakbulk</SelectItem>
+                      <SelectItem value="airfreight">Airfreight</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={eq.quantity}
+                    onChange={(e) => updateEquipment(index, 'quantity', parseInt(e.target.value) || 1)}
+                    placeholder="Qty"
+                  />
+                  {formData.equipment.length > 1 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removeEquipment(index)} className="h-9 w-9 p-0 text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`isDG-${index}`}
+                      checked={eq.isDG || false}
+                      onCheckedChange={(checked) => updateEquipment(index, 'isDG', checked === true)}
+                    />
+                    <Label htmlFor={`isDG-${index}`} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                      DG
+                    </Label>
+                  </div>
+                  {eq.isDG && (
+                    <Input
+                      value={eq.unNumber || ''}
+                      onChange={(e) => updateEquipment(index, 'unNumber', e.target.value)}
+                      placeholder="UN Number"
+                      className="flex-1 h-8 text-sm"
+                    />
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -362,32 +393,6 @@ export function LeadForm() {
             <p className="text-xs text-muted-foreground">
               Required before moving to pricing stage
             </p>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="isDG"
-                  checked={formData.isDG}
-                  onCheckedChange={(checked) => setFormData({ ...formData, isDG: checked === true, unNumber: checked ? formData.unNumber : '' })}
-                />
-                <Label htmlFor="isDG" className="flex items-center gap-2 cursor-pointer">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                  Dangerous Goods (DG)
-                </Label>
-              </div>
-              {formData.isDG && (
-                <div className="flex-1">
-                  <Input
-                    value={formData.unNumber}
-                    onChange={(e) => setFormData({ ...formData, unNumber: e.target.value })}
-                    placeholder="UN Number (e.g., UN1234)"
-                    className="max-w-48"
-                  />
-                </div>
-              )}
-            </div>
           </div>
           
           <div className="space-y-2">

@@ -47,26 +47,30 @@ interface FormData {
   incoterm: Incoterm;
   pricingOwner: string;
   specialRemarks: string;
-  isDG: boolean;
-  unNumber: string;
 }
 
 function shipmentToFormData(shipment: Shipment): FormData {
+  // Ensure existing equipment has DG fields (backward compatibility)
+  const equipmentWithDG = shipment.equipment && shipment.equipment.length > 0 
+    ? shipment.equipment.map(eq => ({
+        type: eq.type,
+        quantity: eq.quantity,
+        isDG: eq.isDG || false,
+        unNumber: eq.unNumber || '',
+      }))
+    : [{ type: '' as EquipmentType, quantity: 1, isDG: false, unNumber: '' }];
+
   return {
     salesperson: shipment.salesperson,
     clientName: shipment.clientName || '',
     portOfLoading: shipment.portOfLoading,
     portOfDischarge: shipment.portOfDischarge,
-    equipment: shipment.equipment && shipment.equipment.length > 0 
-      ? shipment.equipment 
-      : [{ type: '' as EquipmentType, quantity: 1 }],
+    equipment: equipmentWithDG,
     modeOfTransport: shipment.modeOfTransport,
     paymentTerms: shipment.paymentTerms,
     incoterm: shipment.incoterm,
     pricingOwner: shipment.pricingOwner || '',
     specialRemarks: shipment.specialRemarks || '',
-    isDG: shipment.isDG || false,
-    unNumber: shipment.unNumber || '',
   };
 }
 
@@ -82,14 +86,12 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
     clientName: '',
     portOfLoading: '',
     portOfDischarge: '',
-    equipment: [{ type: '' as EquipmentType, quantity: 1 }],
+    equipment: [{ type: '' as EquipmentType, quantity: 1, isDG: false, unNumber: '' }],
     modeOfTransport: 'sea',
     paymentTerms: '' as PaymentTerms,
     incoterm: '' as Incoterm,
     pricingOwner: '',
     specialRemarks: '',
-    isDG: false,
-    unNumber: '',
   });
   
   const [originalData, setOriginalData] = useState<FormData | null>(null);
@@ -130,7 +132,7 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
     if (formData.equipment.length < 3) {
       setFormData({
         ...formData,
-        equipment: [...formData.equipment, { type: '' as EquipmentType, quantity: 1 }],
+        equipment: [...formData.equipment, { type: '' as EquipmentType, quantity: 1, isDG: false, unNumber: '' }],
       });
     }
   };
@@ -144,9 +146,14 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
     }
   };
   
-  const updateEquipment = (index: number, field: keyof EquipmentItem, value: string | number) => {
+  const updateEquipment = (index: number, field: keyof EquipmentItem, value: string | number | boolean) => {
     const updated = [...formData.equipment];
-    updated[index] = { ...updated[index], [field]: value };
+    // If unchecking DG, clear the UN number
+    if (field === 'isDG' && value === false) {
+      updated[index] = { ...updated[index], isDG: false, unNumber: '' };
+    } else {
+      updated[index] = { ...updated[index], [field]: value };
+    }
     setFormData({ ...formData, equipment: updated });
   };
   
@@ -193,10 +200,15 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
         changedFields.push({ field: 'paymentTerms', oldValue: originalData.paymentTerms, newValue: formData.paymentTerms });
       }
       if (JSON.stringify(formData.equipment) !== JSON.stringify(originalData.equipment)) {
+        const formatEquipment = (eq: EquipmentItem) => {
+          let str = `${eq.type}×${eq.quantity}`;
+          if (eq.isDG) str += ` (DG: ${eq.unNumber || 'N/A'})`;
+          return str;
+        };
         changedFields.push({ 
           field: 'equipment', 
-          oldValue: originalData.equipment.map(e => `${e.type}×${e.quantity}`).join(', '),
-          newValue: formData.equipment.map(e => `${e.type}×${e.quantity}`).join(', ')
+          oldValue: originalData.equipment.map(formatEquipment).join(', '),
+          newValue: formData.equipment.map(formatEquipment).join(', ')
         });
       }
       if (formData.pricingOwner !== originalData.pricingOwner) {
@@ -205,13 +217,14 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
       if (formData.specialRemarks !== originalData.specialRemarks) {
         changedFields.push({ field: 'specialRemarks', oldValue: originalData.specialRemarks || 'None', newValue: formData.specialRemarks || 'None' });
       }
-      if (formData.isDG !== originalData.isDG) {
-        changedFields.push({ field: 'isDG', oldValue: originalData.isDG ? 'Yes' : 'No', newValue: formData.isDG ? 'Yes' : 'No' });
-      }
-      if (formData.unNumber !== originalData.unNumber) {
-        changedFields.push({ field: 'unNumber', oldValue: originalData.unNumber || 'None', newValue: formData.unNumber || 'None' });
-      }
     }
+    
+    // Compute shipment-level DG status from equipment
+    const hasDGEquipment = formData.equipment.some(eq => eq.isDG);
+    const allUnNumbers = formData.equipment
+      .filter(eq => eq.isDG && eq.unNumber)
+      .map(eq => eq.unNumber)
+      .join(', ');
     
     try {
       await trackUpdateShipment(shipment, {
@@ -225,8 +238,8 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
         incoterm: formData.incoterm,
         pricingOwner: formData.pricingOwner ? formData.pricingOwner as 'Uma' | 'Rania' | 'Mozayan' : undefined,
         specialRemarks: formData.specialRemarks || undefined,
-        isDG: formData.isDG,
-        unNumber: formData.isDG ? formData.unNumber : undefined,
+        isDG: hasDGEquipment,
+        unNumber: allUnNumbers || undefined,
       }, changedFields);
       
       toast.success('Lead updated successfully');
@@ -327,36 +340,59 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
               )}
             </div>
             {formData.equipment.map((eq, index) => (
-              <div key={index} className="grid grid-cols-[1fr,100px,40px] gap-2 items-end">
-                <Select
-                  value={eq.type}
-                  onValueChange={(v) => updateEquipment(index, 'type', v)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="20ft">20ft Container</SelectItem>
-                    <SelectItem value="40ft">40ft Container</SelectItem>
-                    <SelectItem value="40hc">40ft High Cube</SelectItem>
-                    <SelectItem value="45ft">45ft Container</SelectItem>
-                    <SelectItem value="lcl">LCL</SelectItem>
-                    <SelectItem value="breakbulk">Breakbulk</SelectItem>
-                    <SelectItem value="airfreight">Airfreight</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Input
-                  type="number"
-                  min={1}
-                  value={eq.quantity}
-                  onChange={(e) => updateEquipment(index, 'quantity', parseInt(e.target.value) || 1)}
-                  placeholder="Qty"
-                />
-                {formData.equipment.length > 1 && (
-                  <Button type="button" variant="ghost" size="sm" onClick={() => removeEquipment(index)} className="h-9 w-9 p-0 text-destructive">
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                )}
+              <div key={index} className="space-y-2 p-3 border rounded-lg bg-muted/30">
+                <div className="grid grid-cols-[1fr,80px,40px] gap-2 items-end">
+                  <Select
+                    value={eq.type}
+                    onValueChange={(v) => updateEquipment(index, 'type', v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="20ft">20ft Container</SelectItem>
+                      <SelectItem value="40ft">40ft Container</SelectItem>
+                      <SelectItem value="40hc">40ft High Cube</SelectItem>
+                      <SelectItem value="45ft">45ft Container</SelectItem>
+                      <SelectItem value="lcl">LCL</SelectItem>
+                      <SelectItem value="breakbulk">Breakbulk</SelectItem>
+                      <SelectItem value="airfreight">Airfreight</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Input
+                    type="number"
+                    min={1}
+                    value={eq.quantity}
+                    onChange={(e) => updateEquipment(index, 'quantity', parseInt(e.target.value) || 1)}
+                    placeholder="Qty"
+                  />
+                  {formData.equipment.length > 1 && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => removeEquipment(index)} className="h-9 w-9 p-0 text-destructive">
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id={`isDG-edit-${index}`}
+                      checked={eq.isDG || false}
+                      onCheckedChange={(checked) => updateEquipment(index, 'isDG', checked === true)}
+                    />
+                    <Label htmlFor={`isDG-edit-${index}`} className="flex items-center gap-1.5 cursor-pointer text-sm">
+                      <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                      DG
+                    </Label>
+                  </div>
+                  {eq.isDG && (
+                    <Input
+                      value={eq.unNumber || ''}
+                      onChange={(e) => updateEquipment(index, 'unNumber', e.target.value)}
+                      placeholder="UN Number"
+                      className="flex-1 h-8 text-sm"
+                    />
+                  )}
+                </div>
               </div>
             ))}
           </div>
@@ -412,32 +448,6 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          
-          <div className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="isDG-edit"
-                  checked={formData.isDG}
-                  onCheckedChange={(checked) => setFormData({ ...formData, isDG: checked === true, unNumber: checked ? formData.unNumber : '' })}
-                />
-                <Label htmlFor="isDG-edit" className="flex items-center gap-2 cursor-pointer">
-                  <AlertTriangle className="w-4 h-4 text-amber-500" />
-                  Dangerous Goods (DG)
-                </Label>
-              </div>
-              {formData.isDG && (
-                <div className="flex-1">
-                  <Input
-                    value={formData.unNumber}
-                    onChange={(e) => setFormData({ ...formData, unNumber: e.target.value })}
-                    placeholder="UN Number (e.g., UN1234)"
-                    className="max-w-48"
-                  />
-                </div>
-              )}
-            </div>
           </div>
           
           <div className="space-y-2">
