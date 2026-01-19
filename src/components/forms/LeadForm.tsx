@@ -18,7 +18,9 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, EquipmentItem } from '@/types/shipment';
 import { INCOTERMS, getLocationOptions } from '@/lib/ports';
@@ -53,6 +55,9 @@ export function LeadForm() {
     incoterm: '' as Incoterm,
     clientName: '',
     pricingOwner: '',
+    specialRemarks: '',
+    isDG: false,
+    unNumber: '',
   });
   
   // Get location options based on mode
@@ -122,10 +127,12 @@ export function LeadForm() {
     
     // Build shipment data, only include pricingOwner if set
     // Currency defaults to USD, will be set during pricing stage
+    // Clear UN number if DG is not checked
     const shipmentData = {
       ...formData,
       pricingOwner: formData.pricingOwner ? formData.pricingOwner as 'Uma' | 'Rania' | 'Mozayan' : undefined,
       currency: 'USD' as const,
+      unNumber: formData.isDG ? formData.unNumber : undefined,
     };
     
     const newShipment = await createShipment(shipmentData);
@@ -164,6 +171,9 @@ export function LeadForm() {
       incoterm: '' as Incoterm,
       clientName: '',
       pricingOwner: '',
+      specialRemarks: '',
+      isDG: false,
+      unNumber: '',
     });
   };
   
@@ -352,6 +362,42 @@ export function LeadForm() {
             <p className="text-xs text-muted-foreground">
               Required before moving to pricing stage
             </p>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isDG"
+                  checked={formData.isDG}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isDG: checked === true, unNumber: checked ? formData.unNumber : '' })}
+                />
+                <Label htmlFor="isDG" className="flex items-center gap-2 cursor-pointer">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  Dangerous Goods (DG)
+                </Label>
+              </div>
+              {formData.isDG && (
+                <div className="flex-1">
+                  <Input
+                    value={formData.unNumber}
+                    onChange={(e) => setFormData({ ...formData, unNumber: e.target.value })}
+                    placeholder="UN Number (e.g., UN1234)"
+                    className="max-w-48"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Special Remarks</Label>
+            <Textarea
+              value={formData.specialRemarks}
+              onChange={(e) => setFormData({ ...formData, specialRemarks: e.target.value })}
+              placeholder="Special notes, client requirements, or cargo details..."
+              rows={2}
+            />
           </div>
           
           <div className="flex justify-end gap-3 pt-4">

@@ -17,7 +17,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Plus, Trash2, RotateCcw } from 'lucide-react';
+import { Plus, Trash2, RotateCcw, AlertTriangle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { Shipment, EquipmentType, ModeOfTransport, PaymentTerms, Incoterm, EquipmentItem } from '@/types/shipment';
 import { INCOTERMS, getLocationOptions } from '@/lib/ports';
@@ -44,6 +46,9 @@ interface FormData {
   paymentTerms: PaymentTerms;
   incoterm: Incoterm;
   pricingOwner: string;
+  specialRemarks: string;
+  isDG: boolean;
+  unNumber: string;
 }
 
 function shipmentToFormData(shipment: Shipment): FormData {
@@ -59,6 +64,9 @@ function shipmentToFormData(shipment: Shipment): FormData {
     paymentTerms: shipment.paymentTerms,
     incoterm: shipment.incoterm,
     pricingOwner: shipment.pricingOwner || '',
+    specialRemarks: shipment.specialRemarks || '',
+    isDG: shipment.isDG || false,
+    unNumber: shipment.unNumber || '',
   };
 }
 
@@ -79,6 +87,9 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
     paymentTerms: '' as PaymentTerms,
     incoterm: '' as Incoterm,
     pricingOwner: '',
+    specialRemarks: '',
+    isDG: false,
+    unNumber: '',
   });
   
   const [originalData, setOriginalData] = useState<FormData | null>(null);
@@ -191,6 +202,15 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
       if (formData.pricingOwner !== originalData.pricingOwner) {
         changedFields.push({ field: 'pricingOwner', oldValue: originalData.pricingOwner || 'None', newValue: formData.pricingOwner || 'None' });
       }
+      if (formData.specialRemarks !== originalData.specialRemarks) {
+        changedFields.push({ field: 'specialRemarks', oldValue: originalData.specialRemarks || 'None', newValue: formData.specialRemarks || 'None' });
+      }
+      if (formData.isDG !== originalData.isDG) {
+        changedFields.push({ field: 'isDG', oldValue: originalData.isDG ? 'Yes' : 'No', newValue: formData.isDG ? 'Yes' : 'No' });
+      }
+      if (formData.unNumber !== originalData.unNumber) {
+        changedFields.push({ field: 'unNumber', oldValue: originalData.unNumber || 'None', newValue: formData.unNumber || 'None' });
+      }
     }
     
     try {
@@ -204,6 +224,9 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
         paymentTerms: formData.paymentTerms,
         incoterm: formData.incoterm,
         pricingOwner: formData.pricingOwner ? formData.pricingOwner as 'Uma' | 'Rania' | 'Mozayan' : undefined,
+        specialRemarks: formData.specialRemarks || undefined,
+        isDG: formData.isDG,
+        unNumber: formData.isDG ? formData.unNumber : undefined,
       }, changedFields);
       
       toast.success('Lead updated successfully');
@@ -389,6 +412,42 @@ export function LeadEditForm({ shipment, open, onOpenChange }: LeadEditFormProps
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          
+          <div className="space-y-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center space-x-2">
+                <Checkbox
+                  id="isDG-edit"
+                  checked={formData.isDG}
+                  onCheckedChange={(checked) => setFormData({ ...formData, isDG: checked === true, unNumber: checked ? formData.unNumber : '' })}
+                />
+                <Label htmlFor="isDG-edit" className="flex items-center gap-2 cursor-pointer">
+                  <AlertTriangle className="w-4 h-4 text-amber-500" />
+                  Dangerous Goods (DG)
+                </Label>
+              </div>
+              {formData.isDG && (
+                <div className="flex-1">
+                  <Input
+                    value={formData.unNumber}
+                    onChange={(e) => setFormData({ ...formData, unNumber: e.target.value })}
+                    placeholder="UN Number (e.g., UN1234)"
+                    className="max-w-48"
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label>Special Remarks</Label>
+            <Textarea
+              value={formData.specialRemarks}
+              onChange={(e) => setFormData({ ...formData, specialRemarks: e.target.value })}
+              placeholder="Special notes, client requirements, or cargo details..."
+              rows={2}
+            />
           </div>
           
           <div className="flex justify-between pt-4">

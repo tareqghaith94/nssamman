@@ -57,6 +57,9 @@ interface ShipmentRow {
   lost_at: string | null;
   pricing_owner: string | null;
   currency: string;
+  special_remarks: string | null;
+  is_dg: boolean | null;
+  un_number: string | null;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -119,6 +122,9 @@ function rowToShipment(row: ShipmentRow): Shipment {
     isLost: row.is_lost ?? undefined,
     lostReason: row.lost_reason as Shipment['lostReason'] ?? undefined,
     lostAt: row.lost_at ? new Date(row.lost_at) : undefined,
+    specialRemarks: row.special_remarks ?? undefined,
+    isDG: row.is_dg ?? undefined,
+    unNumber: row.un_number ?? undefined,
   };
 }
 
@@ -172,6 +178,9 @@ function shipmentToRow(shipment: Partial<Shipment>): Record<string, unknown> {
   if (shipment.isLost !== undefined) row.is_lost = shipment.isLost;
   if (shipment.lostReason !== undefined) row.lost_reason = shipment.lostReason;
   if (shipment.lostAt !== undefined) row.lost_at = shipment.lostAt?.toISOString();
+  if (shipment.specialRemarks !== undefined) row.special_remarks = shipment.specialRemarks;
+  if (shipment.isDG !== undefined) row.is_dg = shipment.isDG;
+  if (shipment.unNumber !== undefined) row.un_number = shipment.unNumber;
   
   return row;
 }
