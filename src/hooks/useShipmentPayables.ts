@@ -93,6 +93,7 @@ export function useShipmentPayables(shipmentId?: string) {
       estimatedAmount?: number;
       currency?: string;
       notes?: string;
+      dueDate?: string;
     }) => {
       const { error } = await supabase
         .from('shipment_payables')
@@ -103,6 +104,7 @@ export function useShipmentPayables(shipmentId?: string) {
           estimated_amount: data.estimatedAmount,
           currency: data.currency || 'USD',
           notes: data.notes,
+          due_date: data.dueDate || null,
         });
       
       if (error) throw error;

@@ -45,7 +45,7 @@ export default function Payables() {
   const [selectedPayable, setSelectedPayable] = useState<ShipmentPayable | null>(null);
   const [selectedPayableForEdit, setSelectedPayableForEdit] = useState<ShipmentPayable | null>(null);
   const [selectedShipmentInfo, setSelectedShipmentInfo] = useState<{ portOfLoading: string; etd: string | null; eta: string | null } | undefined>(undefined);
-  const [selectedShipmentForAdd, setSelectedShipmentForAdd] = useState<{ id: string; referenceId: string } | null>(null);
+  const [selectedShipmentForAdd, setSelectedShipmentForAdd] = useState<{ id: string; referenceId: string; portOfLoading: string; etd: string | null; eta: string | null } | null>(null);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [payableToDelete, setPayableToDelete] = useState<ShipmentPayable | null>(null);
 
@@ -83,7 +83,7 @@ export default function Payables() {
     await updatePayable.mutateAsync(data);
   };
 
-  const handleOpenAddDialog = (shipment: { id: string; referenceId: string }) => {
+  const handleOpenAddDialog = (shipment: { id: string; referenceId: string; portOfLoading: string; etd: string | null; eta: string | null }) => {
     setSelectedShipmentForAdd(shipment);
     setAddDialogOpen(true);
   };
@@ -95,6 +95,7 @@ export default function Payables() {
     estimatedAmount?: number;
     currency?: string;
     notes?: string;
+    dueDate?: string;
   }) => {
     await addPayable.mutateAsync(data);
   };
@@ -264,6 +265,11 @@ export default function Payables() {
           }}
           shipmentId={selectedShipmentForAdd.id}
           referenceId={selectedShipmentForAdd.referenceId}
+          shipmentInfo={{
+            portOfLoading: selectedShipmentForAdd.portOfLoading,
+            etd: selectedShipmentForAdd.etd,
+            eta: selectedShipmentForAdd.eta,
+          }}
           onSubmit={handleAddPayable}
         />
       )}
