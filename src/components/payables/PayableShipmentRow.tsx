@@ -12,7 +12,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 interface PayableShipmentRowProps {
   shipment: ShipmentWithPayables;
   canEdit: boolean;
-  onAddPayable: (shipment: { id: string; referenceId: string }) => void;
+  onAddPayable: (shipment: { id: string; referenceId: string; portOfLoading: string; etd: string | null; eta: string | null }) => void;
   onUploadInvoice: (payable: ShipmentPayable) => void;
   onMarkPaid: (payable: ShipmentPayable) => void;
   onUndoPaid: (payable: ShipmentPayable) => void;
@@ -130,7 +130,7 @@ export function PayableShipmentRow({
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onAddPayable({ id: shipment.id, referenceId: shipment.referenceId })}
+              onClick={() => onAddPayable({ id: shipment.id, referenceId: shipment.referenceId, portOfLoading: shipment.portOfLoading, etd: shipment.etd, eta: shipment.eta })}
               className="h-7 gap-1"
             >
               <Plus className="h-3 w-3" />

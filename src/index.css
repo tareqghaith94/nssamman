@@ -188,27 +188,43 @@
 
 /* Print styles for quotation PDF */
 @media print {
-  body * {
-    visibility: hidden;
+  /* Hide everything except the quotation */
+  body > *:not([data-radix-portal]) {
+    display: none !important;
   }
   
-  #quotation-print,
-  #quotation-print * {
-    visibility: visible;
+  /* Hide dialog overlay */
+  [data-radix-dialog-overlay] {
+    display: none !important;
   }
   
-  #quotation-print {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    padding: 20px !important;
-  }
-  
-  /* Hide dialog overlay and backdrop */
-  [data-radix-dialog-overlay],
+  /* Reset dialog content positioning */
   [data-radix-dialog-content] {
     position: static !important;
     transform: none !important;
+    max-height: none !important;
+    max-width: none !important;
+    overflow: visible !important;
+    box-shadow: none !important;
+    border: none !important;
+    background: white !important;
+  }
+  
+  /* Ensure quotation prints correctly */
+  #quotation-print {
+    position: static !important;
+    width: 100% !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+  
+  /* Hide print:hidden elements */
+  .print\\:hidden {
+    display: none !important;
+  }
+  
+  @page {
+    margin: 15mm;
+    size: A4;
   }
 }
