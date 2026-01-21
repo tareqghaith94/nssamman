@@ -10,6 +10,7 @@ import nssLogo from '@/assets/nss-logo.png';
 import { getCurrencySymbol } from '@/lib/currency';
 import { Currency } from '@/types/shipment';
 import { useExchangeRates } from '@/hooks/useExchangeRates';
+import { printHtmlNode } from '@/lib/print';
 
 interface LineItemWithCurrency {
   description: string;
@@ -105,7 +106,12 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
   };
 
   const handleDownloadPDF = () => {
-    window.print();
+    const printElement = document.getElementById('quotation-print');
+    if (printElement) {
+      printHtmlNode(printElement, { title: `Quotation ${quotation.referenceId}` });
+    } else {
+      toast.error('Unable to generate PDF. Please try again.');
+    }
   };
 
   return (
