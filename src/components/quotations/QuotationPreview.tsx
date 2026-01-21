@@ -110,7 +110,7 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:max-w-none print:max-h-none print:overflow-visible">
+      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto print:shadow-none print:border-none">
         <DialogHeader className="print:hidden">
           <DialogTitle className="flex items-center justify-between">
             <span>Quotation Preview</span>
@@ -133,7 +133,7 @@ export function QuotationPreview({ quotation, open, onOpenChange }: QuotationPre
         </DialogHeader>
 
         {/* Printable Content - Matches Your Excel Template */}
-        <div className="bg-white text-black p-8 print:p-0" id="quotation-print">
+        <div className="bg-white text-black p-8 print:p-0 print:m-0" id="quotation-print">
           {/* Header with Logo and Company Info */}
           <div className="flex items-start justify-between mb-6">
             <div className="flex items-center gap-4">

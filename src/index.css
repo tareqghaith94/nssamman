@@ -185,3 +185,30 @@
     @apply bg-destructive/15 text-destructive border-destructive/30;
   }
 }
+
+/* Print styles for quotation PDF */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  
+  #quotation-print,
+  #quotation-print * {
+    visibility: visible;
+  }
+  
+  #quotation-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 20px !important;
+  }
+  
+  /* Hide dialog overlay and backdrop */
+  [data-radix-dialog-overlay],
+  [data-radix-dialog-content] {
+    position: static !important;
+    transform: none !important;
+  }
+}
