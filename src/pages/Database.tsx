@@ -373,7 +373,7 @@ function ExpandedShipmentDetails({
           <DetailItem label="Cost/Unit" value={formatCurrencyValue(shipment.costPerUnit, shipment.currency)} />
           <DetailItem label="Profit/Unit" value={formatCurrencyValue(shipment.profitPerUnit, shipment.currency)} />
           <DetailItem label="Total Quantity" value={shipment.equipment?.reduce((sum, eq) => sum + eq.quantity, 0) || '-'} />
-          <DetailItem label="Invoice Amount" value={formatCurrencyValue(shipment.totalInvoiceAmount, shipment.currency)} />
+          <DetailItem label="Invoice Amount" value={formatCurrencyValue(shipment.totalInvoiceAmount, shipment.invoiceCurrency)} />
         </div>
       </div>
 
@@ -411,7 +411,7 @@ function ExpandedShipmentDetails({
             value={shipment.agentPaid ? `✓ ${formatDate(shipment.agentPaidDate)}` : '-'} 
           />
           <DetailItem label="Agent Invoice Uploaded" value={shipment.agentInvoiceUploaded ? '✓' : '-'} />
-          <DetailItem label="Agent Invoice Amount" value={formatCurrencyValue(shipment.agentInvoiceAmount, shipment.currency)} />
+          <DetailItem label="Agent Invoice Amount" value={formatCurrencyValue(shipment.agentInvoiceAmount, shipment.invoiceCurrency)} />
           <DetailItem label="Agent Invoice Date" value={formatDate(shipment.agentInvoiceDate)} />
         </div>
       </div>
