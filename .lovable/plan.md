@@ -1,71 +1,118 @@
 
-
 ## Goal
-Fix the Database page to show the correct currency (e.g., JOD) for Selling, Cost, and Profit columns when pricing was done in that currency.
+Fix the Database page to accurately display selling prices and cost prices in their **correct separate currencies**.
 
 ## Problem Analysis
 
-The issue is that the shipment's `currency` field is never updated during pricing:
+The current data model has a fundamental limitation:
 
-1. **Lead Creation** (`LeadForm.tsx` line 143): Currency is hardcoded to `'USD'`
-2. **Pricing Save** (`PricingForm.tsx` lines 382-391): Updates totals but **never updates the `currency` field**
-3. **Database Display** (`Database.tsx`): Correctly uses `shipment.currency`, but it's still USD
+| Field | Purpose | Current State |
+|-------|---------|---------------|
+| `shipments.currency` | Used for selling/cost/profit display | Single value (e.g., JOD) |
+| `quotations.currency` | Quotation document currency | JOD |
+| `cost_line_items.currency` | Per-line cost currency | EUR, USD, JOD (mixed) |
 
-Your data confirms this:
-- All shipments have `currency: USD` in the database
-- Even shipments priced in JOD show USD because the pricing form never saved the currency change
+**Example from your data:**
+- Reference `T-2601-0001`: Quotation is USD, but cost line items are in EUR
+- The Database page uses `shipments.currency` for both Selling AND Cost columns
 
-## Solution
+**Current behavior:** Both columns show the same currency (JOD) even when costs are in EUR.
 
-### File: `src/components/forms/PricingForm.tsx`
+---
 
-Update the `updateShipment` call to include the `currency` field:
+## Solution: Add Separate Cost Currency Field
 
-**Current code (lines 382-391):**
+### Database Change
+Add a `cost_currency` column to the `shipments` table to store the primary currency used for costs:
+
+```sql
+ALTER TABLE shipments ADD COLUMN cost_currency TEXT DEFAULT 'USD';
+```
+
+### Code Changes
+
+**1. `src/types/shipment.ts`** - Add type definition:
 ```typescript
+costCurrency?: Currency;
+```
+
+**2. `src/hooks/useShipments.ts`** - Map the new field:
+```typescript
+// In shipmentToRow
+cost_currency: s.costCurrency || 'USD',
+
+// In rowToShipment  
+costCurrency: row.cost_currency as Currency,
+```
+
+**3. `src/components/forms/PricingForm.tsx`** - Save cost currency during pricing:
+```typescript
+// Determine the primary cost currency from cost line items
+const primaryCostCurrency = costLineItems[0]?.currency || 'USD';
+
 await updateShipment(shipment.id, {
-  agent,
-  pricingOwner: (pricingOwner as 'Uma' | 'Rania' | 'Mozayan') || undefined,
-  costPerUnit: costLineItems[0]?.unitCost || 0,
-  sellingPricePerUnit: lineItems[0]?.unitCost || 0,
-  profitPerUnit: (lineItems[0]?.unitCost || 0) - (costLineItems[0]?.unitCost || 0),
-  totalSellingPrice: grandTotal,
-  totalCost,
-  totalProfit,
+  // ...existing fields
+  currency: quotationCurrency,       // For selling prices
+  costCurrency: primaryCostCurrency, // For cost prices
 });
 ```
 
-**Updated code:**
+**4. `src/pages/Database.tsx`** - Display with correct currencies:
 ```typescript
-await updateShipment(shipment.id, {
-  agent,
-  pricingOwner: (pricingOwner as 'Uma' | 'Rania' | 'Mozayan') || undefined,
-  costPerUnit: costLineItems[0]?.unitCost || 0,
-  sellingPricePerUnit: lineItems[0]?.unitCost || 0,
-  profitPerUnit: (lineItems[0]?.unitCost || 0) - (costLineItems[0]?.unitCost || 0),
-  totalSellingPrice: grandTotal,
-  totalCost,
-  totalProfit,
-  currency: quotationCurrency,  // Save the pricing currency to shipment
-});
+// Selling column - use shipment.currency (quotation currency)
+{formatCurrencyValue(shipment.totalSellingPrice, shipment.currency)}
+
+// Cost column - use shipment.costCurrency (cost currency)
+{formatCurrencyValue(shipment.totalCost, shipment.costCurrency || shipment.currency)}
 ```
 
-## Will This Fix Existing Entries?
+---
 
-**For new entries**: Yes, they will be saved with the correct currency going forward.
+## Data Migration for Existing Records
 
-**For existing entries**: No, the existing database records still have `currency: 'USD'`. There are two options:
+Run a one-time update to set `cost_currency` from the first cost line item of each shipment:
 
-1. **Option A (Recommended)**: Run a one-time data fix to update the currency for affected shipments
-2. **Option B**: Re-open and re-save each affected shipment in the Pricing form
+```sql
+UPDATE shipments s
+SET cost_currency = (
+  SELECT c.currency 
+  FROM cost_line_items c 
+  WHERE c.shipment_id = s.id 
+  LIMIT 1
+)
+WHERE EXISTS (
+  SELECT 1 FROM cost_line_items c WHERE c.shipment_id = s.id
+);
+```
 
-### Data Fix Query (Option A)
-If you want to fix existing shipments where pricing was done in JOD but currency shows USD, I can prepare a migration to update them. I would need to identify which shipments should be JOD based on their quotation currency.
+---
 
-## Result
+## Result After Fix
 
-After this fix:
-- New pricing saves will correctly set the shipment's `currency` field
-- Database page will show "JOD 2,422.50" instead of "$2,422.50" for JOD-priced shipments
-- All displays (Selling, Cost, Profit, Invoice Amount) will use their correct currencies
+| Column | Currency Source | Example |
+|--------|-----------------|---------|
+| Selling | `shipment.currency` | JOD 2,422.50 |
+| Cost | `shipment.costCurrency` | EUR 1,800.00 |
+| Profit | `shipment.currency` | JOD 622.50 |
+| Invoice Amount | `shipment.invoiceCurrency` | JOD 2,422.50 |
 
+---
+
+## Files to Modify
+
+1. **Database migration** - Add `cost_currency` column
+2. **`src/types/shipment.ts`** - Add `costCurrency` type
+3. **`src/hooks/useShipments.ts`** - Map `cost_currency` field
+4. **`src/components/forms/PricingForm.tsx`** - Save cost currency
+5. **`src/pages/Database.tsx`** - Display cost with `costCurrency`
+
+---
+
+## Important Note on Profit Display
+
+Since selling and cost are in different currencies, the profit calculation and display becomes more complex. Options:
+- **Keep profit in selling currency** (current approach, but mathematically incorrect for mixed currencies)
+- **Convert costs to selling currency** using exchange rates before calculating profit
+- **Show profit with a note** that it's approximate when currencies differ
+
+Would you like me to implement exchange-rate-based profit calculation, or keep profit displayed in the selling currency with the understanding that it's nominal when currencies differ?
