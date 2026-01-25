@@ -388,6 +388,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         totalSellingPrice: grandTotal,
         totalCost,
         totalProfit,
+        currency: quotationCurrency as 'USD' | 'EUR' | 'JOD',
       });
       
       const validUntil = new Date();
