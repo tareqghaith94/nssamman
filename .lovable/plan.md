@@ -1,149 +1,72 @@
-# Plan: Cost Breakdown for Pricing Form
 
-## Overview
-Currently, internal pricing uses a single `costPerUnit` field. This plan adds a detailed cost breakdown structure that mirrors the quotation line items, allowing different costs per equipment type and additional cost items (local charges, documentation fees, etc.).
 
----
+## Goal
+Ensure users can reliably change currency and due dates when editing payables, and that changes are properly saved.
 
-## Database Changes
+## Current State Analysis
+After reviewing the code, the `EditPayableDialog` component **already includes** both currency and due date editing functionality:
 
-### New Table: `cost_line_items`
+- **Currency**: Dropdown with USD, EUR, JOD options
+- **Due Date**: Calendar picker with auto-calculation based on ETD+3 (exports) or ETA-10 (imports), plus "Reset to auto" button
 
-| Column | Type | Description |
-|--------|------|-------------|
-| `id` | uuid | Primary key |
-| `shipment_id` | uuid | FK to shipments |
-| `description` | text | Cost description (e.g., "Ocean Freight", "Local Charges") |
-| `equipment_type` | text | Nullable - links to equipment type |
-| `unit_cost` | numeric | Cost per unit |
-| `quantity` | integer | Number of units |
-| `amount` | numeric | Computed: unit_cost x quantity |
-| `created_at` | timestamptz | Creation timestamp |
-
-### Update `shipments` Table
-- Keep existing `costPerUnit` as a legacy/summary field
-- The new `totalCost` field will be calculated from cost line items
-
----
-
-## UI Changes
-
-### PricingForm Updates
-
-**Replace single Cost/Unit input with a Cost Breakdown section:**
-
-```
-INTERNAL COST BREAKDOWN
-┌─────────────────┬──────────────┬───────────┬─────┬───────────┬───┐
-│ Description     │ Type         │ Cost ($)  │ Qty │ Amount    │   │
-├─────────────────┼──────────────┼───────────┼─────┼───────────┼───┤
-│ Ocean Freight   │ 40HC         │ 1,800     │ 2   │ $3,600    │ x │
-│ Ocean Freight   │ 20ft         │ 1,200     │ 1   │ $1,200    │ x │
-│ Local Charges   │ Per BL       │ 150       │ 1   │ $150      │ x │
-│ Documentation   │ Per BL       │ 75        │ 1   │ $75       │ x │
-└─────────────────┴──────────────┴───────────┴─────┴───────────┴───┘
-                                        [+ Add cost line]
-                                              Total Cost: $5,025
+The `editPayable` mutation in `useShipmentPayables.ts` also already handles saving both fields:
+```typescript
+currency: data.currency,
+due_date: data.dueDate,
 ```
 
-**Agent field remains as-is.**
+## Identified Issue
+There's a subtle bug in the due date logic (line 93 of `EditPayableDialog.tsx`):
 
-### Updated Profit Calculation
-
-```
-Total Selling (from quote lines): $7,500
-Total Cost (from cost lines):     $5,025
-─────────────────────────────────────────
-Gross Profit:                     $2,475 (33% margin)
+```typescript
+dueDate: useCustomDueDate && dueDate ? dueDate.toISOString() : null,
 ```
 
----
+This only saves the due date if `useCustomDueDate` is true. The problem:
+1. If a payable has an **auto-calculated** due date (stored as `null` in DB), opening the dialog shows the calculated date
+2. The `useCustomDueDate` flag is `false` in this case
+3. If the user changes **only the currency** (not the date), the date gets saved as `null` even though a date is displayed
+4. The expected behavior: if a date is visible and unchanged, preserve that behavior
 
-## Data Flow
+## Solution
 
-### When Opening Form:
-1. Load existing cost line items from `cost_line_items` table
-2. If none exist, initialize from shipment equipment with default costs
+### Fix 1: Improve due date save logic
+Update the `handleSubmit` function to save the displayed due date when a date is visible, not just when it's "custom":
 
-### When Saving:
-1. Delete existing cost line items for this shipment
-2. Insert new cost line items
-3. Update shipment with calculated `totalCost` and `totalProfit`
-
----
-
-## Files to Create/Modify
-
-| Action | File | Description |
-|--------|------|-------------|
-| **Create** | `src/hooks/useCostLineItems.ts` | Hook for cost line items CRUD |
-| **Modify** | `src/components/forms/PricingForm.tsx` | Replace cost input with cost breakdown |
-| **Modify** | `src/types/shipment.ts` | Add `CostLineItem` interface |
-| **Migration** | Create `cost_line_items` table | Store cost breakdown |
-
----
-
-## PricingForm Structure After Changes
-
-```
-┌────────────────────────────────────────────────────────────────────┐
-│ Pricing & Quote for NSS-001                                        │
-├────────────────────────────────────────────────────────────────────┤
-│ Route: Jeddah → Aqaba    Client: ABC Corp                          │
-│ Equipment: 40HC × 2, 20ft × 1    Salesperson: Tareq                │
-├────────────────────────────────────────────────────────────────────┤
-│ INTERNAL PRICING                                                   │
-│ ┌──────────────────────────────────────────────────────────────┐   │
-│ │ Agent: [________________]                                    │   │
-│ └──────────────────────────────────────────────────────────────┘   │
-│                                                                    │
-│ COST BREAKDOWN                                            [+ Add]  │
-│ ┌─────────────┬─────────┬─────────┬─────┬──────────┬───┐          │
-│ │ Description │ Type    │ Cost    │ Qty │ Amount   │   │          │
-│ ├─────────────┼─────────┼─────────┼─────┼──────────┼───┤          │
-│ │ Ocean Frt   │ 40HC    │ 1,800   │ 2   │ $3,600   │ x │          │
-│ │ Ocean Frt   │ 20ft    │ 1,200   │ 1   │ $1,200   │ x │          │
-│ │ Local Chrg  │ Per BL  │ 150     │ 1   │ $150     │ x │          │
-│ └─────────────┴─────────┴─────────┴─────┴──────────┴───┘          │
-│                                         Total Cost: $4,950         │
-├────────────────────────────────────────────────────────────────────┤
-│ CLIENT QUOTATION                                          [+ Add]  │
-│ ┌─────────────┬─────────┬─────────┬─────┬──────────┬───┐          │
-│ │ Description │ Type    │ Rate    │ Qty │ Amount   │   │          │
-│ ├─────────────┼─────────┼─────────┼─────┼──────────┼───┤          │
-│ │ Ocean Frt   │ 40HC    │ 2,500   │ 2   │ $5,000   │ x │          │
-│ │ Ocean Frt   │ 20ft    │ 1,800   │ 1   │ $1,800   │ x │          │
-│ │ Doc Fee    │ Per BL  │ 200     │ 1   │ $200     │ x │          │
-│ └─────────────┴─────────┴─────────┴─────┴──────────┴───┘          │
-│                                        Total Selling: $7,000       │
-├────────────────────────────────────────────────────────────────────┤
-│ SUMMARY                                                            │
-│ Total Selling:  $7,000                                             │
-│ Total Cost:     $4,950                                             │
-│ Gross Profit:   $2,050 (29.3% margin)                              │
-├────────────────────────────────────────────────────────────────────┤
-│ Remarks: [_______________________________________________]         │
-│ Validity: [30] days                                                │
-├────────────────────────────────────────────────────────────────────┤
-│                    [Cancel]  [Save Draft]  [Save & Issue]          │
-└────────────────────────────────────────────────────────────────────┘
+```typescript
+dueDate: dueDate ? dueDate.toISOString() : null,
 ```
 
----
+This ensures that whatever date is displayed (whether auto-calculated or custom) gets saved if a date is shown.
 
-## RLS Policies for `cost_line_items`
+### Fix 2: Mark auto-populated dates as custom when saved
+Alternatively, if we want to distinguish between "truly custom" and "auto-calculated but visible":
+- Keep the current logic but change the UX label to clarify
+- When saving, always save the displayed date if one exists
 
-- **SELECT**: Authenticated users can view all cost items
-- **INSERT**: Authenticated users can create cost items
-- **UPDATE**: Authenticated users can update cost items
-- **DELETE**: Authenticated users can delete cost items
+### Fix 3: Improve initialization for existing payables with stored due dates
+Ensure that when a payable already has a `due_date` stored, it's correctly loaded and marked as custom.
 
----
+## Implementation Changes
 
-## Critical Files for Implementation
+### File: `src/components/payables/EditPayableDialog.tsx`
 
-- `src/components/forms/PricingForm.tsx` - Main form to modify, add cost breakdown UI
-- `src/hooks/useCostLineItems.ts` - New hook for cost line items CRUD operations
-- `src/types/shipment.ts` - Add CostLineItem interface
-- `src/hooks/useQuotations.ts` - Reference pattern for line items implementation
-- `supabase/migrations/` - New migration for cost_line_items table
+1. **Update `handleSubmit`** to always save the visible due date:
+   - Change from: `dueDate: useCustomDueDate && dueDate ? dueDate.toISOString() : null`
+   - Change to: `dueDate: dueDate ? dueDate.toISOString() : null`
+
+2. This ensures:
+   - If user edits currency only, the displayed due date is preserved
+   - If user clears the date explicitly, it saves as null
+   - No confusing behavior where visible dates disappear on save
+
+## Technical Details
+
+The database column `shipment_payables.due_date` accepts null values, and the UI already correctly shows "auto" vs "custom" labels. The only change needed is ensuring the save logic matches what the user sees in the dialog.
+
+### Testing Checklist
+- Edit a payable and change only the currency - due date should remain unchanged
+- Edit a payable and select a custom due date - new date should save
+- Edit a payable and use "Reset to auto" - calculated date should save
+- Create a new payable with auto-calculated due date - date should save correctly
+
