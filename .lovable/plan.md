@@ -1,72 +1,104 @@
 
 
 ## Goal
-Ensure users can reliably change currency and due dates when editing payables, and that changes are properly saved.
+Consolidate the two separate edit dialogs (EditPayableDialog + PayableInvoiceDialog) into a single unified dialog that allows users to edit all payable details and upload invoices in one place.
 
-## Current State Analysis
-After reviewing the code, the `EditPayableDialog` component **already includes** both currency and due date editing functionality:
+## Current State
+The payables interface has two edit buttons for each payable entry:
+- **Pencil icon** → Opens EditPayableDialog (party type, name, amount, currency, due date, notes)
+- **Upload Invoice button** → Opens PayableInvoiceDialog (file upload, invoice amount)
 
-- **Currency**: Dropdown with USD, EUR, JOD options
-- **Due Date**: Calendar picker with auto-calculation based on ETD+3 (exports) or ETA-10 (imports), plus "Reset to auto" button
+This is confusing because users have to choose between two similar-looking edit options.
 
-The `editPayable` mutation in `useShipmentPayables.ts` also already handles saving both fields:
+## Proposed Solution
+Merge both dialogs into a **single "Edit Payable" dialog** that includes all fields:
+- Party type, name
+- Estimated amount, currency
+- Due date with auto-calculation
+- Notes
+- **Invoice section** (file upload + invoice amount)
+
+## Implementation Steps
+
+### 1. Enhance EditPayableDialog
+Modify `src/components/payables/EditPayableDialog.tsx` to include invoice upload functionality:
+- Add file upload input (from PayableInvoiceDialog)
+- Add invoice amount field
+- Show existing invoice if one is uploaded (with ability to replace)
+- Display difference between estimated and invoice amounts
+
+### 2. Update EditPayableDialog Props and Submit Handler
+Extend the onSubmit callback to include invoice data:
 ```typescript
-currency: data.currency,
-due_date: data.dueDate,
+onSubmit: (data: {
+  id: string;
+  partyType: PartyType;
+  partyName: string;
+  estimatedAmount: number | null;
+  currency: string;
+  notes: string | null;
+  dueDate: string | null;
+  // New invoice fields
+  invoiceAmount?: number;
+  invoiceFileName?: string;
+  invoiceFilePath?: string;
+  invoiceUploaded?: boolean;
+  invoiceDate?: string;
+}) => void;
 ```
 
-## Identified Issue
-There's a subtle bug in the due date logic (line 93 of `EditPayableDialog.tsx`):
+### 3. Update PayableShipmentRow
+- Remove the separate "Upload Invoice" button
+- Keep only the pencil (edit) button, rename to "Edit"
+- Update the onEditPayable handler to use the unified dialog
 
-```typescript
-dueDate: useCustomDueDate && dueDate ? dueDate.toISOString() : null,
-```
+### 4. Update useShipmentPayables Hook
+Modify the `editPayable` mutation to handle both regular edits and invoice uploads in a single call.
 
-This only saves the due date if `useCustomDueDate` is true. The problem:
-1. If a payable has an **auto-calculated** due date (stored as `null` in DB), opening the dialog shows the calculated date
-2. The `useCustomDueDate` flag is `false` in this case
-3. If the user changes **only the currency** (not the date), the date gets saved as `null` even though a date is displayed
-4. The expected behavior: if a date is visible and unchanged, preserve that behavior
+### 5. Update Payables Page
+- Remove the separate `invoiceDialogOpen` state and `PayableInvoiceDialog` component usage
+- Simplify to just one dialog state
 
-## Solution
-
-### Fix 1: Improve due date save logic
-Update the `handleSubmit` function to save the displayed due date when a date is visible, not just when it's "custom":
-
-```typescript
-dueDate: dueDate ? dueDate.toISOString() : null,
-```
-
-This ensures that whatever date is displayed (whether auto-calculated or custom) gets saved if a date is shown.
-
-### Fix 2: Mark auto-populated dates as custom when saved
-Alternatively, if we want to distinguish between "truly custom" and "auto-calculated but visible":
-- Keep the current logic but change the UX label to clarify
-- When saving, always save the displayed date if one exists
-
-### Fix 3: Improve initialization for existing payables with stored due dates
-Ensure that when a payable already has a `due_date` stored, it's correctly loaded and marked as custom.
-
-## Implementation Changes
-
-### File: `src/components/payables/EditPayableDialog.tsx`
-
-1. **Update `handleSubmit`** to always save the visible due date:
-   - Change from: `dueDate: useCustomDueDate && dueDate ? dueDate.toISOString() : null`
-   - Change to: `dueDate: dueDate ? dueDate.toISOString() : null`
-
-2. This ensures:
-   - If user edits currency only, the displayed due date is preserved
-   - If user clears the date explicitly, it saves as null
-   - No confusing behavior where visible dates disappear on save
+### 6. Clean Up PayableInvoiceDialog
+After migration, the `PayableInvoiceDialog` component can be removed or deprecated.
 
 ## Technical Details
 
-The database column `shipment_payables.due_date` accepts null values, and the UI already correctly shows "auto" vs "custom" labels. The only change needed is ensuring the save logic matches what the user sees in the dialog.
+### Enhanced EditPayableDialog Layout
+```
+┌─────────────────────────────────────┐
+│ Edit Payable                        │
+├─────────────────────────────────────┤
+│ Party Type:     [Dropdown]          │
+│ Party Name:     [Input]             │
+├─────────────────────────────────────┤
+│ Estimated Amount: [Input] Currency: │
+│ Due Date:       [Calendar]          │
+│ Notes:          [Textarea]          │
+├─────────────────────────────────────┤
+│ ─── Invoice Details ───             │
+│ Invoice File:   [Upload Button]     │
+│ Invoice Amount: [Input]             │
+│ (±X from estimate)                  │
+├─────────────────────────────────────┤
+│           [Cancel] [Save]           │
+└─────────────────────────────────────┘
+```
 
-### Testing Checklist
-- Edit a payable and change only the currency - due date should remain unchanged
-- Edit a payable and select a custom due date - new date should save
-- Edit a payable and use "Reset to auto" - calculated date should save
-- Create a new payable with auto-calculated due date - date should save correctly
+### Conditional Invoice Section
+- Show invoice section expanded if payable already has an invoice
+- Otherwise show as collapsible or clearly separated section
+- Invoice upload is optional - users can save just the basic details
+
+## Files to Modify
+1. **src/components/payables/EditPayableDialog.tsx** - Add invoice upload functionality
+2. **src/components/payables/PayableShipmentRow.tsx** - Remove separate invoice button
+3. **src/hooks/useShipmentPayables.ts** - Ensure editPayable handles invoice data
+4. **src/pages/Payables.tsx** - Remove PayableInvoiceDialog usage
+
+## Benefits
+- Single entry point for all payable edits
+- Clearer, less confusing UI
+- Fewer dialogs to manage
+- Better user flow - edit everything in one place
 
