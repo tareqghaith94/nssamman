@@ -90,7 +90,7 @@ export function EditPayableDialog({
       estimatedAmount: estimatedAmount ? parseFloat(estimatedAmount) : null,
       currency,
       notes: notes.trim() || null,
-      dueDate: useCustomDueDate && dueDate ? dueDate.toISOString() : null,
+      dueDate: dueDate ? dueDate.toISOString() : null,
     });
 
     onOpenChange(false);
