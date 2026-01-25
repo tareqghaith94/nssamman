@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, Upload, Check, Undo2, Trash2, FileCheck, AlertCircle, Clock, Eye, Pencil } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Check, Undo2, Trash2, FileCheck, AlertCircle, Clock, Eye, Pencil } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -13,7 +13,6 @@ interface PayableShipmentRowProps {
   shipment: ShipmentWithPayables;
   canEdit: boolean;
   onAddPayable: (shipment: { id: string; referenceId: string; portOfLoading: string; etd: string | null; eta: string | null }) => void;
-  onUploadInvoice: (payable: ShipmentPayable) => void;
   onMarkPaid: (payable: ShipmentPayable) => void;
   onUndoPaid: (payable: ShipmentPayable) => void;
   onDeletePayable: (payable: ShipmentPayable) => void;
@@ -26,7 +25,6 @@ export function PayableShipmentRow({
   shipment,
   canEdit,
   onAddPayable,
-  onUploadInvoice,
   onMarkPaid,
   onUndoPaid,
   onDeletePayable,
@@ -236,21 +234,13 @@ export function PayableShipmentRow({
                       <div className="flex items-center justify-end gap-1">
                         <Button
                           variant="ghost"
-                          size="icon"
+                          size="sm"
                           onClick={() => handleEditPayable(payable)}
-                          className="h-7 w-7 text-muted-foreground hover:text-primary"
+                          className="h-7 gap-1 text-xs"
                           title="Edit payable"
                         >
                           <Pencil className="w-3 h-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onUploadInvoice(payable)}
-                          className="h-7 gap-1 text-xs"
-                        >
-                          <Upload className="w-3 h-3" />
-                          {hasInvoice ? 'Edit' : 'Invoice'}
+                          Edit
                         </Button>
                         <Button
                           variant="ghost"

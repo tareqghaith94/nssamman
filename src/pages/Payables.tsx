@@ -13,13 +13,13 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { PayableInvoiceDialog } from '@/components/payables/PayableInvoiceDialog';
 import { AddPayableDialog } from '@/components/payables/AddPayableDialog';
 import { EditPayableDialog } from '@/components/payables/EditPayableDialog';
 import { formatCurrency, Currency } from '@/lib/currency';
 import { ShipmentPayable, PartyType, ShipmentWithPayables } from '@/types/payable';
 import { PayableShipmentRow } from '@/components/payables/PayableShipmentRow';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,10 +39,8 @@ export default function Payables() {
   const userRoles = (roles || []) as UserRole[];
   const userName = profile?.name;
 
-  const [invoiceDialogOpen, setInvoiceDialogOpen] = useState(false);
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [selectedPayable, setSelectedPayable] = useState<ShipmentPayable | null>(null);
   const [selectedPayableForEdit, setSelectedPayableForEdit] = useState<ShipmentPayable | null>(null);
   const [selectedShipmentInfo, setSelectedShipmentInfo] = useState<{ portOfLoading: string; etd: string | null; eta: string | null } | undefined>(undefined);
   const [selectedShipmentForAdd, setSelectedShipmentForAdd] = useState<{ id: string; referenceId: string; portOfLoading: string; etd: string | null; eta: string | null } | null>(null);
@@ -65,22 +63,6 @@ export default function Payables() {
 
   const handleUndoPaid = async (payable: ShipmentPayable) => {
     await undoPayment.mutateAsync(payable.id);
-  };
-
-  const handleOpenInvoiceDialog = (payable: ShipmentPayable) => {
-    setSelectedPayable(payable);
-    setInvoiceDialogOpen(true);
-  };
-
-  const handleInvoiceSubmit = async (data: {
-    id: string;
-    invoiceAmount: number;
-    invoiceFileName: string;
-    invoiceFilePath: string;
-    invoiceUploaded: boolean;
-    invoiceDate: string;
-  }) => {
-    await updatePayable.mutateAsync(data);
   };
 
   const handleOpenAddDialog = (shipment: { id: string; referenceId: string; portOfLoading: string; etd: string | null; eta: string | null }) => {
@@ -114,8 +96,39 @@ export default function Payables() {
     currency: string;
     notes: string | null;
     dueDate: string | null;
+    invoiceAmount?: number;
+    invoiceFileName?: string;
+    invoiceFilePath?: string;
+    invoiceUploaded?: boolean;
+    invoiceDate?: string;
   }) => {
-    await editPayable.mutateAsync(data);
+    // If invoice data is included, update both in one call
+    if (data.invoiceAmount !== undefined) {
+      await editPayable.mutateAsync({
+        id: data.id,
+        partyType: data.partyType,
+        partyName: data.partyName,
+        estimatedAmount: data.estimatedAmount,
+        currency: data.currency,
+        notes: data.notes,
+        dueDate: data.dueDate,
+        invoiceAmount: data.invoiceAmount,
+        invoiceFileName: data.invoiceFileName,
+        invoiceFilePath: data.invoiceFilePath,
+        invoiceUploaded: data.invoiceUploaded,
+        invoiceDate: data.invoiceDate,
+      });
+    } else {
+      await editPayable.mutateAsync({
+        id: data.id,
+        partyType: data.partyType,
+        partyName: data.partyName,
+        estimatedAmount: data.estimatedAmount,
+        currency: data.currency,
+        notes: data.notes,
+        dueDate: data.dueDate,
+      });
+    }
   };
 
   const handleDeletePayable = (payable: ShipmentPayable) => {
@@ -227,7 +240,6 @@ export default function Payables() {
                   shipment={shipment}
                   canEdit={canEditShipment(shipment)}
                   onAddPayable={handleOpenAddDialog}
-                  onUploadInvoice={handleOpenInvoiceDialog}
                   onMarkPaid={handleMarkPaid}
                   onUndoPaid={handleUndoPaid}
                   onDeletePayable={handleDeletePayable}
@@ -240,21 +252,6 @@ export default function Payables() {
           </TableBody>
         </Table>
       </div>
-
-      <PayableInvoiceDialog
-        open={invoiceDialogOpen}
-        onOpenChange={setInvoiceDialogOpen}
-        payable={selectedPayable ? {
-          ...selectedPayable,
-          referenceId: '',
-          portOfLoading: '',
-          portOfDischarge: '',
-          etd: null,
-          eta: null,
-          clientName: null,
-        } : null}
-        onSubmit={handleInvoiceSubmit}
-      />
 
       {selectedShipmentForAdd && (
         <AddPayableDialog
@@ -286,6 +283,14 @@ export default function Payables() {
         payable={selectedPayableForEdit}
         shipmentInfo={selectedShipmentInfo}
         onSubmit={handleEditPayable}
+        onViewInvoice={async (filePath) => {
+          const url = await getInvoiceUrl(filePath);
+          if (url) {
+            window.open(url, '_blank');
+          } else {
+            toast.error('Failed to get invoice URL');
+          }
+        }}
       />
 
       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>

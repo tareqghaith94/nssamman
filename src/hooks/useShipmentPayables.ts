@@ -154,7 +154,7 @@ export function useShipmentPayables(shipmentId?: string) {
     },
   });
 
-  // Edit payable details (party info, due date, etc.)
+  // Edit payable details (party info, due date, invoice, etc.)
   const editPayable = useMutation({
     mutationFn: async (data: {
       id: string;
@@ -164,17 +164,34 @@ export function useShipmentPayables(shipmentId?: string) {
       currency: string;
       notes: string | null;
       dueDate: string | null;
+      // Optional invoice fields
+      invoiceAmount?: number;
+      invoiceFileName?: string;
+      invoiceFilePath?: string;
+      invoiceUploaded?: boolean;
+      invoiceDate?: string;
     }) => {
+      const updateData: Record<string, unknown> = {
+        party_type: data.partyType,
+        party_name: data.partyName,
+        estimated_amount: data.estimatedAmount,
+        currency: data.currency,
+        notes: data.notes,
+        due_date: data.dueDate,
+      };
+
+      // Include invoice fields if provided
+      if (data.invoiceAmount !== undefined) {
+        updateData.invoice_amount = data.invoiceAmount;
+        updateData.invoice_file_name = data.invoiceFileName;
+        updateData.invoice_file_path = data.invoiceFilePath;
+        updateData.invoice_uploaded = data.invoiceUploaded;
+        updateData.invoice_date = data.invoiceDate;
+      }
+
       const { error } = await supabase
         .from('shipment_payables')
-        .update({
-          party_type: data.partyType,
-          party_name: data.partyName,
-          estimated_amount: data.estimatedAmount,
-          currency: data.currency,
-          notes: data.notes,
-          due_date: data.dueDate,
-        })
+        .update(updateData)
         .eq('id', data.id);
       
       if (error) throw error;
