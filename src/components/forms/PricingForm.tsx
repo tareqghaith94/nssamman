@@ -379,6 +379,9 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
       );
       
       // Save pricing summary to shipment
+      // Determine the primary cost currency from cost line items
+      const primaryCostCurrency = costLineItems.find(item => item.description)?.currency || 'USD';
+      
       await updateShipment(shipment.id, {
         agent,
         pricingOwner: (pricingOwner as 'Uma' | 'Rania' | 'Mozayan') || undefined,
@@ -389,6 +392,7 @@ export function PricingForm({ shipment, open, onOpenChange }: PricingFormProps) 
         totalCost,
         totalProfit,
         currency: quotationCurrency as 'USD' | 'EUR' | 'JOD',
+        costCurrency: primaryCostCurrency as 'USD' | 'EUR' | 'JOD',
       });
       
       const validUntil = new Date();

@@ -526,6 +526,7 @@ export type Database = {
           bl_type: string | null
           client_name: string | null
           completed_at: string | null
+          cost_currency: string | null
           cost_per_unit: number | null
           created_at: string
           created_by: string | null
@@ -582,6 +583,7 @@ export type Database = {
           bl_type?: string | null
           client_name?: string | null
           completed_at?: string | null
+          cost_currency?: string | null
           cost_per_unit?: number | null
           created_at?: string
           created_by?: string | null
@@ -638,6 +640,7 @@ export type Database = {
           bl_type?: string | null
           client_name?: string | null
           completed_at?: string | null
+          cost_currency?: string | null
           cost_per_unit?: number | null
           created_at?: string
           created_by?: string | null
