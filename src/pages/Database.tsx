@@ -301,7 +301,7 @@ export default function Database() {
                             {formatCurrencyValue(shipment.totalSellingPrice, shipment.currency)}
                           </TableCell>
                           <TableCell className="text-right text-sm">
-                            {formatCurrencyValue(shipment.totalCost, shipment.currency)}
+                            {formatCurrencyValue(shipment.totalCost, shipment.costCurrency || shipment.currency)}
                           </TableCell>
                           <TableCell className="text-right text-sm font-medium text-success">
                             {formatCurrencyValue(shipment.totalProfit, shipment.currency)}

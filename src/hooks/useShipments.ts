@@ -57,6 +57,7 @@ interface ShipmentRow {
   lost_at: string | null;
   pricing_owner: string | null;
   currency: string;
+  cost_currency: string | null;
   special_remarks: string | null;
   is_dg: boolean | null;
   un_number: string | null;
@@ -85,6 +86,7 @@ function rowToShipment(row: ShipmentRow): Shipment {
     incoterm: row.incoterm as Shipment['incoterm'],
     stage: row.stage as ShipmentStage,
     currency: (row.currency as Shipment['currency']) || 'USD',
+    costCurrency: (row.cost_currency as Shipment['costCurrency']) || undefined,
     createdAt: new Date(row.created_at),
     agent: row.agent ?? undefined,
     sellingPricePerUnit: row.selling_price_per_unit ?? undefined,
@@ -142,6 +144,7 @@ function shipmentToRow(shipment: Partial<Shipment>): Record<string, unknown> {
   if (shipment.incoterm !== undefined) row.incoterm = shipment.incoterm;
   if (shipment.stage !== undefined) row.stage = shipment.stage;
   if (shipment.currency !== undefined) row.currency = shipment.currency;
+  if (shipment.costCurrency !== undefined) row.cost_currency = shipment.costCurrency;
   if (shipment.agent !== undefined) row.agent = shipment.agent;
   if (shipment.sellingPricePerUnit !== undefined) row.selling_price_per_unit = shipment.sellingPricePerUnit;
   if (shipment.costPerUnit !== undefined) row.cost_per_unit = shipment.costPerUnit;

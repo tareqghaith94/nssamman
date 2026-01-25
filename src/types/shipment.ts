@@ -27,6 +27,7 @@ export interface Shipment {
   incoterm: Incoterm;
   stage: ShipmentStage;
   currency: Currency;
+  costCurrency?: Currency;
   createdAt: Date;
   
   // Pricing stage fields
