@@ -1,118 +1,101 @@
 
-## Goal
-Fix the Database page to accurately display selling prices and cost prices in their **correct separate currencies**.
 
-## Problem Analysis
+## Payables and Collections UI Cleanup
 
-The current data model has a fundamental limitation:
-
-| Field | Purpose | Current State |
-|-------|---------|---------------|
-| `shipments.currency` | Used for selling/cost/profit display | Single value (e.g., JOD) |
-| `quotations.currency` | Quotation document currency | JOD |
-| `cost_line_items.currency` | Per-line cost currency | EUR, USD, JOD (mixed) |
-
-**Example from your data:**
-- Reference `T-2601-0001`: Quotation is USD, but cost line items are in EUR
-- The Database page uses `shipments.currency` for both Selling AND Cost columns
-
-**Current behavior:** Both columns show the same currency (JOD) even when costs are in EUR.
+### Goal
+Reduce visual clutter on both pages to make them scannable and practical for daily use. This is a **frontend-only change** -- no database modifications, no data loss.
 
 ---
 
-## Solution: Add Separate Cost Currency Field
+### Payables Page Changes
 
-### Database Change
-Add a `cost_currency` column to the `shipments` table to store the primary currency used for costs:
+**1. Collapse rows by default**
+- Change default `isOpen` state to `false` regardless of payable count
 
-```sql
-ALTER TABLE shipments ADD COLUMN cost_currency TEXT DEFAULT 'USD';
-```
+**2. Remove the "Route" column from the main table**
+- Route info is secondary context; removing it saves horizontal space
 
-### Code Changes
+**3. Combine "Estimated" and "Invoice" into a single "Amount" column**
+- Show invoice amount with a checkmark icon if invoiced, otherwise show estimated amount in muted style
+- Example: "EUR 1,800" (green check) or "~EUR 1,800" (estimate)
 
-**1. `src/types/shipment.ts`** - Add type definition:
-```typescript
-costCurrency?: Currency;
-```
+**4. Move actions into a dropdown menu**
+- Replace inline Edit / Pay / Delete buttons with a single "..." dropdown
+- Menu items: Edit, Mark as Paid, View Invoice, Delete
 
-**2. `src/hooks/useShipments.ts`** - Map the new field:
-```typescript
-// In shipmentToRow
-cost_currency: s.costCurrency || 'USD',
-
-// In rowToShipment  
-costCurrency: row.cost_currency as Currency,
-```
-
-**3. `src/components/forms/PricingForm.tsx`** - Save cost currency during pricing:
-```typescript
-// Determine the primary cost currency from cost line items
-const primaryCostCurrency = costLineItems[0]?.currency || 'USD';
-
-await updateShipment(shipment.id, {
-  // ...existing fields
-  currency: quotationCurrency,       // For selling prices
-  costCurrency: primaryCostCurrency, // For cost prices
-});
-```
-
-**4. `src/pages/Database.tsx`** - Display with correct currencies:
-```typescript
-// Selling column - use shipment.currency (quotation currency)
-{formatCurrencyValue(shipment.totalSellingPrice, shipment.currency)}
-
-// Cost column - use shipment.costCurrency (cost currency)
-{formatCurrencyValue(shipment.totalCost, shipment.costCurrency || shipment.currency)}
-```
+**5. Add a search/filter bar**
+- Text input above the table to filter by Reference ID or Client name
 
 ---
 
-## Data Migration for Existing Records
+### Collections Page Changes
 
-Run a one-time update to set `cost_currency` from the first cost line item of each shipment:
+**1. Remove the "Route" column**
 
-```sql
-UPDATE shipments s
-SET cost_currency = (
-  SELECT c.currency 
-  FROM cost_line_items c 
-  WHERE c.shipment_id = s.id 
-  LIMIT 1
-)
-WHERE EXISTS (
-  SELECT 1 FROM cost_line_items c WHERE c.shipment_id = s.id
-);
-```
+**2. Merge "Status" into the "Due Date" column**
+- Show date with a small colored status label underneath (e.g., red "Overdue")
 
----
+**3. Merge "Progress" into the "Amount" column**
+- Display as "JOD 500 / 2,000 (25%)" with a thin inline progress bar
 
-## Result After Fix
+**4. Move actions into a dropdown menu**
+- Replace Record / Mark Full / Undo buttons with a "..." dropdown
 
-| Column | Currency Source | Example |
-|--------|-----------------|---------|
-| Selling | `shipment.currency` | JOD 2,422.50 |
-| Cost | `shipment.costCurrency` | EUR 1,800.00 |
-| Profit | `shipment.currency` | JOD 622.50 |
-| Invoice Amount | `shipment.invoiceCurrency` | JOD 2,422.50 |
+**5. Add a search/filter bar**
+- Text filter for Reference ID, Client, or Salesperson
 
 ---
 
-## Files to Modify
+### Column Changes Summary
 
-1. **Database migration** - Add `cost_currency` column
-2. **`src/types/shipment.ts`** - Add `costCurrency` type
-3. **`src/hooks/useShipments.ts`** - Map `cost_currency` field
-4. **`src/components/forms/PricingForm.tsx`** - Save cost currency
-5. **`src/pages/Database.tsx`** - Display cost with `costCurrency`
+**Payables: 7 columns reduced to 5**
+
+| Before | After |
+|--------|-------|
+| Expand toggle | Expand toggle |
+| Reference ID | Reference ID |
+| Client | Client |
+| Route | _(removed)_ |
+| Parties | Parties |
+| Outstanding | Amount (combined) |
+| Actions | Actions (dropdown) |
+
+**Collections: 8 columns reduced to 5**
+
+| Before | After |
+|--------|-------|
+| Reference ID | Reference ID |
+| Salesperson | Salesperson |
+| Route | _(removed)_ |
+| Due Date | Due Date + Status |
+| Status | _(merged)_ |
+| Progress | _(merged)_ |
+| Amount | Amount + Progress |
+| Actions | Actions (dropdown) |
 
 ---
 
-## Important Note on Profit Display
+### Technical Details
 
-Since selling and cost are in different currencies, the profit calculation and display becomes more complex. Options:
-- **Keep profit in selling currency** (current approach, but mathematically incorrect for mixed currencies)
-- **Convert costs to selling currency** using exchange rates before calculating profit
-- **Show profit with a note** that it's approximate when currencies differ
+**Files to modify:**
 
-Would you like me to implement exchange-rate-based profit calculation, or keep profit displayed in the selling currency with the understanding that it's nominal when currencies differ?
+1. `src/components/payables/PayableShipmentRow.tsx`
+   - Default `isOpen` to `false`
+   - Remove Route from parent row
+   - Combine estimated/invoice into one "Amount" column in child rows
+   - Replace inline buttons with DropdownMenu
+
+2. `src/pages/Payables.tsx`
+   - Remove Route TableHead
+   - Add search input with filtering logic
+   - Update colSpan values
+
+3. `src/pages/Collections.tsx`
+   - Remove Route and Status columns
+   - Merge progress bar into Amount column
+   - Replace action buttons with DropdownMenu
+   - Add search input with filtering logic
+
+**No new dependencies needed** -- DropdownMenu is already available via Radix.
+**No database changes** -- purely visual/layout modifications.
+
