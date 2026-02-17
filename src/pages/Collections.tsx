@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { useFilteredShipments } from '@/hooks/useFilteredShipments';
 import { useShipments } from '@/hooks/useShipments';
 import { useAuth } from '@/hooks/useAuth';
+import { useExchangeRates } from '@/hooks/useExchangeRates';
 import { canEditPayablesCollections } from '@/lib/permissions';
 import { UserRole } from '@/types/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
@@ -35,6 +36,7 @@ export default function Collections() {
   const { shipments: allShipments, isLoading } = useFilteredShipments();
   const { updateShipment } = useShipments();
   const { roles, profile } = useAuth();
+  const { convert } = useExchangeRates();
   const userRoles = (roles || []) as UserRole[];
   const userName = profile?.name;
   const [showHistory, setShowHistory] = useState(false);
@@ -106,17 +108,19 @@ export default function Collections() {
     (a, b) => a.dueDate.getTime() - b.dueDate.getTime()
   );
 
-  const totalsByCurrency = useMemo(() => {
-    const result: Record<string, number> = {};
+  const { totalOutstanding, hasMixedCurrencies } = useMemo(() => {
+    let total = 0;
+    const currencies = new Set<string>();
     collections.forEach((c) => {
       if (c.shipment.paymentCollected) return;
-      const currency = c.shipment.currency || 'USD';
+      const currency = (c.shipment.currency || 'USD') as 'USD' | 'EUR' | 'JOD';
+      currencies.add(currency);
       const invoiceAmount = c.shipment.totalInvoiceAmount || 0;
       const collected = c.shipment.amountCollected || 0;
-      result[currency] = (result[currency] || 0) + (invoiceAmount - collected);
+      total += convert(invoiceAmount - collected, currency, 'USD');
     });
-    return result;
-  }, [collections]);
+    return { totalOutstanding: total, hasMixedCurrencies: currencies.size > 1 };
+  }, [collections, convert]);
 
   if (isLoading) {
     return (
@@ -136,15 +140,9 @@ export default function Collections() {
 
       <div className="grid grid-cols-2 gap-6 mb-6">
         <div className="p-4 glass-card rounded-xl">
-          <p className="text-sm text-muted-foreground">Total Outstanding</p>
+          <p className="text-sm text-muted-foreground">Total Outstanding {hasMixedCurrencies && <span className="text-xs opacity-60">(converted)</span>}</p>
           <p className="text-2xl font-heading font-bold">
-            {Object.entries(totalsByCurrency).map(([curr, amount], idx) => (
-              <span key={curr}>
-                {idx > 0 && ' + '}
-                {formatCurrency(amount, curr as 'USD' | 'EUR' | 'JOD')}
-              </span>
-            ))}
-            {Object.keys(totalsByCurrency).length === 0 && formatCurrency(0, 'USD')}
+            {formatCurrency(totalOutstanding, 'USD')}
           </p>
         </div>
         <div className="p-4 glass-card rounded-xl">
@@ -171,6 +169,7 @@ export default function Collections() {
           <TableHeader>
             <TableRow className="border-border/50 hover:bg-transparent">
               <TableHead className="text-muted-foreground">Reference ID</TableHead>
+              <TableHead className="text-muted-foreground">Client</TableHead>
               <TableHead className="text-muted-foreground">Salesperson</TableHead>
               <TableHead className="text-muted-foreground">Due Date</TableHead>
               <TableHead className="text-muted-foreground text-right">Amount</TableHead>
@@ -180,7 +179,7 @@ export default function Collections() {
           <TableBody>
             {sortedCollections.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-8 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-8 text-muted-foreground">
                   {searchQuery ? 'No collections match your search' : 'No pending collections'}
                 </TableCell>
               </TableRow>
@@ -199,6 +198,7 @@ export default function Collections() {
                     <TableCell className="font-mono font-medium text-primary">
                       {shipment.referenceId}
                     </TableCell>
+                    <TableCell>{shipment.clientName || '—'}</TableCell>
                     <TableCell>{shipment.salesperson}</TableCell>
                     {/* Due Date + Status merged */}
                     <TableCell>
