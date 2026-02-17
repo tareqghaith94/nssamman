@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, Check, Undo2, Trash2, FileCheck, AlertCircle, Clock, Eye, Pencil } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Check, FileCheck, AlertCircle, Clock, Eye, MoreHorizontal, Pencil, Undo2, Trash2, CreditCard } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -8,6 +8,13 @@ import { PayableTypeBadge } from './PayableTypeBadge';
 import { formatCurrency, Currency } from '@/lib/currency';
 import { format, isBefore, isToday, addDays, subDays } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from '@/components/ui/dropdown-menu';
 
 interface PayableShipmentRowProps {
   shipment: ShipmentWithPayables;
@@ -32,10 +39,9 @@ export function PayableShipmentRow({
   onEditPayable,
   showPaid = false,
 }: PayableShipmentRowProps) {
-  const [isOpen, setIsOpen] = useState(shipment.payables.length > 0);
+  const [isOpen, setIsOpen] = useState(false);
 
   const getPayableStatus = (payable: ShipmentPayable) => {
-    // Use custom due date if set, otherwise calculate from shipment schedule
     if (payable.dueDate) {
       const dueDate = new Date(payable.dueDate);
       if (isBefore(dueDate, new Date()) && !isToday(dueDate)) {
@@ -47,7 +53,6 @@ export function PayableShipmentRow({
       return { label: 'Upcoming', className: 'status-active', icon: Clock, date: dueDate, isCustom: true };
     }
 
-    // Calculate from shipment schedule
     const isExport = shipment.portOfLoading.toLowerCase().includes('aqaba');
     let reminderDate: Date;
 
@@ -78,7 +83,6 @@ export function PayableShipmentRow({
     }
   };
 
-  // Filter payables based on showPaid
   const visiblePayables = showPaid 
     ? shipment.payables 
     : shipment.payables.filter(p => !p.paid);
@@ -107,11 +111,6 @@ export function PayableShipmentRow({
         </TableCell>
         <TableCell className="max-w-[150px] truncate">
           {shipment.clientName || '—'}
-        </TableCell>
-        <TableCell>
-          <span className="text-muted-foreground">{shipment.portOfLoading}</span>
-          <span className="mx-2">→</span>
-          <span>{shipment.portOfDischarge}</span>
         </TableCell>
         <TableCell className="text-muted-foreground">
           {partySummary}
@@ -143,7 +142,7 @@ export function PayableShipmentRow({
         <>
           {visiblePayables.length === 0 ? (
             <TableRow className="bg-muted/30 border-border/30">
-              <TableCell colSpan={7} className="text-center py-4 text-muted-foreground text-sm">
+              <TableCell colSpan={6} className="text-center py-4 text-muted-foreground text-sm">
                 No payable parties added yet. {canEdit && 'Click "Add Party" to add one.'}
               </TableCell>
             </TableRow>
@@ -162,106 +161,98 @@ export function PayableShipmentRow({
                       <PayableTypeBadge type={payable.partyType} />
                     </div>
                   </TableCell>
-                  <TableCell>{payable.partyName}</TableCell>
                   <TableCell>
-                    {payable.paid ? (
-                      <span className={cn(
-                        'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border',
-                        'status-success'
-                      )}>
-                        <Check className="w-3 h-3" />
-                        Paid
-                      </span>
-                    ) : (
-                      <div className="flex flex-col gap-0.5">
+                    <div>
+                      <span>{payable.partyName}</span>
+                      {payable.paid ? (
                         <span className={cn(
-                          'inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium border w-fit',
-                          status.className
+                          'ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border',
+                          'status-success'
                         )}>
-                          <StatusIcon className="w-3 h-3" />
-                          {status.label}
+                          <Check className="w-3 h-3" />
+                          Paid
                         </span>
-                        <span className="text-xs text-muted-foreground">
-                          Due: {format(status.date, 'dd MMM yyyy')}
-                          {status.isCustom && <span className="ml-1 text-primary">(custom)</span>}
-                        </span>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="flex items-center gap-1.5 mt-0.5">
+                          <span className={cn(
+                            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border w-fit',
+                            status.className
+                          )}>
+                            <StatusIcon className="w-3 h-3" />
+                            {status.label}
+                          </span>
+                          <span className="text-xs text-muted-foreground">
+                            {format(status.date, 'dd MMM')}
+                          </span>
+                        </div>
+                      )}
+                    </div>
                   </TableCell>
-                  <TableCell className="text-muted-foreground text-sm">
-                    {payable.estimatedAmount 
-                      ? formatCurrency(payable.estimatedAmount, payable.currency as Currency)
-                      : '—'
-                    }
-                  </TableCell>
-                  <TableCell className="text-right">
+                  {/* Combined Amount column */}
+                  <TableCell>
                     {hasInvoice ? (
-                      <div className="flex items-center justify-end gap-1">
-                        <span className="inline-flex items-center gap-1 font-medium text-success text-sm">
-                          <FileCheck className="w-3 h-3" />
-                          {formatCurrency(payable.invoiceAmount, payable.currency as Currency)}
-                        </span>
-                        {onViewInvoice && payable.invoiceFilePath && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => onViewInvoice(payable)}
-                            className="h-6 w-6 text-muted-foreground hover:text-primary"
-                            title="View Invoice"
-                          >
-                            <Eye className="w-3 h-3" />
-                          </Button>
-                        )}
-                      </div>
+                      <span className="inline-flex items-center gap-1 font-medium text-success text-sm">
+                        <FileCheck className="w-3 h-3" />
+                        {formatCurrency(payable.invoiceAmount, payable.currency as Currency)}
+                      </span>
+                    ) : payable.estimatedAmount ? (
+                      <span className="text-muted-foreground text-sm">
+                        ~{formatCurrency(payable.estimatedAmount, payable.currency as Currency)}
+                      </span>
                     ) : (
                       <span className="text-muted-foreground text-sm">—</span>
                     )}
                   </TableCell>
+                  <TableCell></TableCell>
+                  {/* Actions dropdown */}
                   <TableCell className="text-right">
-                    {payable.paid ? (
-                      canEdit ? (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onUndoPaid(payable)}
-                          className="h-7 gap-1 text-muted-foreground hover:text-foreground"
-                        >
-                          <Undo2 className="w-3 h-3" />
-                          Undo
-                        </Button>
-                      ) : null
-                    ) : canEdit ? (
-                      <div className="flex items-center justify-end gap-1">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditPayable(payable)}
-                          className="h-7 gap-1 text-xs"
-                          title="Edit payable"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          Edit
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => onMarkPaid(payable)}
-                          className="h-7 gap-1 text-xs text-success hover:text-success"
-                          disabled={!hasInvoice}
-                        >
-                          <Check className="w-3 h-3" />
-                          Pay
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => onDeletePayable(payable)}
-                          className="h-7 w-7 text-muted-foreground hover:text-destructive"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </Button>
-                      </div>
-                    ) : null}
+                    {canEdit && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="icon" className="h-7 w-7">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="bg-popover">
+                          {!payable.paid && (
+                            <>
+                              <DropdownMenuItem onClick={() => handleEditPayable(payable)}>
+                                <Pencil className="w-3.5 h-3.5 mr-2" />
+                                Edit
+                              </DropdownMenuItem>
+                              <DropdownMenuItem 
+                                onClick={() => onMarkPaid(payable)}
+                                disabled={!hasInvoice}
+                                className="text-success focus:text-success"
+                              >
+                                <Check className="w-3.5 h-3.5 mr-2" />
+                                Mark as Paid
+                              </DropdownMenuItem>
+                            </>
+                          )}
+                          {payable.paid && (
+                            <DropdownMenuItem onClick={() => onUndoPaid(payable)}>
+                              <Undo2 className="w-3.5 h-3.5 mr-2" />
+                              Undo Payment
+                            </DropdownMenuItem>
+                          )}
+                          {hasInvoice && onViewInvoice && payable.invoiceFilePath && (
+                            <DropdownMenuItem onClick={() => onViewInvoice(payable)}>
+                              <Eye className="w-3.5 h-3.5 mr-2" />
+                              View Invoice
+                            </DropdownMenuItem>
+                          )}
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem 
+                            onClick={() => onDeletePayable(payable)}
+                            className="text-destructive focus:text-destructive"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 mr-2" />
+                            Delete
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
                   </TableCell>
                 </TableRow>
               );
