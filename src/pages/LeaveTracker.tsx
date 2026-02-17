@@ -11,11 +11,21 @@ import { Plus, Calendar, Clock, Check, X, Trash2, Edit2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const STATUS_COLORS = {
-  pending: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
-  approved: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
-  rejected: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
+  pending: 'bg-warning/15 text-warning border-warning/30',
+  approved: 'bg-success/15 text-success border-success/30',
+  rejected: 'bg-destructive/15 text-destructive border-destructive/30',
 };
 
 const LEAVE_TYPE_LABELS: Record<string, string> = {
@@ -29,6 +39,8 @@ export default function LeaveTracker() {
   const [editingRequest, setEditingRequest] = useState<LeaveRequest | null>(null);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [employeeFilter, setEmployeeFilter] = useState<string>('all');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [requestToDelete, setRequestToDelete] = useState<string | null>(null);
 
   const {
     leaveRequests,
@@ -44,7 +56,6 @@ export default function LeaveTracker() {
     rejectLeaveRequest,
   } = useLeaveRequests();
 
-  // Fetch all employees for admin dropdown
   const { data: employees = [] } = useQuery({
     queryKey: ['profiles-for-leave'],
     queryFn: async () => {
@@ -58,7 +69,6 @@ export default function LeaveTracker() {
     enabled: isAdmin,
   });
 
-  // Filter requests based on role and filters
   const displayRequests = isAdmin ? leaveRequests : myRequests;
   const filteredRequests = displayRequests.filter((r) => {
     if (statusFilter !== 'all' && r.status !== statusFilter) return false;
@@ -81,8 +91,15 @@ export default function LeaveTracker() {
   };
 
   const handleDelete = (id: string) => {
-    if (confirm('Are you sure you want to delete this leave request?')) {
-      deleteLeaveRequest.mutate(id);
+    setRequestToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = () => {
+    if (requestToDelete) {
+      deleteLeaveRequest.mutate(requestToDelete);
+      setDeleteConfirmOpen(false);
+      setRequestToDelete(null);
     }
   };
 
@@ -104,7 +121,7 @@ export default function LeaveTracker() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Paid Leave</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{leaveBalance.annualRemaining} days</div>
+            <div className="text-2xl font-bold text-success">{leaveBalance.annualRemaining} days</div>
             <p className="text-xs text-muted-foreground mt-1">
               {leaveBalance.annualUsed} used of {leaveBalance.annualEntitlement}
             </p>
@@ -115,7 +132,7 @@ export default function LeaveTracker() {
             <CardTitle className="text-sm font-medium text-muted-foreground">Sick Leave</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{leaveBalance.sickRemaining} days</div>
+            <div className="text-2xl font-bold text-info">{leaveBalance.sickRemaining} days</div>
             <p className="text-xs text-muted-foreground mt-1">
               {leaveBalance.sickUsed} used of {leaveBalance.sickEntitlement}
             </p>
@@ -138,7 +155,7 @@ export default function LeaveTracker() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold flex items-center gap-2">
-              <Clock className="h-5 w-5 text-yellow-500" />
+              <Clock className="h-5 w-5 text-warning" />
               {leaveBalance.pending}
             </div>
           </CardContent>
@@ -238,7 +255,7 @@ export default function LeaveTracker() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+                              className="h-8 w-8 p-0 text-success hover:text-success hover:bg-success/10"
                               onClick={() => approveLeaveRequest.mutate(request.id)}
                             >
                               <Check className="h-4 w-4" />
@@ -246,7 +263,7 @@ export default function LeaveTracker() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="h-8 w-8 p-0 text-red-600 hover:text-red-700 hover:bg-red-50"
+                              className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
                               onClick={() => rejectLeaveRequest.mutate(request.id)}
                             >
                               <X className="h-4 w-4" />
@@ -282,6 +299,24 @@ export default function LeaveTracker() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Leave Request</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this leave request? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Leave Request Dialog */}
       <LeaveRequestDialog

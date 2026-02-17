@@ -112,16 +112,19 @@ export default function Dashboard() {
               title="Active Leads"
               value={leads}
               icon={<Users className="w-6 h-6" />}
+              href="/leads"
             />
             <StatCard
               title="Pending Pricing"
               value={pricing}
               icon={<Calculator className="w-6 h-6" />}
+              href="/pricing"
             />
             <StatCard
               title="In Operations"
               value={operations}
               icon={<Truck className="w-6 h-6" />}
+              href="/operations"
             />
             <StatCard
               title="Completed"
@@ -145,6 +148,7 @@ export default function Dashboard() {
               title="Pending Collections"
               value={collections.length}
               icon={<Clock className="w-6 h-6" />}
+              href="/collections"
             />
           </div>
           
