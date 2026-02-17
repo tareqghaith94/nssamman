@@ -78,10 +78,11 @@ export function OperationsCombinedTable({
         <h3 className="font-heading font-semibold text-lg">Operations Tracker</h3>
         <p className="text-sm text-muted-foreground">Complete view of shipment progress and documentation</p>
       </div>
-      <Table>
+      <div className="overflow-x-auto">
+      <Table className="min-w-[1200px]">
         <TableHeader>
           <TableRow className="border-border/50 hover:bg-transparent">
-            <TableHead className="text-muted-foreground">Reference</TableHead>
+            <TableHead className="text-muted-foreground sticky left-0 bg-muted/50 z-10">Reference</TableHead>
             <TableHead className="text-muted-foreground">Salesperson</TableHead>
             <TableHead className="text-muted-foreground">Route</TableHead>
             <TableHead className="text-muted-foreground">Ops Owner</TableHead>
@@ -130,7 +131,7 @@ export function OperationsCombinedTable({
                   key={shipment.id} 
                   className={`border-border/50 ${isNewShipment ? 'bg-primary/5 border-l-2 border-l-primary' : ''} ${isMyShipment ? 'bg-accent/30' : ''}`}
                 >
-                  <TableCell className="font-mono font-medium text-primary text-sm">
+                  <TableCell className="font-mono font-medium text-primary text-sm sticky left-0 bg-card z-10">
                     <div className="flex items-center gap-2">
                       {shipment.referenceId}
                       {isNewShipment && (
@@ -240,6 +241,7 @@ export function OperationsCombinedTable({
           )}
         </TableBody>
       </Table>
+      </div>
     </div>
   );
 }
