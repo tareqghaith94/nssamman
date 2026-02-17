@@ -5,7 +5,8 @@ import { canEditPayablesCollections } from '@/lib/permissions';
 import { UserRole } from '@/types/permissions';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { StageFilter } from '@/components/ui/StageFilter';
-import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Search } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -19,7 +20,6 @@ import { formatCurrency, Currency } from '@/lib/currency';
 import { ShipmentPayable, PartyType, ShipmentWithPayables } from '@/types/payable';
 import { PayableShipmentRow } from '@/components/payables/PayableShipmentRow';
 import { toast } from 'sonner';
-import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +33,7 @@ import {
 
 export default function Payables() {
   const [showHistory, setShowHistory] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const { data: shipmentsWithPayables = [], isLoading } = useShipmentsWithPayables(showHistory);
   const { updatePayable, editPayable, markAsPaid, undoPayment, deletePayable, addPayable, getInvoiceUrl } = useShipmentPayables();
   const { roles, profile } = useAuth();
@@ -47,7 +48,6 @@ export default function Payables() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [payableToDelete, setPayableToDelete] = useState<ShipmentPayable | null>(null);
 
-  // Check if user can edit based on shipment context
   const canEditShipment = (shipment: ShipmentWithPayables) => {
     const shipmentContext = {
       salesperson: shipment.salesperson,
@@ -56,6 +56,16 @@ export default function Payables() {
     };
     return canEditPayablesCollections(shipmentContext as any, userRoles, userName);
   };
+
+  // Filter shipments by search query
+  const filteredShipments = useMemo(() => {
+    if (!searchQuery.trim()) return shipmentsWithPayables;
+    const q = searchQuery.toLowerCase();
+    return shipmentsWithPayables.filter(s =>
+      s.referenceId.toLowerCase().includes(q) ||
+      (s.clientName && s.clientName.toLowerCase().includes(q))
+    );
+  }, [shipmentsWithPayables, searchQuery]);
 
   const handleMarkPaid = async (payable: ShipmentPayable) => {
     await markAsPaid.mutateAsync(payable.id);
@@ -102,7 +112,6 @@ export default function Payables() {
     invoiceUploaded?: boolean;
     invoiceDate?: string;
   }) => {
-    // If invoice data is included, update both in one call
     if (data.invoiceAmount !== undefined) {
       await editPayable.mutateAsync({
         id: data.id,
@@ -149,7 +158,6 @@ export default function Payables() {
       toast.error('No invoice file found');
       return;
     }
-
     try {
       const url = await getInvoiceUrl(payable.invoiceFilePath);
       if (url) {
@@ -163,7 +171,6 @@ export default function Payables() {
     }
   };
 
-  // Calculate totals
   const { totalOutstanding, pendingCount, shipmentCount } = useMemo(() => {
     let total = 0;
     let pending = 0;
@@ -213,6 +220,17 @@ export default function Payables() {
         </div>
       </div>
 
+      {/* Search bar */}
+      <div className="mb-4 relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          placeholder="Search by Reference ID or Client..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 max-w-sm"
+        />
+      </div>
+
       <div className="glass-card rounded-xl overflow-hidden">
         <Table>
           <TableHeader>
@@ -220,21 +238,20 @@ export default function Payables() {
               <TableHead className="w-10"></TableHead>
               <TableHead className="text-muted-foreground">Reference ID</TableHead>
               <TableHead className="text-muted-foreground">Client</TableHead>
-              <TableHead className="text-muted-foreground">Route</TableHead>
               <TableHead className="text-muted-foreground">Parties</TableHead>
               <TableHead className="text-muted-foreground text-right">Outstanding</TableHead>
               <TableHead className="text-muted-foreground text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {shipmentsWithPayables.length === 0 ? (
+            {filteredShipments.length === 0 ? (
               <TableRow>
-                <td colSpan={7} className="text-center py-8 text-muted-foreground">
-                  No shipments with scheduled dates (ETD/ETA) found
+                <td colSpan={6} className="text-center py-8 text-muted-foreground">
+                  {searchQuery ? 'No shipments match your search' : 'No shipments with scheduled dates (ETD/ETA) found'}
                 </td>
               </TableRow>
             ) : (
-              shipmentsWithPayables.map((shipment) => (
+              filteredShipments.map((shipment) => (
                 <PayableShipmentRow
                   key={shipment.id}
                   shipment={shipment}
