@@ -685,6 +685,112 @@ export type Database = {
         }
         Relationships: []
       }
+      telesales_calls: {
+        Row: {
+          call_date: string
+          called_by: string | null
+          contact_id: string
+          created_at: string
+          duration_minutes: number | null
+          follow_up_date: string | null
+          id: string
+          notes: string | null
+          outcome: string
+        }
+        Insert: {
+          call_date?: string
+          called_by?: string | null
+          contact_id: string
+          created_at?: string
+          duration_minutes?: number | null
+          follow_up_date?: string | null
+          id?: string
+          notes?: string | null
+          outcome: string
+        }
+        Update: {
+          call_date?: string
+          called_by?: string | null
+          contact_id?: string
+          created_at?: string
+          duration_minutes?: number | null
+          follow_up_date?: string | null
+          id?: string
+          notes?: string | null
+          outcome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telesales_calls_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "telesales_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      telesales_contacts: {
+        Row: {
+          assigned_to: string | null
+          company_name: string | null
+          contact_name: string | null
+          converted_shipment_id: string | null
+          created_at: string
+          created_by: string | null
+          email: string | null
+          id: string
+          industry: string | null
+          next_follow_up: string | null
+          notes: string | null
+          phone: string | null
+          source: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          assigned_to?: string | null
+          company_name?: string | null
+          contact_name?: string | null
+          converted_shipment_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          industry?: string | null
+          next_follow_up?: string | null
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          assigned_to?: string | null
+          company_name?: string | null
+          contact_name?: string | null
+          converted_shipment_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          industry?: string | null
+          next_follow_up?: string | null
+          notes?: string | null
+          phone?: string | null
+          source?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "telesales_contacts_converted_shipment_id_fkey"
+            columns: ["converted_shipment_id"]
+            isOneToOne: false
+            referencedRelation: "shipments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
