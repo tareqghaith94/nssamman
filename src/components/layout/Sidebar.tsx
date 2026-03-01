@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Calculator, Truck, CreditCard, Banknote, Percent, ScrollText, Database, UserCog, LogOut, Settings, CalendarDays, Menu, X } from 'lucide-react';
+import { LayoutDashboard, Users, Calculator, Truck, CreditCard, Banknote, Percent, ScrollText, Database, UserCog, LogOut, Settings, CalendarDays, Menu, X, Headphones } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/hooks/useAuth';
 import { canAccessPage } from '@/lib/permissions';
@@ -17,6 +17,7 @@ const navigationGroups = [
     items: [
       { name: 'Dashboard', href: '/', icon: LayoutDashboard },
       { name: 'Leads', href: '/leads', icon: Users },
+      { name: 'Telesales', href: '/telesales', icon: Headphones },
       { name: 'Pricing', href: '/pricing', icon: Calculator },
       { name: 'Operations', href: '/operations', icon: Truck },
     ],

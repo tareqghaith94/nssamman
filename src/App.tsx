@@ -12,6 +12,7 @@ import Operations from "./pages/Operations";
 import Payables from "./pages/Payables";
 import Collections from "./pages/Collections";
 import Commissions from "./pages/Commissions";
+import Telesales from "./pages/Telesales";
 import Database from "./pages/Database";
 import ActivityLog from "./pages/ActivityLog";
 import UserManagement from "./pages/UserManagement";
@@ -43,6 +44,7 @@ const App = () => (
                   <Routes>
                     <Route path="/" element={<Index />} />
                     <Route path="/leads" element={<Leads />} />
+                    <Route path="/telesales" element={<Telesales />} />
                     <Route path="/pricing" element={<Pricing />} />
                     <Route path="/operations" element={<Operations />} />
                     <Route path="/payables" element={<Payables />} />
