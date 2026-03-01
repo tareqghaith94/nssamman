@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronRight, ChevronDown, Plus, Check, FileCheck, AlertCircle, Clock, Eye, MoreHorizontal, Pencil, Undo2, Trash2, CreditCard } from 'lucide-react';
+import { ChevronRight, ChevronDown, Plus, Check, FileCheck, AlertCircle, Clock, Eye, MoreHorizontal, Pencil, Undo2, Trash2 } from 'lucide-react';
 import { TableCell, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -7,7 +7,6 @@ import { ShipmentWithPayables, ShipmentPayable, PartyType } from '@/types/payabl
 import { PayableTypeBadge } from './PayableTypeBadge';
 import { formatCurrency, Currency } from '@/lib/currency';
 import { format, isBefore, isToday, addDays, subDays } from 'date-fns';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -92,19 +91,17 @@ export function PayableShipmentRow({
     : `${shipment.payables.length} ${shipment.payables.length === 1 ? 'party' : 'parties'}`;
 
   return (
-    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+    <>
       {/* Main Shipment Row */}
       <TableRow className="border-border/50 hover:bg-muted/50">
         <TableCell className="w-10">
-          <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="icon" className="h-6 w-6">
-              {isOpen ? (
-                <ChevronDown className="h-4 w-4" />
-              ) : (
-                <ChevronRight className="h-4 w-4" />
-              )}
-            </Button>
-          </CollapsibleTrigger>
+          <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setIsOpen(!isOpen)}>
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4" />
+            ) : (
+              <ChevronRight className="h-4 w-4" />
+            )}
+          </Button>
         </TableCell>
         <TableCell className="font-mono font-medium text-primary">
           {shipment.referenceId}
@@ -138,128 +135,124 @@ export function PayableShipmentRow({
       </TableRow>
 
       {/* Expanded Payables Rows */}
-      <CollapsibleContent asChild>
-        <>
-          {visiblePayables.length === 0 ? (
-            <TableRow className="bg-muted/30 border-border/30">
-              <TableCell colSpan={6} className="text-center py-4 text-muted-foreground text-sm">
-                No payable parties added yet. {canEdit && 'Click "Add Party" to add one.'}
-              </TableCell>
-            </TableRow>
-          ) : (
-            visiblePayables.map((payable) => {
-              const status = getPayableStatus(payable);
-              const StatusIcon = status.icon;
-              const hasInvoice = payable.invoiceUploaded;
+      {isOpen && (
+        visiblePayables.length === 0 ? (
+          <TableRow className="bg-muted/30 border-border/30">
+            <TableCell colSpan={6} className="text-center py-4 text-muted-foreground text-sm">
+              No payable parties added yet. {canEdit && 'Click "Add Party" to add one.'}
+            </TableCell>
+          </TableRow>
+        ) : (
+          visiblePayables.map((payable) => {
+            const status = getPayableStatus(payable);
+            const StatusIcon = status.icon;
+            const hasInvoice = payable.invoiceUploaded;
 
-              return (
-                <TableRow key={payable.id} className="bg-muted/30 border-border/30">
-                  <TableCell></TableCell>
-                  <TableCell className="pl-8">
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">└</span>
-                      <PayableTypeBadge type={payable.partyType} />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div>
-                      <span>{payable.partyName}</span>
-                      {payable.paid ? (
-                        <span className={cn(
-                          'ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border',
-                          'status-success'
-                        )}>
-                          <Check className="w-3 h-3" />
-                          Paid
-                        </span>
-                      ) : (
-                        <div className="flex items-center gap-1.5 mt-0.5">
-                          <span className={cn(
-                            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border w-fit',
-                            status.className
-                          )}>
-                            <StatusIcon className="w-3 h-3" />
-                            {status.label}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {format(status.date, 'dd MMM')}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </TableCell>
-                  {/* Combined Amount column */}
-                  <TableCell>
-                    {hasInvoice ? (
-                      <span className="inline-flex items-center gap-1 font-medium text-success text-sm">
-                        <FileCheck className="w-3 h-3" />
-                        {formatCurrency(payable.invoiceAmount, payable.currency as Currency)}
-                      </span>
-                    ) : payable.estimatedAmount ? (
-                      <span className="text-muted-foreground text-sm">
-                        ~{formatCurrency(payable.estimatedAmount, payable.currency as Currency)}
+            return (
+              <TableRow key={payable.id} className="bg-muted/30 border-border/30">
+                <TableCell></TableCell>
+                <TableCell className="pl-8">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">└</span>
+                    <PayableTypeBadge type={payable.partyType} />
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div>
+                    <span>{payable.partyName}</span>
+                    {payable.paid ? (
+                      <span className={cn(
+                        'ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border',
+                        'status-success'
+                      )}>
+                        <Check className="w-3 h-3" />
+                        Paid
                       </span>
                     ) : (
-                      <span className="text-muted-foreground text-sm">—</span>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={cn(
+                          'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border w-fit',
+                          status.className
+                        )}>
+                          <StatusIcon className="w-3 h-3" />
+                          {status.label}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {format(status.date, 'dd MMM')}
+                        </span>
+                      </div>
                     )}
-                  </TableCell>
-                  <TableCell></TableCell>
-                  {/* Actions dropdown */}
-                  <TableCell className="text-right">
-                    {canEdit && (
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button variant="ghost" size="icon" className="h-7 w-7">
-                            <MoreHorizontal className="h-4 w-4" />
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="bg-popover">
-                          {!payable.paid && (
-                            <>
-                              <DropdownMenuItem onClick={() => handleEditPayable(payable)}>
-                                <Pencil className="w-3.5 h-3.5 mr-2" />
-                                Edit
-                              </DropdownMenuItem>
-                              <DropdownMenuItem 
-                                onClick={() => onMarkPaid(payable)}
-                                disabled={!hasInvoice}
-                                className="text-success focus:text-success"
-                              >
-                                <Check className="w-3.5 h-3.5 mr-2" />
-                                Mark as Paid
-                              </DropdownMenuItem>
-                            </>
-                          )}
-                          {payable.paid && (
-                            <DropdownMenuItem onClick={() => onUndoPaid(payable)}>
-                              <Undo2 className="w-3.5 h-3.5 mr-2" />
-                              Undo Payment
+                  </div>
+                </TableCell>
+                <TableCell>
+                  {hasInvoice ? (
+                    <span className="inline-flex items-center gap-1 font-medium text-success text-sm">
+                      <FileCheck className="w-3 h-3" />
+                      {formatCurrency(payable.invoiceAmount, payable.currency as Currency)}
+                    </span>
+                  ) : payable.estimatedAmount ? (
+                    <span className="text-muted-foreground text-sm">
+                      ~{formatCurrency(payable.estimatedAmount, payable.currency as Currency)}
+                    </span>
+                  ) : (
+                    <span className="text-muted-foreground text-sm">—</span>
+                  )}
+                </TableCell>
+                <TableCell></TableCell>
+                <TableCell className="text-right">
+                  {canEdit && (
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-7 w-7">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="bg-popover">
+                        {!payable.paid && (
+                          <>
+                            <DropdownMenuItem onClick={() => handleEditPayable(payable)}>
+                              <Pencil className="w-3.5 h-3.5 mr-2" />
+                              Edit
                             </DropdownMenuItem>
-                          )}
-                          {hasInvoice && onViewInvoice && payable.invoiceFilePath && (
-                            <DropdownMenuItem onClick={() => onViewInvoice(payable)}>
-                              <Eye className="w-3.5 h-3.5 mr-2" />
-                              View Invoice
+                            <DropdownMenuItem 
+                              onClick={() => onMarkPaid(payable)}
+                              disabled={!hasInvoice}
+                              className="text-success focus:text-success"
+                            >
+                              <Check className="w-3.5 h-3.5 mr-2" />
+                              Mark as Paid
                             </DropdownMenuItem>
-                          )}
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem 
-                            onClick={() => onDeletePayable(payable)}
-                            className="text-destructive focus:text-destructive"
-                          >
-                            <Trash2 className="w-3.5 h-3.5 mr-2" />
-                            Delete
+                          </>
+                        )}
+                        {payable.paid && (
+                          <DropdownMenuItem onClick={() => onUndoPaid(payable)}>
+                            <Undo2 className="w-3.5 h-3.5 mr-2" />
+                            Undo Payment
                           </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    )}
-                  </TableCell>
-                </TableRow>
-              );
-            })
-          )}
-        </>
-      </CollapsibleContent>
-    </Collapsible>
+                        )}
+                        {hasInvoice && onViewInvoice && payable.invoiceFilePath && (
+                          <DropdownMenuItem onClick={() => onViewInvoice(payable)}>
+                            <Eye className="w-3.5 h-3.5 mr-2" />
+                            View Invoice
+                          </DropdownMenuItem>
+                        )}
+                        <DropdownMenuSeparator />
+                        <DropdownMenuItem 
+                          onClick={() => onDeletePayable(payable)}
+                          className="text-destructive focus:text-destructive"
+                        >
+                          <Trash2 className="w-3.5 h-3.5 mr-2" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  )}
+                </TableCell>
+              </TableRow>
+            );
+          })
+        )
+      )}
+    </>
   );
 }
